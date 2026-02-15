@@ -1,0 +1,66 @@
+/* ======================================================
+   King's Quest: The Darkened Mirror — Stylesheet
+   ====================================================== */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    background: #111;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    overflow: hidden;
+    font-family: monospace;
+}
+
+#game-container {
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100vw;
+    height: 100vh;
+}
+
+#game-canvas {
+    /* Scale up while preserving pixel-perfect rendering */
+    width: 100vw;
+    height: calc(100vw * 200 / 320);
+    max-height: 100vh;
+    max-width: calc(100vh * 320 / 200);
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+    -ms-interpolation-mode: nearest-neighbor;
+    cursor: crosshair;
+    display: block;
+    /* Subtle CRT scanline overlay via gradient */
+    background: #000;
+}
+
+#click-prompt {
+    position: absolute;
+    bottom: 20%;
+    left: 50%;
+    transform: translateX(-50%);
+    color: #AAA;
+    font-size: 14px;
+    font-family: monospace;
+    animation: blink 1.5s infinite;
+    pointer-events: none;
+    z-index: 10;
+}
+
+@keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+}
+
+/* Hide prompt once game started */
+body.game-started #click-prompt {
+    display: none;
+}
