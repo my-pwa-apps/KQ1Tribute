@@ -29,16 +29,16 @@ body {
 
 #game-canvas {
     /* Scale up while preserving pixel-perfect rendering */
+    /* Canvas is 640x400 (2x internal) for crisp display on modern screens */
     width: 100vw;
-    height: calc(100vw * 200 / 320);
+    height: calc(100vw * 400 / 640);
     max-height: 100vh;
-    max-width: calc(100vh * 320 / 200);
+    max-width: calc(100vh * 640 / 400);
     image-rendering: pixelated;
     image-rendering: crisp-edges;
     -ms-interpolation-mode: nearest-neighbor;
     cursor: crosshair;
     display: block;
-    /* Subtle CRT scanline overlay via gradient */
     background: #000;
 }
 

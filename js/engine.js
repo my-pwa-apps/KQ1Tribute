@@ -100,23 +100,34 @@ class DissolveTransition {
         this.active = false;
         this.lfsrState = 1;
         this.pixelsRevealed = 0;
-        this.totalPixels = 320 * 162; // game area (y: 8–169)
+        this.totalPixels = 320 * 162; // logical game area (y: 8–169)
         this.pixelsPerFrame = 2600;   // ~20 frames to complete
         this.oldImageData = null;
         this.newImageData = null;
+        this.canvasWidth = 640;
+        this.canvasHeight = 400;
+        this.scale = 2;
     }
 
-    start(oldImageData, newImageData) {
+    start(oldImageData, newImageData, canvasWidth, canvasHeight, scale) {
         this.oldImageData = oldImageData;
         this.newImageData = newImageData;
+        this.canvasWidth = canvasWidth || 640;
+        this.canvasHeight = canvasHeight || 400;
+        this.scale = scale || 2;
+        // LFSR cycles through logical 320x162 game-area pixels
+        this.totalPixels = 320 * 162;
         this.lfsrState = 1;
         this.pixelsRevealed = 0;
         this.active = true;
     }
 
-    /** Advance one frame. Returns true while still transitioning. */
+    /** Advance one frame. Draws at physical canvas resolution. */
     step(ctx) {
         if (!this.active) return false;
+
+        const s = this.scale;
+        const cw = this.canvasWidth;
 
         for (let i = 0; i < this.pixelsPerFrame; i++) {
             // Advance LFSR (Galois, 16-bit maximal-length)
@@ -128,15 +139,19 @@ class DissolveTransition {
             }
 
             if (this.lfsrState < this.totalPixels) {
-                const x = this.lfsrState % 320;
-                const y = Math.floor(this.lfsrState / 320);
-                // Copy pixel from new image over old
-                const idx = ((y + 8) * 320 + x) * 4;
+                const lx = this.lfsrState % 320;
+                const ly = Math.floor(this.lfsrState / 320);
+                // Map logical pixel to physical canvas coordinates
+                const px = lx * s;
+                const py = (ly + 8) * s;
+                // Read colour from new image data at physical coords
+                const idx = (py * cw + px) * 4;
                 const r = this.newImageData.data[idx];
                 const g = this.newImageData.data[idx + 1];
                 const b = this.newImageData.data[idx + 2];
                 ctx.fillStyle = `rgb(${r},${g},${b})`;
-                ctx.fillRect(x, y + 8, 1, 1);
+                // Draw a SCALE×SCALE block (one logical pixel)
+                ctx.fillRect(px, py, s, s);
                 this.pixelsRevealed++;
             }
 
@@ -832,8 +847,11 @@ class GameEngine {
         this.ctx = this.canvas.getContext('2d');
         this.ctx.imageSmoothingEnabled = false;
 
+        // Logical dimensions (all game code uses these)
         this.WIDTH = 320;
         this.HEIGHT = 200;
+        // Canvas is 2x for crisp display on modern screens
+        this.SCALE = 2;
 
         // ── AGI subsystems ──
         this.dissolve = new DissolveTransition();
@@ -926,6 +944,8 @@ class GameEngine {
 
     getGameCoords(e) {
         const rect = this.canvas.getBoundingClientRect();
+        // Map mouse position to logical 320x200 coordinates
+        // (canvas is 640x400 physical but we work in 320x200 logical)
         return {
             x: Math.floor((e.clientX - rect.left) / rect.width * this.WIDTH),
             y: Math.floor((e.clientY - rect.top) / rect.height * this.HEIGHT)
@@ -955,7 +975,7 @@ class GameEngine {
             return;
         }
 
-        // Text is being displayed — clicking skips to end
+        // Text is being revealed — clicking skips to end
         if (this.textState.active) {
             this.textState.displayedText = this.textState.fullText;
             this.textState.charIndex = this.textState.fullText.length;
@@ -964,9 +984,14 @@ class GameEngine {
             return;
         }
 
-        // Process queued text
-        if (this.textState.queue.length > 0) {
-            this.showNextQueued();
+        // Text popup is showing (fully revealed) — click to dismiss
+        if (this.textState.displayedText) {
+            this.textState.displayedText = '';
+            this.textState.fullText = '';
+            // Process queued text
+            if (this.textState.queue.length > 0) {
+                this.showNextQueued();
+            }
             return;
         }
 
@@ -1180,11 +1205,24 @@ class GameEngine {
 
         // Enter toggles parser input (AGI-style typed commands)
         if ((key === 'Enter' || key === 'Tab') && this.state.screen === 'playing') {
-            if (!this.textState.active && this.textState.queue.length === 0) {
-                this.parser.active = true;
-                this.parser.inputBuffer = '';
+            // If text popup is showing, dismiss it first
+            if (this.textState.active) {
+                this.textState.displayedText = this.textState.fullText;
+                this.textState.charIndex = this.textState.fullText.length;
+                this.textState.active = false;
                 return;
             }
+            if (this.textState.displayedText) {
+                this.textState.displayedText = '';
+                this.textState.fullText = '';
+                if (this.textState.queue.length > 0) {
+                    this.showNextQueued();
+                }
+                return;
+            }
+            this.parser.active = true;
+            this.parser.inputBuffer = '';
+            return;
         }
 
         // Quick verb keys
@@ -1337,8 +1375,10 @@ class GameEngine {
         }
 
         // ── AGI Dissolve Transition ──
-        // Capture old screen, render new room, dissolve between them
-        const oldImageData = this.ctx.getImageData(0, 0, this.WIDTH, this.HEIGHT);
+        // Capture old screen at physical canvas resolution
+        const cw = this.canvas.width;
+        const ch = this.canvas.height;
+        const oldImageData = this.ctx.getImageData(0, 0, cw, ch);
 
         this.state.currentRoom = roomId;
         this.player.x = playerX || 160;
@@ -1356,13 +1396,16 @@ class GameEngine {
             room.onEnter(this);
         }
 
-        // Render new room to capture new image
+        // Render new room with scaling to capture at physical resolution
+        this.ctx.save();
+        this.ctx.scale(this.SCALE, this.SCALE);
         this.renderGame(this.ctx);
-        const newImageData = this.ctx.getImageData(0, 0, this.WIDTH, this.HEIGHT);
+        this.ctx.restore();
+        const newImageData = this.ctx.getImageData(0, 0, cw, ch);
 
-        // Restore old image and start dissolve
+        // Restore old image and start dissolve at physical resolution
         this.ctx.putImageData(oldImageData, 0, 0);
-        this.dissolve.start(oldImageData, newImageData);
+        this.dissolve.start(oldImageData, newImageData, cw, ch, this.SCALE);
 
         audio.sfxRoomEnter();
     }
@@ -1539,14 +1582,21 @@ class GameEngine {
 
         // ── AGI Dissolve — during transitions, step the LFSR dissolve ──
         if (this.dissolve.active) {
+            // Dissolve operates at physical canvas resolution
             this.dissolve.step(ctx);
-            // Still render status bar and verb bar during dissolve
+            // Render UI over dissolve with logical scaling
+            ctx.save();
+            ctx.scale(this.SCALE, this.SCALE);
             this.renderStatusBar(ctx);
             this.renderVerbBar(ctx);
             this.renderTextArea(ctx);
+            ctx.restore();
             return;
         }
 
+        // Apply 2x scale so all drawing at 320x200 fills the 640x400 canvas
+        ctx.save();
+        ctx.scale(this.SCALE, this.SCALE);
         ctx.clearRect(0, 0, this.WIDTH, this.HEIGHT);
 
         switch (this.state.screen) {
@@ -1556,6 +1606,13 @@ class GameEngine {
             case 'death': this.renderDeath(ctx); break;
             case 'victory': this.renderVictory(ctx); break;
         }
+
+        // AGI-style text popup window (drawn on top of everything)
+        if (this.textState.active || this.textState.displayedText) {
+            this.renderTextPopup(ctx);
+        }
+
+        ctx.restore();
     }
 
     renderTitle(ctx) {
@@ -1769,26 +1826,8 @@ class GameEngine {
             return;
         }
 
-        const text = this.textState.displayedText || '';
-        if (text) {
-            ctx.fillStyle = EGA.WHITE;
-            ctx.font = '7px monospace';
-            ctx.textAlign = 'left';
-
-            // Word wrap to 2 lines
-            const maxChars = 50;
-            if (text.length > maxChars) {
-                // Find word break near maxChars
-                let breakAt = maxChars;
-                while (breakAt > 0 && text[breakAt] !== ' ') breakAt--;
-                if (breakAt === 0) breakAt = maxChars;
-                ctx.fillText(text.substring(0, breakAt), 4, 191);
-                ctx.fillText(text.substring(breakAt).trim(), 4, 198);
-            } else {
-                ctx.fillText(text, 4, 193);
-            }
-        } else if (this.hoveredHotspot) {
-            // Show hotspot name
+        // Show hover label or parser hint (messages now use popup window)
+        if (this.hoveredHotspot) {
             ctx.fillStyle = EGA.LCYAN;
             ctx.font = '7px monospace';
             ctx.textAlign = 'left';
@@ -1803,6 +1842,75 @@ class GameEngine {
             ctx.font = '7px monospace';
             ctx.textAlign = 'center';
             ctx.fillText('Press Enter to type a command', this.WIDTH / 2, 193);
+            ctx.textAlign = 'left';
+        }
+    }
+
+    // ── AGI-Style Text Popup Window ──
+    // Authentic AGI interpreter displayed text in centered windows
+    // with a coloured background and border, dismissed by keypress/click
+
+    renderTextPopup(ctx) {
+        const text = this.textState.displayedText || '';
+        if (!text) return;
+
+        // Word-wrap text into lines
+        ctx.font = '7px monospace';
+        const maxWidth = 260;
+        const words = text.split(' ');
+        const lines = [];
+        let currentLine = '';
+
+        for (const word of words) {
+            const testLine = currentLine ? currentLine + ' ' + word : word;
+            const w = ctx.measureText(testLine).width;
+            if (w > maxWidth && currentLine) {
+                lines.push(currentLine);
+                currentLine = word;
+            } else {
+                currentLine = testLine;
+            }
+        }
+        if (currentLine) lines.push(currentLine);
+
+        const lineHeight = 10;
+        const padding = 8;
+        // Size box to fit content
+        let boxWidth = 0;
+        for (const line of lines) {
+            const lw = ctx.measureText(line).width;
+            if (lw > boxWidth) boxWidth = lw;
+        }
+        boxWidth += padding * 2;
+        const boxHeight = lines.length * lineHeight + padding * 2 + (this.textState.active ? 0 : 10);
+        const boxX = Math.floor((this.WIDTH - boxWidth) / 2);
+        const boxY = Math.max(12, Math.floor(85 - boxHeight / 2));
+
+        // Dark blue background (authentic AGI text window colour)
+        ctx.fillStyle = '#000088';
+        ctx.fillRect(boxX, boxY, boxWidth, boxHeight);
+
+        // White border (double-pixel for clarity)
+        ctx.strokeStyle = EGA.WHITE;
+        ctx.lineWidth = 1;
+        ctx.strokeRect(boxX + 1, boxY + 1, boxWidth - 2, boxHeight - 2);
+
+        // Text lines
+        ctx.fillStyle = EGA.WHITE;
+        ctx.textAlign = 'left';
+        for (let i = 0; i < lines.length; i++) {
+            ctx.fillText(lines[i], boxX + padding, boxY + padding + i * lineHeight + 7);
+        }
+
+        // "Press ENTER" hint when text is fully revealed
+        if (!this.textState.active) {
+            ctx.fillStyle = EGA.YELLOW;
+            ctx.font = '6px monospace';
+            ctx.textAlign = 'center';
+            const blink = Math.floor(this.frameCount / 20) % 2 === 0;
+            if (blink) {
+                ctx.fillText('[ click to continue ]', this.WIDTH / 2, boxY + boxHeight - 4);
+            }
             ctx.textAlign = 'left';
         }
     }
