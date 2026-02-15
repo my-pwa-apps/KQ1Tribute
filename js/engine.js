@@ -1227,6 +1227,30 @@ class GameEngine {
 
         const { verb, noun, verbWord, nounWord } = this.parser.getVerbNoun();
 
+        // ── Special: Fairy riddle answer ──
+        // If the riddle has been asked, accept the answer "map" typed in any form
+        if (this.state.currentRoom === 'enchantedLake' &&
+            this.hasFlag('riddleAsked') && !this.hasFlag('hasEmerald')) {
+            // Check if any parsed word is noun group 66 (map)
+            const hasMapWord = result.words.some(w => w.groupId === 66);
+            if (hasMapWord) {
+                this.addItem('emerald', 'Emerald', 'The Emerald of Compassion — brilliant green gem');
+                this.setFlag('hasEmerald');
+                this.addScore(12);
+                audio.sfxFairy();
+                this.showText('"A map!" you exclaim. The fairy\'s face lights up with delight. "Correct! Wisdom and compassion go hand in hand, young one." She waves her hand and the Emerald of Compassion materializes before you, pulsing with green light. "Take it, and restore the Mirror. Daventry needs you." The fairy fades into moonlight with a final, warm smile.');
+                const self = this;
+                setTimeout(() => {
+                    if (self.hasItem('sapphire') && self.hasItem('ruby')) {
+                        self.showText('You now have all three gems! Return to the Throne Room and use them on the Magic Mirror!');
+                    } else {
+                        self.showText('The Emerald of Compassion is yours! You must still find the other gems before the Mirror can be restored.');
+                    }
+                }, 3500);
+                return;
+            }
+        }
+
         // Special: "inventory" / "items"
         if (noun === 59) {
             this.state.screen = 'inventory';
@@ -1423,6 +1447,12 @@ class GameEngine {
     }
 
     showVictory() {
+        // Clear any lingering text popup so it doesn't overlay victory screen
+        this.textState.active = false;
+        this.textState.displayedText = '';
+        this.textState.fullText = '';
+        this.textState.callback = null;
+        this.textState.queue = [];
         this.state.screen = 'victory';
         this.state.won = true;
         audio.sfxVictory();

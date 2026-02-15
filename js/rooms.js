@@ -439,7 +439,7 @@ function registerAllRooms(engine) {
                 x: 238, y: 78, w: 35, h: 30,
                 walkTo: { x: 250, y: 120 },
                 actions: {
-                    Look: "The notice board reads: \"QUEST AVAILABLE: Save the kingdom. Requirements: Bravery, intelligence, or at minimum, stubbornness. Compensation: Glory and a modest pension. Apply within.\" Below that: \"LOST: One cat. Answers to 'Mr. Whiskers'. Does not actually answer to anything. Is a cat.\"",
+                    Look: "The notice board reads: \"QUEST AVAILABLE: Save the kingdom. Requirements: Bravery, intelligence, or at minimum, stubbornness. Compensation: Glory and a modest pension. Apply within.\" Below that: \"LOST: One cat. Answers to 'Mr. Whiskers'. Does not actually answer to anything. Is a cat.\" And a curious note pinned at the bottom: \"For Sale: Ye Olde Map Shoppe. Cities, forests, rivers — all on paper! No houses, trees, or water included.\"",
                     Get: "The notices are pinned quite firmly. Also, stealing official postings is a misdemeanor in Daventry.",
                     Talk: "You read the notices aloud in your best town crier voice. A pigeon on the wall seems mildly entertained."
                 }
@@ -1428,7 +1428,7 @@ function registerAllRooms(engine) {
                 x: 78, y: 10, w: 165, h: 65,
                 walkTo: { x: 160, y: 115 },
                 actions: {
-                    Look: "Shelves lined with bottles in every color: bubbling purple, shimmering gold, suspicious puce. The labels include \"Potion of Invisibility (Probably)\", \"Essence of Quite Nice Smelling\", and \"DO NOT OPEN (I Mean It This Time)\". There's also a book titled \"Curses for Dummies\" next to \"Fifty Shades of Hex\" and \"The Joy of Cooking (People Into Toads)\".",
+                    Look: "Shelves lined with bottles in every color: bubbling purple, shimmering gold, suspicious puce. The labels include \"Potion of Invisibility (Probably)\", \"Essence of Quite Nice Smelling\", and \"DO NOT OPEN (I Mean It This Time)\". There's also a book titled \"Curses for Dummies\" next to \"Fifty Shades of Hex\" and \"The Cartographer's Riddle Book: Things With Cities But No Houses\". Curious.",
                     Get: function (engine) {
                         engine.showDeath("You reach for a random bottle. It slips. It shatters. The resulting cloud of purple smoke transforms you into a particularly confused-looking hamster. Hagatha picks you up and puts you in a cage. \"I needed a new one of those,\" she says.");
                         return null;
@@ -2355,33 +2355,18 @@ function registerAllRooms(engine) {
                 });
             }
 
-            // Answer riddle (hidden hotspot at bottom of screen for text input)
+            // Answer riddle prompt (only visible after fairy asks)
             if (state.flags.riddleAsked && !state.flags.hasEmerald) {
                 spots.push({
                     id: 'riddleAnswer', name: 'Answer the Riddle',
-                    parserNouns: [60, 66],
+                    parserNouns: [60],
                     x: 80, y: 150, w: 160, h: 20,
                     walkTo: { x: 160, y: 155 },
                     actions: {
-                        Look: "The fairy awaits your answer. \"I have cities but no houses, forests but no trees, rivers but no water. What am I?\" The answer is... think carefully now.",
-                        Talk: function (engine) {
-                            // The answer is "a map" - clicking Talk on this gives it
-                            engine.addItem('emerald', 'Emerald', 'The Emerald of Compassion — brilliant green gem');
-                            engine.setFlag('hasEmerald');
-                            engine.addScore(12);
-                            audio.sfxFairy();
-                            engine.showText("\"A map!\" you exclaim. The fairy's face lights up with delight. \"Correct! Wisdom and compassion go hand in hand, young one.\" She waves her hand and the Emerald of Compassion materializes before you, pulsing with green light. \"Take it, and restore the Mirror. Daventry needs you.\" The fairy fades into moonlight with a final, warm smile.");
-                            setTimeout(() => {
-                                if (engine.hasItem('sapphire') && engine.hasItem('ruby')) {
-                                    engine.showText("You now have all three gems! Return to the Throne Room and use them on the Magic Mirror!");
-                                } else {
-                                    engine.showText("The Emerald of Compassion is yours! You must still find the other gems before the Mirror can be restored.");
-                                }
-                            }, 3500);
-                            return null;
-                        },
-                        Get: "You can't grab an answer out of thin air. Try TALKING to give your answer. Remember: cities without houses, forests without trees, rivers without water...",
-                        Use: "Perhaps you should TALK to speak your answer to the riddle. What thing shows cities, forests, and rivers — without any actual houses, trees, or water?"
+                        Look: "The fairy awaits your answer. \"I have cities but no houses, forests but no trees, rivers but no water. What am I?\" You'll need to TYPE your answer — press Enter to open the text parser.",
+                        Talk: "The fairy tilts her head expectantly. \"Do you know the answer? Type it using the text parser — press Enter and speak your answer, brave one.\"",
+                        Get: "You can't grab an answer out of thin air. Press Enter and TYPE your answer to the fairy's riddle.",
+                        Use: "You need to speak your answer aloud. Press Enter to open the text parser and type what you think the answer is."
                     }
                 });
             }
