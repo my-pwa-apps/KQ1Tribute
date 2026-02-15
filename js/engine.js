@@ -227,7 +227,7 @@ class TextParser {
             30: ['merlin', 'wizard', 'mage', 'sorcerer'],
             31: ['tree', 'trees', 'oak'],
             32: ['flower', 'flowers', 'rose', 'roses'],
-            33: ['fountain', 'water', 'pool', 'river', 'stream', 'lake'],
+            33: ['fountain', 'water', 'pool', 'river', 'stream', 'lake', 'well', 'bucket'],
             34: ['bridge', 'crossing'],
             35: ['troll', 'monster', 'beast', 'creature'],
             36: ['sign', 'signpost', 'post'],
@@ -1257,28 +1257,40 @@ class GameEngine {
 
         const hotspots = room.getHotspots ? room.getHotspots(this.state) : [];
 
-        // Check parser noun against hotspot parserNouns
+        // Check parser nouns against hotspot parserNouns
+        // Try ALL parsed nouns so "give bread to troll" finds the troll
+        const parsedNouns = result.words.filter(w => w.groupId >= 20);
         let matchedHotspot = null;
-        for (const hs of hotspots) {
-            if (hs.parserNouns && hs.parserNouns.includes(noun)) {
-                matchedHotspot = hs;
-                break;
+        let matchedNounWord = nounWord;
+
+        for (const pn of parsedNouns) {
+            for (const hs of hotspots) {
+                if (hs.parserNouns && hs.parserNouns.includes(pn.groupId)) {
+                    matchedHotspot = hs;
+                    matchedNounWord = pn.word;
+                    break;
+                }
             }
+            if (matchedHotspot) break;
         }
 
         if (!matchedHotspot) {
             // Try matching by name keyword
-            for (const hs of hotspots) {
-                if (hs.name && nounWord &&
-                    hs.name.toLowerCase().includes(nounWord.toLowerCase())) {
-                    matchedHotspot = hs;
-                    break;
+            for (const pn of parsedNouns) {
+                for (const hs of hotspots) {
+                    if (hs.name && pn.word &&
+                        hs.name.toLowerCase().includes(pn.word.toLowerCase())) {
+                        matchedHotspot = hs;
+                        matchedNounWord = pn.word;
+                        break;
+                    }
                 }
+                if (matchedHotspot) break;
             }
         }
 
         if (!matchedHotspot) {
-            this.showText(`You don't see any "${nounWord}" here.`);
+            this.showText(`You don't see any "${matchedNounWord}" here.`);
             return;
         }
 

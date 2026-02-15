@@ -978,6 +978,12 @@ function registerAllRooms(engine) {
                             return "\"NOBODY CROSSES MY BRIDGE!\" the troll roars. His breath could strip paint. \"Unless,\" he adds more quietly, \"you've got something tasty. Troll work makes a troll hungry.\" He pats his belly meaningfully.";
                         },
                         Use: function (engine) {
+                            if (engine.hasItem('bread')) {
+                                engine.removeItem('bread');
+                                engine.setFlag('trollPaid');
+                                engine.addScore(7);
+                                return "You offer the bread to the troll. His eyes light up. \"Ooh! Fresh bread! A GENTLEMAN!\" He snatches it, takes an enormous bite, and steps aside with a sweeping bow. \"You may pass!\"";
+                            }
                             engine.showDeath("You attempt to push past the troll. He clubs you into the river with the casual efficiency of someone who's done this many, many times. \"NEXT!\" he calls out cheerfully.");
                             return null;
                         }
@@ -1374,6 +1380,15 @@ function registerAllRooms(engine) {
                         return "\"Well well, a visitor! How delightful!\" The witch cackles. \"I'm Hagatha. No relation to THAT Hagatha. Different witch entirely.\" She stirs her cauldron. \"I'm brewing a Sleeping Potion — powerful enough to knock out a dragon! But I'm missing ingredients. I need a RED mushroom and some AGED cheese. Bring me those and the potion is yours, dearie!\"";
                     },
                     Use: function (engine) {
+                        if (engine.hasItem('cheese') && engine.hasItem('mushroom')) {
+                            engine.removeItem('cheese');
+                            engine.removeItem('mushroom');
+                            engine.addItem('potion', 'Sleeping Potion', 'A bubbling green sleeping potion');
+                            engine.setFlag('gotPotion');
+                            engine.addScore(10);
+                            audio.sfxMagic();
+                            return "\"Ooh, perfect!\" Hagatha snatches the cheese and mushroom. She tosses them into the cauldron, adds a pinch of something unidentifiable, and mutters an incantation. Green sparks fly! She fills a bottle with the result. \"One Sleeping Potion! Use it on the dragon. Don't drink it yourself. DON'T.\"";
+                        }
                         engine.showDeath("You try to push the witch into her own cauldron. She spins around with surprising agility. \"Rude!\" A flash of green light, and you're now a newt. You try to feel brave, but it's hard when you're two inches long. You don't get better.");
                         return null;
                     }
@@ -2047,6 +2062,13 @@ function registerAllRooms(engine) {
                             return null;
                         },
                         Use: function (engine) {
+                            if (engine.hasItem('potion')) {
+                                engine.removeItem('potion');
+                                engine.setFlag('dragonAsleep');
+                                engine.addScore(8);
+                                audio.sfxDragon();
+                                return "You carefully uncork the Sleeping Potion and pour it near the dragon's snout. The dragon sniffs... its eyelids droop... and with a thunderous snore that shakes loose several stalactites, the beast falls into a deep sleep!";
+                            }
                             engine.showDeath("You attempt to use force against the dragon. This is like using a strongly worded letter against a volcano. Effective duration: approximately 0.001 seconds.");
                             return null;
                         }
@@ -2350,7 +2372,11 @@ function registerAllRooms(engine) {
                             audio.sfxFairy();
                             engine.showText("\"A map!\" you exclaim. The fairy's face lights up with delight. \"Correct! Wisdom and compassion go hand in hand, young one.\" She waves her hand and the Emerald of Compassion materializes before you, pulsing with green light. \"Take it, and restore the Mirror. Daventry needs you.\" The fairy fades into moonlight with a final, warm smile.");
                             setTimeout(() => {
-                                engine.showText("You now have all three gems! Return to the Throne Room and use them on the Magic Mirror!");
+                                if (engine.hasItem('sapphire') && engine.hasItem('ruby')) {
+                                    engine.showText("You now have all three gems! Return to the Throne Room and use them on the Magic Mirror!");
+                                } else {
+                                    engine.showText("The Emerald of Compassion is yours! You must still find the other gems before the Mirror can be restored.");
+                                }
                             }, 3500);
                             return null;
                         },
