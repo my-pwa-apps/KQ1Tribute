@@ -39,25 +39,6 @@ function pointInRect(px, py, rx, ry, rw, rh) {
 // Authentic IBM EGA 16-color palette (6-bit RGB scaled to 8-bit)
 // Source: ScummVM engines/agi/palette.h PALETTE_EGA
 
-const EGA_PALETTE_RGB = [
-    [0x00, 0x00, 0x00], //  0: Black
-    [0x00, 0x00, 0xAA], //  1: Blue
-    [0x00, 0xAA, 0x00], //  2: Green
-    [0x00, 0xAA, 0xAA], //  3: Cyan
-    [0xAA, 0x00, 0x00], //  4: Red
-    [0xAA, 0x00, 0xAA], //  5: Magenta
-    [0xAA, 0x55, 0x00], //  6: Brown
-    [0xAA, 0xAA, 0xAA], //  7: Light Gray
-    [0x55, 0x55, 0x55], //  8: Dark Gray
-    [0x55, 0x55, 0xFF], //  9: Light Blue
-    [0x55, 0xFF, 0x55], // 10: Light Green
-    [0x55, 0xFF, 0xFF], // 11: Light Cyan
-    [0xFF, 0x55, 0x55], // 12: Light Red
-    [0xFF, 0x55, 0xFF], // 13: Light Magenta
-    [0xFF, 0xFF, 0x55], // 14: Yellow
-    [0xFF, 0xFF, 0xFF], // 15: White
-];
-
 const EGA = {
     BLACK: '#000000',
     BLUE: '#0000AA',
@@ -225,7 +206,7 @@ class TextParser {
             1: ['look', 'examine', 'inspect', 'see', 'view', 'read', 'check'],
             2: ['get', 'take', 'grab', 'pick', 'acquire', 'steal'],
             3: ['use', 'apply', 'put', 'place', 'combine', 'attach'],
-            4: ['talk', 'speak', 'ask', 'say', 'tell', 'greet', 'hello', 'hi'],
+            4: ['talk', 'speak', 'ask', 'say', 'tell', 'greet', 'hello', 'hi', 'answer', 'respond', 'reply'],
             5: ['walk', 'go', 'move', 'travel', 'run', 'enter'],
             6: ['open', 'unlock'],
             7: ['give', 'offer', 'show', 'hand'],
@@ -279,6 +260,7 @@ class TextParser {
             63: ['jar', 'jars', 'shelf', 'shelves'],
             64: ['egg', 'eggs', 'nest'],
             65: ['lyre', 'harp', 'instrument', 'music'],
+            66: ['map', 'chart', 'atlas'],
 
             // ── Ignored words (groupId 0) ──
             0: ['a', 'an', 'the', 'at', 'to', 'in', 'on', 'of', 'with',
@@ -350,13 +332,23 @@ class TextParser {
  * Draw a dithered rectangle mixing two EGA colors in a checkerboard pattern.
  * This is the authentic AGI technique for shading and gradients.
  */
+const _ditherPatterns = new Map();
 function ditherRect(ctx, x, y, w, h, color1, color2) {
-    for (let py = y; py < y + h; py++) {
-        for (let px = x; px < x + w; px++) {
-            ctx.fillStyle = ((px + py) & 1) ? color2 : color1;
-            ctx.fillRect(px, py, 1, 1);
-        }
+    const key = color1 + '|' + color2;
+    let pat = _ditherPatterns.get(key);
+    if (!pat) {
+        const c = document.createElement('canvas');
+        c.width = 2; c.height = 2;
+        const pc = c.getContext('2d');
+        pc.fillStyle = color1;
+        pc.fillRect(0, 0, 1, 1); pc.fillRect(1, 1, 1, 1);
+        pc.fillStyle = color2;
+        pc.fillRect(1, 0, 1, 1); pc.fillRect(0, 1, 1, 1);
+        pat = ctx.createPattern(c, 'repeat');
+        _ditherPatterns.set(key, pat);
     }
+    ctx.fillStyle = pat;
+    ctx.fillRect(x, y, w, h);
 }
 
 /**
@@ -915,9 +907,6 @@ class GameEngine {
         // Title screen anim
         this.titleTimer = 0;
 
-        // Inventory page
-        this.invPage = 0;
-
         // Action queue (walk then act)
         this.pendingAction = null;
 
@@ -938,6 +927,7 @@ class GameEngine {
         });
 
         document.addEventListener('keydown', (e) => {
+            if (e.key === 'Tab') e.preventDefault();
             this.handleKey(e.key);
         });
     }
@@ -970,30 +960,16 @@ class GameEngine {
             return; // just admire
         }
 
+        // Block input during dissolve transition
+        if (this.dissolve.active) return;
+
         if (this.state.screen === 'inventory') {
             this.handleInventoryClick(x, y);
             return;
         }
 
-        // Text is being revealed — clicking skips to end
-        if (this.textState.active) {
-            this.textState.displayedText = this.textState.fullText;
-            this.textState.charIndex = this.textState.fullText.length;
-            this.textState.active = false;
-            // Don't process further clicks while showing text
-            return;
-        }
-
-        // Text popup is showing (fully revealed) — click to dismiss
-        if (this.textState.displayedText) {
-            this.textState.displayedText = '';
-            this.textState.fullText = '';
-            // Process queued text
-            if (this.textState.queue.length > 0) {
-                this.showNextQueued();
-            }
-            return;
-        }
+        // Dismiss text popup (handles animation skip + popup close)
+        if (this._dismissText()) return;
 
         // Check verb bar click (y: 170-181)
         if (y >= 170 && y <= 181) {
@@ -1203,25 +1179,14 @@ class GameEngine {
             return; // swallow all other keys while parsing
         }
 
-        // Enter toggles parser input (AGI-style typed commands)
-        if ((key === 'Enter' || key === 'Tab') && this.state.screen === 'playing') {
-            // If text popup is showing, dismiss it first
-            if (this.textState.active) {
-                this.textState.displayedText = this.textState.fullText;
-                this.textState.charIndex = this.textState.fullText.length;
-                this.textState.active = false;
-                return;
+        // Space/Enter/Tab dismiss text popups; Enter/Tab also open parser
+        if ((key === 'Enter' || key === 'Tab' || key === ' ') && this.state.screen === 'playing') {
+            if (this._dismissText()) return;
+            // Space only dismisses text, doesn't open parser
+            if (key !== ' ') {
+                this.parser.active = true;
+                this.parser.inputBuffer = '';
             }
-            if (this.textState.displayedText) {
-                this.textState.displayedText = '';
-                this.textState.fullText = '';
-                if (this.textState.queue.length > 0) {
-                    this.showNextQueued();
-                }
-                return;
-            }
-            this.parser.active = true;
-            this.parser.inputBuffer = '';
             return;
         }
 
@@ -1451,6 +1416,34 @@ class GameEngine {
         audio.sfxVictory();
     }
 
+    /** Dismiss text popup: skip animation or close visible popup.
+     *  Returns true if text was dismissed, false if nothing to dismiss. */
+    _dismissText() {
+        // Text is still animating — skip to end
+        if (this.textState.active) {
+            this.textState.displayedText = this.textState.fullText;
+            this.textState.charIndex = this.textState.fullText.length;
+            this.textState.active = false;
+            // Fire callback that updateText would have triggered
+            if (this.textState.callback) {
+                const cb = this.textState.callback;
+                this.textState.callback = null;
+                cb();
+            }
+            return true;
+        }
+        // Popup is fully visible — close it
+        if (this.textState.displayedText) {
+            this.textState.displayedText = '';
+            this.textState.fullText = '';
+            if (this.textState.queue.length > 0) {
+                this.showNextQueued();
+            }
+            return true;
+        }
+        return false;
+    }
+
     // ---- Player Movement ----
 
     movePlayerTo(x, y, callback) {
@@ -1616,7 +1609,6 @@ class GameEngine {
     }
 
     renderTitle(ctx) {
-        this.titleTimer++;
 
         // Dark background with stars
         ctx.fillStyle = '#0a0a22';
@@ -1776,7 +1768,8 @@ class GameEngine {
             ctx.fillStyle = selected ? EGA.WHITE : EGA.LGRAY;
             ctx.font = '7px monospace';
             ctx.textAlign = 'center';
-            ctx.fillText(this.verbs[i], vx + verbW / 2, 179);
+            const shortcut = i < 5 ? `${i + 1}:` : '';
+            ctx.fillText(shortcut + this.verbs[i], vx + verbW / 2, 179);
         }
 
         // Selected item indicator

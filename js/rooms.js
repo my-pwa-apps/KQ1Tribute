@@ -365,11 +365,7 @@ function registerAllRooms(engine) {
             ctx.fillText('BOARD', 246, 93);
 
             // Guard NPC (near gate)
-            if (!state.flags.hasLantern) {
-                drawNPC(ctx, 110, 155, 'guard', frame);
-            } else {
-                drawNPC(ctx, 110, 155, 'guard', frame);
-            }
+            drawNPC(ctx, 110, 155, 'guard', frame);
 
             // Garden arch (right wall gap)
             ctx.fillStyle = '#228822';
@@ -2341,7 +2337,7 @@ function registerAllRooms(engine) {
             if (state.flags.riddleAsked && !state.flags.hasEmerald) {
                 spots.push({
                     id: 'riddleAnswer', name: 'Answer the Riddle',
-                    parserNouns: [60],
+                    parserNouns: [60, 66],
                     x: 80, y: 150, w: 160, h: 20,
                     walkTo: { x: 160, y: 155 },
                     actions: {

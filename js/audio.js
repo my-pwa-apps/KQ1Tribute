@@ -18,9 +18,6 @@ class GameAudio {
         this.enabled = true;
         this.initialized = false;
         this.musicTimeout = null;
-
-        // SN76496 has 3 tone channels + 1 noise = 4 channels
-        this.PSG_CHANNELS = 4;
     }
 
     init() {

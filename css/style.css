@@ -16,6 +16,8 @@ body {
     min-height: 100vh;
     overflow: hidden;
     font-family: monospace;
+    user-select: none;
+    -webkit-user-select: none;
 }
 
 #game-container {
@@ -40,6 +42,13 @@ body {
     cursor: crosshair;
     display: block;
     background: #000;
+    border: 1px solid #333;
+    box-shadow: 0 0 30px rgba(0, 50, 120, 0.3);
+}
+
+#game-canvas:focus {
+    outline: 2px solid #5577CC;
+    outline-offset: 2px;
 }
 
 #click-prompt {
