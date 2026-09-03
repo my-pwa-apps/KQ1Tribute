@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="Crown Quest">
+  <rect width="512" height="512" fill="#140f08"/>
+  <path d="M106 348h300l27-166-80 64-70-107-70 107-80-64z" fill="#d9a441"/>
+  <path d="M106 348h300l27-166-80 64-70-107-70 107-80-64z" fill="none" stroke="#8a6516" stroke-width="13" stroke-linejoin="round"/>
+  <rect x="106" y="348" width="300" height="48" fill="#8a6516"/>
+  <rect x="106" y="348" width="300" height="16" fill="#ffe28a"/>
+  <circle cx="256" cy="300" r="24" fill="#a8321f"/>
+  <circle cx="171" cy="316" r="19" fill="#3f6b3a"/>
+  <circle cx="341" cy="316" r="19" fill="#3f6b3a"/>
+</svg>

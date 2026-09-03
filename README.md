@@ -1,176 +1,147 @@
-# King's Quest: The Darkened Mirror
+# Crown Quest: A Fantasy Adventure
 
-**A Sierra Online King's Quest Tribute Game**
+**A Sierra On-Line tribute in the spirit of King's Quest I, II and III**
 
-A browser-based adventure game inspired by Sierra Online's classic King's Quest
-series (KQ1, KQ2, KQ3). Built using architectural patterns from the original
-**AGI (Adventure Game Interpreter)** engine, studied from open-source reimplementations.
+A browser-based adventure game built with plain HTML5 Canvas and JavaScript.
+No build step, no frameworks, no image or audio assets — every pixel and every
+sound is generated at runtime.
 
-Features procedurally generated environments, characters, and SN76496-style PSG
-sound effects, an original story set in the Kingdom of Daventry, interactive
-objects, a typed text parser, and the trademark Sierra humor.
+> You are **Rowan**, eleven years a scullery boy in the house of the sorcerer
+> **Morvane**. This morning the house is empty and the front door is not locked.
 
-## AGI Engine Inspiration
+---
 
-The engine architecture is directly informed by studying these open-source AGI
-and adventure game interpreters:
+## Play
 
-| Repository | Author | What we learned |
-|-----------|--------|-----------------|
-| [agi](https://github.com/lanceewing/agi) | Lance Ewing | Original Sierra AGI source code (C/Assembly) extracted from game disks |
-| [agile-gdx](https://github.com/lanceewing/agile-gdx) | Lance Ewing | Java AGI interpreter — priority bands, AnimatedObject, cel animation |
-| [nagi](https://github.com/sonneveld/nagi) | Nick Sonneveld | C AGI clone from disassembly — picture rendering, priority screen |
-| [scummvm](https://github.com/scummvm/scummvm) | ScummVM Team | C++ AGI engine — dissolve transitions, EGA palette, sprite occlusion |
-| [scumm-8](https://github.com/Liquidream/scumm-8) | Liquidream | PICO-8 SCUMM engine — simplified room/verb/inventory patterns |
-| [nscumm](https://github.com/scemino/nscumm) | scemino | C# SCUMM — script/room architecture |
-| [ags](https://github.com/adventuregamestudio/ags) | AGS Team | Adventure Game Studio — hotspot/interaction patterns |
-
-### AGI Features Implemented
-
-- **LFSR Dissolve Transitions** — Room changes use the iconic pseudo-random pixel
-  dissolve effect from ScummVM's `transition_Amiga()` (XOR polynomial `0x3500`)
-- **EGA Dithering** — CGA-style checkerboard mixing of two colors for shading,
-  replacing CSS gradients (AGI had no gradient fills)
-- **Priority-Band Depth Sorting** — Y-based priority system (priorities 4–14) for
-  correct draw ordering of player behind/in front of room elements
-- **Text Parser** — Type commands like `look mirror`, `get bread`, `talk wizard`  
-  alongside point-and-click (AGI's `WORDS.TOK` dictionary + `said()` matching)
-- **SN76496 PSG Audio** — Square wave tone generation with LFSR noise channel,
-  matching the TI SN76496 chip used in PCjr (AGI's sound hardware)
-- **Authentic EGA Palette** — Canonical 16-color IBM EGA values from ScummVM's
-  `palette.h` (6-bit RGB scaled to 8-bit: `#000000` to `#FFFFFF`)
-
-## Play the Game
-
-Open `index.html` in any modern browser, or serve via a local HTTP server:
+Open `index.html` in a browser, or serve it:
 
 ```bash
-# Using Python
-python -m http.server 8080
-
-# Using Node.js
-npx http-server -p 8080
+npm run serve      # http://127.0.0.1:8080
 ```
 
-Then navigate to `http://localhost:8080`.
+At the title screen, choose **Classic Parser** (type commands, Sierra text
+windows) or **Enhanced Click** (verb bar and point-and-click). `F10` switches
+between them at any time.
 
-## Controls
+### Controls
 
 | Input | Action |
-|-------|--------|
-| **Click** | Walk to location / interact with object |
-| **Enter** or **Tab** | Open text parser (type commands!) |
-| **1** | Select Walk verb |
-| **2** | Select Look verb |
-| **3** | Select Get verb |
-| **4** | Select Use verb |
-| **5** | Select Talk verb |
-| **I** or **6** | Open/close Inventory |
-| **ESC** | Close inventory / cancel parser |
+|---|---|
+| Click | Walk / interact with the selected verb |
+| `W` `L` `G` `U` `T` | Walk, Look, Get, Use, Talk |
+| Arrow keys | Walk |
+| `I` | Inventory |
+| `Enter` / `Tab` | Open the parser |
+| `F2` | Highlight interactive objects |
+| `F5` / `F7` | Save / load (five slots) |
+| `F8` | Text speed |
+| `M` | Mute |
+| `R` | Restart after death |
 
-### Text Parser Examples
-
-Type commands just like in the original Sierra AGI games:
-
-```
-> look mirror
-> get bread
-> talk wizard
-> use key on door
-> examine throne
-> take mushroom
-```
-
-## How to Play
-
-1. **Select a verb** from the bar at the bottom (Walk, Look, Get, Use, Talk)
-2. **Click on objects** in the scene to interact with them
-3. **Or type commands** by pressing Enter — like the original Sierra games!
-4. **Collect items** using the Get verb
-5. **Use items** by selecting one from Inventory, then clicking on a target
-6. **Talk to characters** to learn about the story and get hints
-
-## Story
-
-You are **Cedric**, a young page at Castle Daventry. King Graham has departed on
-urgent business, and the **Magic Mirror** — Daventry's most precious treasure — has
-gone dark. The court wizard Crispin tells you that three **Enchanted Gems** sustain
-the Mirror's power:
-
-- **Ruby of Courage** — hidden in a dragon's hoard
-- **Sapphire of Wisdom** — deep in a crystal cavern
-- **Emerald of Compassion** — guarded by a fairy at an enchanted lake
-
-Your quest: find all three gems and restore the Mirror before darkness falls!
-
-## Rooms
-
-The game features 11 interconnected rooms:
+The parser understands verb-noun and verb-noun-preposition-noun:
 
 ```
-Throne Room ←→ Courtyard ←→ Garden
-                    ↓
-              Forest Path
-                    ↓
-              River Bridge ←→ Witch's Cottage
-                    ↓
-              Dark Forest
-                    ↓
-            Crystal Cavern
-                    ↓
-            Mountain Pass
-                    ↓
-            Dragon's Lair
-                    ↓
-           Enchanted Lake
+> look at the hourglass
+> get the black bread
+> use the brass key on the iron chest
+> talk to corvus
+> smell
 ```
 
-## Features
+---
 
-- **AGI-authentic engine** inspired by Sierra's original Adventure Game Interpreter
-- **LFSR dissolve transitions** — iconic pixel-by-pixel room transitions
-- **Text parser input** — type commands like `look mirror` or `get bread`
-- **EGA dithering** — checkerboard color mixing (no CSS gradients — AGI didn't have them!)
-- **Priority-band depth sorting** — Y-based draw ordering like real AGI
-- **SN76496 PSG audio** — 3-channel square wave + LFSR noise (no audio files)
-- **Procedural environments** — Trees, crystals, stars, clouds generated by seeded PRNG
-- **11 unique rooms** with distinct visual themes
-- **Multiple puzzles** with item combinations
-- **Sierra-style death scenes** with humorous messages
-- **Score system** (100 points maximum)
-- **Full inventory system** with item selection
-- **NPC dialogue** with hints and humor
-- **Animated player character** with walk cycle
-- **Retro EGA-inspired graphics** at 320×200 resolution
+## The story
 
-## Tech Stack
+The three treasures of Alderhaven went missing the winter the queen's ship went
+down: the **Chest of Cormac**, the **Shield of Ardor** and the **Mirror of
+Ianthe**. The king is dying, there is no heir, and out on the western headland
+there is a tower nobody in the kingdom will name.
 
-- Pure HTML5 Canvas (no frameworks or libraries)
-- Vanilla JavaScript (~3500+ lines)
-- Web Audio API for SN76496-style procedural sound
-- CSS3 for pixel-perfect scaling
-- Zero external dependencies
+Twelve rooms across three acts, one goat, one dragon, one gnome with a name
+problem, and 250 points.
+
+---
 
 ## Architecture
 
+The game ships as ordered `<script>` tags. There is no bundler, so room files
+are parsed before the engine exists and register themselves through a queue.
+
 ```
-index.html          ← Entry point
-css/style.css       ← CRT-style pixel-perfect scaling
-js/audio.js         ← SN76496 PSG audio (square waves + LFSR noise)
-js/engine.js        ← Core engine: dissolve transitions, priority system,
-                       text parser, EGA palette, dithering, rendering
-js/rooms.js         ← 11 rooms with procedural drawing + hotspots
-js/game.js          ← Initialization + game loop startup
+index.html            UI shell: canvas, verb bar, inventory, save modal
+js/palette.js         Shared colour vocabulary (PAL)
+js/sound.js           Procedural PSG-style audio: square/triangle/noise, no files
+js/engine.js          Reusable GameEngine: render loop, input, parser, inventory,
+                      save/load, cutscenes, dialog trees, depth scaling, overlays
+js/registry.js        Room-module queue, drained by the bootstrap
+js/art.js             Drawing primitives, landscape, architecture, the treasures
+js/actors.js          The shared human cel, the cast palettes, the creatures
+js/icons.js           Inventory close-ups and speaker portraits
+js/cutscenes.js       Set pieces and the title backdrop
+js/rooms/act1.js      Morvane's house on Serpent's Crag
+js/rooms/act2.js      Alderhaven
+js/rooms/act3.js      The Amber Tower
+js/game.js            Bootstrap only: items, dialog trees, the opening, wiring
+js/vr.js              Optional first-person WebXR projection of the same scenes
+js/content.js         Score contract, item metadata, victory ranks, shared rules
 ```
+
+### Where does new code go?
+
+| Kind of change | File |
+|---|---|
+| Reusable system (input, parser, inventory, save/load, cutscene machinery, NPCs, depth scaling, overlays) | `js/engine.js` |
+| Drawing helper used by more than one room | `js/art.js` |
+| A person or a creature | `js/actors.js` |
+| An inventory icon or a speaker portrait | `js/icons.js` |
+| A set-piece animation or the title art | `js/cutscenes.js` |
+| A room's art, hotspots and puzzle logic | the matching `js/rooms/*.js` |
+| Items, dialog trees, the opening | `js/game.js` |
+| Score contract, item metadata, victory ranks, shared progression rules | `js/content.js` |
+
+Adding a module requires three registrations — `index.html`, the `ASSETS` list
+in `serviceworker.js`, and `CONTENT_FILES` in `tools/validate_content.js`. The
+static gate fails if any is missed.
+
+The engine itself is game-agnostic: item icons, speaker portraits, room scents,
+parser synonyms, classic-mode rewrites and the title backdrop are all supplied
+by the content layer rather than hard-coded.
+
+---
+
+## Development
+
+```bash
+npm install
+npm run serve            # local server on :8080
+npm run check:static     # lint + parse + content cross-references
+npm run test:functional  # behaviour, walkthrough, architecture, accessibility
+npm run test:visual      # visual regression against committed baselines
+npm run test:visual:update   # re-record baselines — then LOOK at the PNGs
+npm run check            # everything
+```
+
+`tools/validate_content.js` cross-references room ids, item ids and every
+literal flag name. A flag that is read but never written, or written but never
+read, fails the build — a misspelt flag is otherwise invisible at runtime.
+
+`tests/full-game.spec.js` plays the game from the scullery to the coronation and
+asserts the final score equals the `maxScore` the status bar advertises.
+
+Bump `VERSION` in `serviceworker.js` on every code change.
+
+---
 
 ## Credits
 
-This is an original fan tribute. King's Quest is a trademark of Activision.
-Inspired by the classic Sierra On-Line adventure games created by Roberta Williams.
+An original fan tribute. King's Quest is a trademark of Activision. Inspired by
+the adventure games of Roberta Williams and Sierra On-Line.
 
-Engine architecture informed by open-source AGI/SCUMM interpreters — see the
-table above for specific repositories studied.
+Engine architecture informed by the open-source AGI and SCUMM interpreter
+community — see `AGI_ENGINE_TECHNICAL_REFERENCE.md`.
+
+Bundled typeface: VT323 (SIL Open Font License 1.1, see `fonts/VT323-OFL.txt`).
 
 ## License
 
-This project is a fan-made tribute for educational and entertainment purposes.
+MIT. See `LICENSE`.
