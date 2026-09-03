@@ -78,18 +78,17 @@ function drawTitleBackdrop(ctx, w, h, eng, t) {
     drawAmberTower(ctx, 556, 200, 0.42, 3, t);
 
     // The channel
+    ctx.fillStyle = '#1c2338';
+    ctx.fillRect(0, 216, w, 30);
     ctx.fillStyle = '#0e1424';
-    ctx.fillRect(0, 216, w, h - 216);
-    ditherRect(ctx, 0, 216, w, 30, '#1c2338', '#0e1424', 2);
-    ditherRect(ctx, 0, 246, w, 40, '#0e1424', '#080d18', 2);
+    ctx.fillRect(0, 246, w, 40);
+    ctx.fillStyle = '#080d18';
+    ctx.fillRect(0, 286, w, h - 286);
+    blendSeam(ctx, 0, 246, w, '#1c2338', '#0e1424');
+    blendSeam(ctx, 0, 286, w, '#0e1424', '#080d18');
     // Moon road and one lit path from the tower
-    for (let i = 0; i < 30; i++) {
-        const f = i / 30;
-        ctx.fillStyle = `rgba(200,212,236,${0.36 - f * 0.28})`;
-        ctx.fillRect(moonX - f * 30 + Math.sin(t / 500 + i) * 6, 220 + i * 5.6, 10 + f * 40, 2);
-        ctx.fillStyle = `rgba(255,214,150,${0.26 - f * 0.2})`;
-        ctx.fillRect(556 - f * 24 + Math.cos(t / 620 + i) * 5, 222 + i * 5.2, 8 + f * 30, 2);
-    }
+    lightReflection(ctx, moonX, 220, 340, 26, 74, '200,212,236', 9134, t);
+    lightReflection(ctx, 556, 222, 336, 26, 57, '255,214,150', 4471, t);
 
     // The skiff crossing, small and alone
     const sail = (t % 26000) / 26000;
@@ -103,8 +102,8 @@ function drawTitleBackdrop(ctx, w, h, eng, t) {
     ctx.lineTo(640, h); ctx.lineTo(0, h);
     ctx.closePath(); ctx.fill();
     grassFringe(ctx, 0, 344, w, 2121, 100, '#1a2216', '#121a10', '#0b1009');
-    ctx.fillStyle = '#0b0d14';
-    for (let i = 0; i < 5; i++) drawPine(ctx, 40 + i * 150, 352, 0.5, i);
+    const nightPine = { deep: '#05060b', base: '#0b0e16', shadow: '#070a11', lit: '#111726', trunk: '#04050a' };
+    for (let i = 0; i < 5; i++) drawPine(ctx, 40 + i * 150, 352, 0.5, i, nightPine);
 }
 
 // ========== ACT I ==========
@@ -551,12 +550,12 @@ function cutsceneOpening(ctx, w, h, progress, elapsed) {
 
     if (phase === 0) {
         // The crag from the sea, at night, with one lit window
-        skyBands(ctx, 0, 0, w, 200, ['#080a1a', '#12183a', '#1e2a52', '#2f3f68']);
+        skyBands(ctx, 0, 0, w, 258, ['#080a1a', '#12183a', '#1e2a52', '#2f3f68']);
         starField(ctx, w, 150, 909, 90, 1);
         ctx.fillStyle = '#0d1020';
         ctx.beginPath();
-        ctx.moveTo(180, 260); ctx.lineTo(240, 120); ctx.lineTo(330, 96);
-        ctx.lineTo(420, 140); ctx.lineTo(470, 260);
+        ctx.moveTo(180, 262); ctx.lineTo(240, 120); ctx.lineTo(330, 96);
+        ctx.lineTo(420, 140); ctx.lineTo(470, 262);
         ctx.closePath(); ctx.fill();
         ctx.fillStyle = '#161a2c';
         ctx.fillRect(288, 96, 70, 54);
@@ -569,44 +568,98 @@ function cutsceneOpening(ctx, w, h, progress, elapsed) {
         ctx.fillStyle = '#0d1020';
         ctx.fillRect(309, 112, 2, 14);
         waterBand(ctx, 0, 258, w, h - 258, elapsed, 111);
-        ctx.fillStyle = 'rgba(10,12,26,0.5)';
+        // Night knocks the sea right down; the day palette reads far too bright.
+        ctx.fillStyle = 'rgba(8,10,24,0.68)';
         ctx.fillRect(0, 258, w, h - 258);
+        blendSeam(ctx, 0, 258, w, '#2f3f68', '#111a2e');
+        // The one warm reflection under the lit window
+        lightReflection(ctx, 310, 260, 340, 12, 26, '246,217,138', 5512, elapsed);
     } else if (phase === 1) {
-        // A scullery floor, a brush, and a very small pair of hands
-        ctx.fillStyle = '#2c2820';
+        // Wide on the scullery: the boy, the brush, the floor. A hands-and-brush
+        // close-up was tried first and read as a pair of legs.
+        ctx.fillStyle = '#191309';
         ctx.fillRect(0, 0, w, h);
+        stoneWall(ctx, 0, 0, w, 132, 1201, '#5e5240', '#473c2d', '#332a20', '#241d15');
+        ctx.fillStyle = 'rgba(8,6,3,0.68)';
+        ctx.fillRect(0, 0, w, 132);
+        // Skirting course and the shadow the wall throws across the flagstones
+        ctx.fillStyle = '#0d0904';
+        ctx.fillRect(0, 126, w, 10);
+        ctx.fillStyle = 'rgba(8,6,3,0.5)';
+        ctx.fillRect(0, 136, w, 26);
+        // Flagstones, courses widening fast so the floor separates from the wall
         const next = seededRandom(303);
-        for (let y = 0; y < h; y += 46) {
-            for (let x = -20; x < w; x += 62) {
+        let fy = 136;
+        let depth = 11;
+        let row = 0;
+        while (fy < h + 40) {
+            const stoneW = depth * 3.6;
+            let fx = -stoneW * (row % 2 ? 0.5 : 0.15);
+            while (fx < w + stoneW) {
                 const tone = next();
-                ctx.fillStyle = tone > 0.66 ? '#403a2f' : (tone > 0.3 ? '#37322a' : '#2d2922');
-                ctx.fillRect(x + 2, y + 2, 58, 42);
-                ctx.fillStyle = '#4a4438';
-                ctx.fillRect(x + 2, y + 2, 58, 2);
-                ctx.fillStyle = '#1d1a15';
-                ctx.fillRect(x + 2, y + 42, 58, 2);
+                // Near courses are warmer and lighter, so the floor separates
+                // from the wall instead of continuing its brickwork.
+                const band = row > 4 ? 2 : (row > 2 ? 1 : 0);
+                ctx.fillStyle = tone > 0.68
+                    ? ['#514734', '#6a5f47', '#867a5c'][band]
+                    : (tone > 0.32
+                        ? ['#463d2d', '#5b523d', '#736950'][band]
+                        : ['#3a3226', '#4c4433', '#605844'][band]);
+                ctx.fillRect(fx + 2, fy + 2, stoneW - 4, depth - 3);
+                ctx.fillStyle = band === 2 ? '#9a8d6d' : '#6d6350';
+                ctx.fillRect(fx + 2, fy + 2, stoneW - 4, 1.5 + band);
+                ctx.fillStyle = '#241f18';
+                ctx.fillRect(fx + 2, fy + depth - 3, stoneW - 4, 1.5 + band);
+                fx += stoneW;
             }
+            fy += depth;
+            depth *= 1.3;
+            row++;
         }
-        const scrub = Math.sin(elapsed / 180) * 40;
-        ctx.fillStyle = 'rgba(190,200,205,0.16)';
+        const scrub = Math.sin(elapsed / 200) * 34;
+        // The wet arc already scrubbed, with suds along its edge
+        ctx.fillStyle = 'rgba(150,180,190,0.16)';
         ctx.beginPath();
-        ctx.ellipse(320 + scrub, 250, 96, 40, 0, 0, Math.PI * 2);
+        ctx.ellipse(380, 322, 190, 52, 0, 0, Math.PI * 2);
         ctx.fill();
-        ctx.fillStyle = '#241708';
-        ctx.fillRect(276 + scrub, 232, 84, 22);
+        ctx.fillStyle = 'rgba(232,242,246,0.5)';
+        for (let i = 0; i < 34; i++) {
+            const a = next() * Math.PI * 2;
+            const rr = 0.84 + next() * 0.2;
+            ctx.fillRect(380 + Math.cos(a) * 190 * rr, 322 + Math.sin(a) * 52 * rr, 2, 2);
+        }
+        // His pail, from the shared inventory art so it is the same object
+        ctx.save();
+        ctx.translate(150, 280);
+        ctx.scale(3.4, 3.4);
+        ITEM_ART.pail(ctx, 0, 0, 0);
+        ctx.restore();
+        // Rowan, knelt over the brush: the ego cel squashed rather than redrawn
+        if (window.engine) {
+            window.engine.drawContactShadow(ctx, 330, 356, 1, { rx: 62, ry: 10, alpha: 0.34 });
+            ctx.save();
+            ctx.translate(330, 356);
+            ctx.scale(1, 0.74);
+            window.engine.drawEgoFront(ctx, 0, 0, 3.6, { armAngle: 0.45 });
+            ctx.restore();
+        }
+        // Brush under his hands
+        const bx = 400 + scrub;
+        ctx.fillStyle = '#140d05';
+        ctx.fillRect(bx - 38, 318, 76, 22);
+        ctx.fillStyle = PAL.WOOD_SHADOW;
+        ctx.fillRect(bx - 35, 321, 70, 15);
         ctx.fillStyle = PAL.WOOD_BASE;
-        ctx.fillRect(278 + scrub, 234, 80, 14);
-        ctx.fillStyle = '#8a7a54';
-        for (let i = 0; i < 26; i++) ctx.fillRect(280 + scrub + i * 3, 248, 2, 12);
-        ctx.fillStyle = PAL.PLAYER.skin;
-        ctx.fillRect(292 + scrub, 208, 24, 28);
-        ctx.fillRect(322 + scrub, 212, 24, 26);
-        ctx.fillStyle = PAL.PLAYER.skinDeep;
-        ctx.fillRect(292 + scrub, 230, 24, 6);
-        ctx.fillStyle = PAL.PLAYER.tunic;
-        ctx.fillRect(286 + scrub, 180, 36, 32);
-        ctx.fillRect(320 + scrub, 184, 36, 32);
-        window.engine && window.engine.vignette(ctx, 0.7, '6,5,10');
+        ctx.fillRect(bx - 35, 321, 70, 6);
+        ctx.fillStyle = PAL.WOOD_LIT;
+        ctx.fillRect(bx - 31, 322, 48, 2);
+        ctx.fillStyle = '#140d05';
+        ctx.fillRect(bx - 38, 336, 76, 4);
+        for (let i = 0; i < 24; i++) {
+            ctx.fillStyle = i % 3 ? '#9c8a5e' : '#7b6c47';
+            ctx.fillRect(bx - 34 + i * 2.9, 340, 2, 10);
+        }
+        window.engine && window.engine.vignette(ctx, 0.6, '6,5,10');
     } else if (phase === 2) {
         // Morvane's silhouette in a doorway, seen from the floor
         ctx.fillStyle = '#141018';

@@ -535,32 +535,38 @@ function drawTree(ctx, x, groundY, scale, seed, autumn) {
     }
 }
 
-/** Dark conifer, for the deep wood and mountain ground. */
-function drawPine(ctx, x, groundY, scale, seed) {
+/** Dark conifer, for the deep wood and mountain ground. `tones` overrides the
+ *  foliage ramp so the same cel can be used as a night silhouette. */
+function drawPine(ctx, x, groundY, scale, seed, tones) {
     const s = scale;
+    const t = tones || {};
+    const deep = t.deep || PAL.LEAF_DEEP;
+    const base = t.base || PAL.LEAF_BASE;
+    const shadow = t.shadow || PAL.LEAF_SHADOW;
+    const lit = t.lit || PAL.LEAF_LIT;
     const h = 76 * s;
-    ctx.fillStyle = '#1b1206';
+    ctx.fillStyle = t.trunk || '#1b1206';
     ctx.fillRect(x - 3 * s, groundY - 16 * s, 6 * s, 16 * s);
     const tiers = 6;
     for (let i = 0; i < tiers; i++) {
         const f = i / (tiers - 1);
         const y = groundY - 12 * s - f * h;
         const hw = (26 - f * 19) * s;
-        ctx.fillStyle = PAL.LEAF_DEEP;
+        ctx.fillStyle = deep;
         ctx.beginPath();
         ctx.moveTo(x, y - 15 * s);
         ctx.lineTo(x + hw, y + 3 * s);
         ctx.lineTo(x - hw, y + 3 * s);
         ctx.closePath();
         ctx.fill();
-        ctx.fillStyle = i % 2 ? PAL.LEAF_SHADOW : PAL.LEAF_BASE;
+        ctx.fillStyle = i % 2 ? shadow : base;
         ctx.beginPath();
         ctx.moveTo(x, y - 13 * s);
         ctx.lineTo(x + hw * 0.86, y + 1.5 * s);
         ctx.lineTo(x - hw * 0.86, y + 1.5 * s);
         ctx.closePath();
         ctx.fill();
-        ctx.fillStyle = PAL.LEAF_LIT;
+        ctx.fillStyle = lit;
         ctx.beginPath();
         ctx.moveTo(x - 1 * s, y - 12 * s);
         ctx.lineTo(x - hw * 0.5, y + 0.5 * s);
@@ -697,6 +703,30 @@ function waterBand(ctx, x, y, w, h, animTimer, seed) {
         const drift = (animTimer / (26 + f * 40) + next() * 900) % (w + 60) - 30;
         ctx.fillStyle = next() > 0.62 ? '#c7ecf6' : PAL.WATER_LIT;
         ctx.fillRect(x + drift, ly, 3 + f * 9, 1);
+    }
+}
+
+/** A path of reflected light on water, running toward the viewer from a source
+ *  at `cx`. Each row is a few broken dashes across a widening span.
+ *
+ *  Do NOT draw this as one bar per row with a per-row `sin(t + i)` offset: a
+ *  full radian of phase per row turns the path into a zigzag ladder, and an
+ *  unbroken bar fills in as a solid wedge. Both mistakes have been made here. */
+function lightReflection(ctx, cx, topY, bottomY, rows, nearSpread, tint, seed, animTimer) {
+    const next = seededRandom(seed || 9134);
+    const step = (bottomY - topY) / rows;
+    for (let i = 0; i < rows; i++) {
+        const f = i / rows;
+        const spread = nearSpread * (0.2 + f * 0.8);
+        const shimmer = Math.sin((animTimer || 0) / 900 + i * 0.34) * 3;
+        const dashes = 2 + Math.floor(next() * 3);
+        for (let d = 0; d < dashes; d++) {
+            const dx = (next() - 0.5) * spread * 2;
+            const dw = 3 + next() * (5 + f * 9);
+            const fade = 1 - Math.min(1, Math.abs(dx) / (spread * 1.15));
+            ctx.fillStyle = `rgba(${tint},${(0.42 - f * 0.26) * fade})`;
+            ctx.fillRect(cx + dx + shimmer, topY + i * step, dw, 1.6);
+        }
     }
 }
 

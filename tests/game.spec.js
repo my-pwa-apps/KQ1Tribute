@@ -217,6 +217,57 @@ test.describe('no unwinnable states', () => {
     });
 });
 
+test.describe('walking out of a room', () => {
+    /** Drive the ego to a point with click-to-walk and let update() run. */
+    async function walkTo(page, x, y) {
+        await page.evaluate(({ x: tx, y: ty }) => {
+            const e = window.engine;
+            e.textWindow = null;
+            e.currentAction = 'walk';
+            e.pendingAction = null;
+            e.playerTargetX = tx;
+            e.playerTargetY = ty;
+            e.playerWalking = true;
+        }, { x, y });
+    }
+
+    test('click-to-walk fires an exit hotspot, not just arrow keys', async ({ page }) => {
+        await boot(page);
+        await walkTo(page, 430, 332);
+        await page.waitForFunction(() => window.engine.currentRoomId === 'study', null, { timeout: 8000 });
+        expect(await page.evaluate(() => window.engine.currentRoomId)).toBe('study');
+    });
+
+    test('click-to-walk fires a screen edge transition', async ({ page }) => {
+        await boot(page);
+        await page.evaluate(() => window.engine.goToRoom('study', 200, 336));
+        await walkTo(page, 32, 340);
+        await page.waitForFunction(() => window.engine.currentRoomId === 'scullery', null, { timeout: 8000 });
+        expect(await page.evaluate(() => window.engine.currentRoomId)).toBe('scullery');
+    });
+
+    test('arriving in a room does not immediately re-trigger its exits', async ({ page }) => {
+        await boot(page);
+        await walkTo(page, 430, 332);
+        await page.waitForFunction(() => window.engine.currentRoomId === 'study', null, { timeout: 8000 });
+        await page.waitForTimeout(600);
+        expect(await page.evaluate(() => window.engine.currentRoomId)).toBe('study');
+    });
+});
+
+test.describe('overlapping hotspots resolve to the nearer object', () => {
+    test('the raven is clickable in front of the tapestry', async ({ page }) => {
+        await boot(page);
+        const hit = await page.evaluate(() => {
+            const e = window.engine;
+            e.goToRoom('study', 200, 336);
+            const hs = e.findHotspot(100, 200, e.rooms.study);
+            return hs && hs.name;
+        });
+        expect(hit).toBe('Corvus');
+    });
+});
+
 test.describe('save and load', () => {
     test('a round trip restores room, score, inventory and flags', async ({ page }) => {
         await boot(page);

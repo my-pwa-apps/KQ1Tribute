@@ -33,7 +33,7 @@
         }
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
-            background: #080818;
+            background: #140f08;
             display: flex;
             justify-content: center;
             align-items: center;
@@ -50,8 +50,8 @@
             position: relative;
             width: 644px;
             max-width: 100vw;
-            border: 3px solid #222244;
-            background: #0a0a1a;
+            border: 3px solid #4a3418;
+            background: #1a1309;
             box-shadow: 0 0 80px rgba(30,30,100,0.6), inset 0 0 20px rgba(0,0,0,0.8);
             border-radius: 6px;
             overflow: hidden;
@@ -61,8 +61,8 @@
             justify-content: space-between;
             align-items: center;
             padding: 8px 16px;
-            background: linear-gradient(to right, #0000AA, #000066);
-            border-bottom: 2px solid #5555FF;
+            background: linear-gradient(to right, #5a3d16, #33200c);
+            border-bottom: 2px solid #d9a441;
             font-size: 18px;
             text-shadow: 1px 1px 0 #000;
         }
@@ -124,16 +124,16 @@
             display: flex;
             gap: 2px;
             padding: 5px 6px;
-            background: linear-gradient(to bottom, #0000AA, #000088);
-            border-top: 1px solid #5555FF;
-            border-bottom: 1px solid #5555FF;
+            background: linear-gradient(to bottom, #5a3d16, #40290f);
+            border-top: 1px solid #d9a441;
+            border-bottom: 1px solid #d9a441;
         }
         .action-btn {
             flex: 1;
             padding: 8px 4px;
-            background: #000088;
-            border: 1px solid #5555FF;
-            color: #AAAAAA;
+            background: #40290f;
+            border: 1px solid #d9a441;
+            color: #c9bfa4;
             font-family: 'Courier New', monospace;
             font-size: 15px;
             font-weight: bold;
@@ -142,10 +142,10 @@
             transition: all 0.15s ease;
             text-shadow: 1px 1px 0 #000;
         }
-        .action-btn:hover { background: #0000CC; color: #FFFFFF; transform: translateY(-1px); }
+        .action-btn:hover { background: #78521f; color: #FFFFFF; transform: translateY(-1px); }
         .action-btn:active { transform: translateY(1px); }
         .action-btn.active {
-            background: #5555FF;
+            background: #d9a441;
             border-color: #FFFFFF;
             color: #FFFFFF;
             box-shadow: inset 0 0 5px rgba(0,0,0,0.5);
@@ -155,13 +155,13 @@
             align-items: center;
             gap: 8px;
             padding: 6px 12px;
-            background: linear-gradient(to right, #000066, #0000AA);
-            border-bottom: 1px solid #333388;
+            background: linear-gradient(to right, #33200c, #5a3d16);
+            border-bottom: 1px solid #8a6516;
             min-height: 42px;
         }
         #inv-label {
             font-size: 14px;
-            color: #AAAAAA;
+            color: #c9bfa4;
             white-space: nowrap;
             text-shadow: 1px 1px 0 #000;
         }
@@ -173,30 +173,30 @@
         }
         .inv-item {
             padding: 5px 9px;
-            background: #000088;
-            border: 1px solid #5555FF;
+            background: #40290f;
+            border: 1px solid #d9a441;
             border-radius: 2px;
             font-family: inherit;
             line-height: normal;
             font-size: 14px;
             cursor: pointer;
-            color: #AAAAAA;
+            color: #c9bfa4;
             transition: all 0.15s ease;
             white-space: nowrap;
             text-shadow: 1px 1px 0 #000;
         }
-        .inv-item:hover { background: #0000CC; color: #FFFFFF; transform: translateY(-1px); }
+        .inv-item:hover { background: #78521f; color: #FFFFFF; transform: translateY(-1px); }
         .inv-item:active { transform: translateY(1px); }
         .inv-item.selected {
-            border-color: #FFFF55;
-            color: #FFFF55;
-            background: #0000AA;
+            border-color: #ffe28a;
+            color: #ffe28a;
+            background: #5a3d16;
             box-shadow: 0 0 5px rgba(255,255,85,0.3);
         }
         #message-area {
             padding: 10px 14px;
-            background: linear-gradient(to bottom, #0000AA, #000066);
-            border-top: 1px solid #5555FF;
+            background: linear-gradient(to bottom, #5a3d16, #33200c);
+            border-top: 1px solid #d9a441;
             min-height: 64px;
             max-height: 88px;
             overflow-y: auto;
@@ -209,21 +209,21 @@
             text-shadow: 1px 1px 0 #000;
         }
         #message-area::-webkit-scrollbar { width: 6px; }
-        #message-area::-webkit-scrollbar-track { background: #000088; }
-        #message-area::-webkit-scrollbar-thumb { background: #5555FF; border-radius: 0; }
+        #message-area::-webkit-scrollbar-track { background: #40290f; }
+        #message-area::-webkit-scrollbar-thumb { background: #d9a441; border-radius: 0; }
         .save-btn {
             padding: 7px 12px;
-            background: #000088;
-            border: 1px solid #5555FF;
+            background: #40290f;
+            border: 1px solid #d9a441;
             border-radius: 2px;
-            color: #AAAAAA;
+            color: #c9bfa4;
             font-family: 'Courier New', monospace;
             font-size: 14px;
             cursor: pointer;
             transition: all 0.15s ease;
             text-shadow: 1px 1px 0 #000;
         }
-        .save-btn:hover { background: #0000CC; color: #FFFFFF; transform: translateY(-1px); }
+        .save-btn:hover { background: #78521f; color: #FFFFFF; transform: translateY(-1px); }
         .save-btn:active { transform: translateY(1px); }
         .vr-launch-btn {
             position: fixed;
@@ -242,8 +242,8 @@
             display: flex;
             gap: 6px;
             padding: 5px 10px;
-            background: linear-gradient(to right, #000066, #0000AA);
-            border-top: 1px solid #333388;
+            background: linear-gradient(to right, #33200c, #5a3d16);
+            border-top: 1px solid #8a6516;
             align-items: center;
         }
         #btn-tools { display: none; }
@@ -251,8 +251,8 @@
             display: none;
             gap: 6px;
             padding: 6px;
-            background: #000066;
-            border-top: 1px solid #5555FF;
+            background: #33200c;
+            border-top: 1px solid #d9a441;
         }
         #touch-parser-input {
             min-width: 0;
@@ -275,8 +275,8 @@
         }
         #save-modal.open { display: flex; }
         #save-modal-inner {
-            background: linear-gradient(to bottom, #0000AA, #000066);
-            border: 2px solid #5555FF;
+            background: linear-gradient(to bottom, #5a3d16, #33200c);
+            border: 2px solid #d9a441;
             padding: 20px 28px;
             min-width: 360px;
             box-shadow: 0 0 40px rgba(0,0,0,0.8);
@@ -284,7 +284,7 @@
         }
         #save-modal-inner h3 {
             margin: 0 0 14px 0;
-            color: #FFFF55;
+            color: #ffe28a;
             font-size: 18px;
             text-align: center;
             text-shadow: 1px 1px 0 #000;
@@ -300,14 +300,14 @@
         .slot-info {
             flex: 1;
             font-size: 12px;
-            color: #AAAAAA;
+            color: #c9bfa4;
         }
         .slot-info .slot-name { color: #FFFFFF; font-weight: bold; }
-        .slot-info .slot-detail { color: #5555FF; font-size: 10px; }
+        .slot-info .slot-detail { color: #d9a441; font-size: 10px; }
         .slot-action {
             padding: 5px 12px;
-            background: #000088;
-            border: 1px solid #5555FF;
+            background: #40290f;
+            border: 1px solid #d9a441;
             border-radius: 2px;
             color: #FFFFFF;
             font-family: 'Courier New', monospace;
@@ -316,7 +316,7 @@
             transition: all 0.15s ease;
             text-shadow: 1px 1px 0 #000;
         }
-        .slot-action:hover { background: #0000CC; color: #FFFFFF; transform: translateY(-1px); }
+        .slot-action:hover { background: #78521f; color: #FFFFFF; transform: translateY(-1px); }
         .slot-action:active { transform: translateY(1px); }
         .slot-action.delete { border-color: #AA0000; }
         .slot-action.delete:hover { background: #AA0000; }
@@ -324,8 +324,8 @@
             display: block;
             margin: 16px auto 0;
             padding: 8px 24px;
-            background: #000088;
-            border: 1px solid #5555FF;
+            background: #40290f;
+            border: 1px solid #d9a441;
             border-radius: 2px;
             color: #FFFFFF;
             font-family: 'Courier New', monospace;
@@ -334,7 +334,7 @@
             transition: all 0.15s ease;
             text-shadow: 1px 1px 0 #000;
         }
-        #save-modal-close:hover { background: #0000CC; transform: translateY(-1px); }
+        #save-modal-close:hover { background: #78521f; transform: translateY(-1px); }
         #save-modal-close:active { transform: translateY(1px); }
 
         /* D-pad for mobile */
@@ -350,10 +350,10 @@
             position: absolute;
             width: 40px;
             height: 40px;
-            background: #000088;
-            border: 1px solid #5555FF;
+            background: #40290f;
+            border: 1px solid #d9a441;
             border-radius: 4px;
-            color: #AAAAAA;
+            color: #c9bfa4;
             font-size: 18px;
             font-family: 'Courier New', monospace;
             cursor: pointer;
@@ -365,7 +365,7 @@
             transition: all 0.15s ease;
             text-shadow: 1px 1px 0 #000;
         }
-        .dpad-btn:active { background: #5555FF; color: #FFFFFF; transform: scale(0.95); }
+        .dpad-btn:active { background: #d9a441; color: #FFFFFF; transform: scale(0.95); }
         #dpad-up    { top: 0;   left: 40px; }
         #dpad-down  { top: 80px; left: 40px; }
         #dpad-left  { top: 40px; left: 0; }
@@ -374,8 +374,8 @@
             position: absolute;
             top: 40px; left: 40px;
             width: 40px; height: 40px;
-            background: #000055;
-            border: 1px solid #333388;
+            background: #2c1c0a;
+            border: 1px solid #8a6516;
             border-radius: 4px;
         }
 
@@ -440,8 +440,8 @@
                 padding: 2px 6px;
                 gap: 4px;
                 justify-content: center;
-                background: #000066;
-                border-top: 1px solid #333388;
+                background: #33200c;
+                border-top: 1px solid #8a6516;
             }
             .dpad-btn {
                 position: static;

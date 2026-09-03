@@ -712,23 +712,10 @@ CrownQuest.defineRooms((engine) => {
                 description: 'A tallow candle burning steadily, though nobody has been up here since dawn.',
                 get: (e) => e.showMessage('The flame leans toward your fingers with more interest than a flame should show. You leave it.')
             },
-            {
-                name: 'Corvus', x: 74, y: 176, w: 60, h: 56, walkToX: 160,
-                description: 'A raven the size of a cat, on a perch he has never once been tied to. He has watched you scrub floors for eleven years without offering to help.',
-                talk: (e) => e.startDialog('corvus'),
-                get: (e) => e.showMessage('Corvus regards your outstretched hands, then your face, then your hands again. You withdraw them.')
-            },
-            {
-                name: 'the feather', x: 118, y: 200, w: 24, h: 26, walkToX: 168,
-                description: 'A long black feather lying on the perch where Corvus dropped it.',
-                get: (e) => {
-                    e.sound.pickup();
-                    e.addToInventory('raven_feather');
-                    e.addScore(3);
-                    e.showMessage('You take the feather. Corvus watches you do it and says, distinctly, "Mm." You have never been so unnerved by a bird.');
-                },
-                get hidden() { return engine.hasItem('raven_feather'); }
-            },
+            // The tapestry and the stair behind it cover the same stretch of
+            // left wall as the perch. Hotspots are checked last-to-first, so
+            // Corvus and his feather are listed after them or the hanging
+            // swallows every click aimed at the bird standing in front of it.
             {
                 name: 'the tapestry', x: 22, y: 76, w: 116, h: 176, walkToX: 168,
                 description: 'A great faded hanging of a stag before a tower. It is the only thing in this house you have never been told to clean.',
@@ -749,6 +736,23 @@ CrownQuest.defineRooms((engine) => {
                 description: 'A narrow stair cut into the rock, going down. Cold air comes up it.',
                 onExit: (e) => e.goToRoom('spell_room', 320, 344),
                 get hidden() { return !engine.getFlag('stair_revealed'); }
+            },
+            {
+                name: 'Corvus', x: 74, y: 176, w: 60, h: 56, walkToX: 160,
+                description: 'A raven the size of a cat, on a perch he has never once been tied to. He has watched you scrub floors for eleven years without offering to help.',
+                talk: (e) => e.startDialog('corvus'),
+                get: (e) => e.showMessage('Corvus regards your outstretched hands, then your face, then your hands again. You withdraw them.')
+            },
+            {
+                name: 'the feather', x: 118, y: 200, w: 24, h: 26, walkToX: 168,
+                description: 'A long black feather lying on the perch where Corvus dropped it.',
+                get: (e) => {
+                    e.sound.pickup();
+                    e.addToInventory('raven_feather');
+                    e.addScore(3);
+                    e.showMessage('You take the feather. Corvus watches you do it and says, distinctly, "Mm." You have never been so unnerved by a bird.');
+                },
+                get hidden() { return engine.hasItem('raven_feather'); }
             },
             {
                 name: 'the front door', x: 512, y: 60, w: 96, h: 200, isExit: true, walkToX: 540,

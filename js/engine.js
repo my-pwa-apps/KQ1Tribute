@@ -1761,6 +1761,36 @@ class GameEngine {
 
     /** Set what happens when ego hits a screen edge.
      *  Like AGI's var[EGOEDGE] triggering room changes. */
+    /** Fire an exit whose walk-to point the player has just reached. Must run
+     *  for click-to-walk as well as arrow keys, or a mouse-only player can
+     *  never leave a room except by clicking the exit hotspot itself. */
+    checkExitTriggers() {
+        if (this.exitCooldown > 0) return;
+        const room = this.rooms[this.currentRoomId];
+        if (!room || !room.hotspots) return;
+        for (let i = room.hotspots.length - 1; i >= 0; i--) {
+            const hs = room.hotspots[i];
+            if (!hs.isExit || hs.hidden) continue;
+            if (this.disarmedExits.includes(hs)) {
+                if (!this.isPlayerWithinRearmRange(hs)) {
+                    this.disarmedExits = this.disarmedExits.filter((exit) => exit !== hs);
+                }
+                continue;
+            }
+            const point = this.exitTriggerPoint(hs);
+            if (Math.abs(this.playerX - point.x) < EXIT_TRIGGER_X &&
+                Math.abs(this.playerY - point.y) < EXIT_TRIGGER_Y) {
+                if (hs.onExit) {
+                    this.playerWalking = false;
+                    this.playerTargetX = null;
+                    this.playerTargetY = null;
+                    hs.onExit(this);
+                }
+                return;
+            }
+        }
+    }
+
     setEdgeTransition(edge, callback) {
         // edge: 'left', 'right', 'top', 'bottom'
         this.edgeTransitions[edge] = callback;
@@ -2280,13 +2310,13 @@ class GameEngine {
         const r = this._getDialogBoxRect();
         if (!r) return;
 
-        // AGS-style dialog box: dark blue with border
-        ctx.fillStyle = '#000088';
+        // AGS-style dialog box, dressed to match the game's own chrome.
+        ctx.fillStyle = '#2c1c0a';
         ctx.fillRect(r.boxX, r.boxY, r.boxW, r.boxH);
-        ctx.strokeStyle = '#FFFFFF';
+        ctx.strokeStyle = PAL.WINDOW_PAPER;
         ctx.lineWidth = 2;
         ctx.strokeRect(r.boxX + 1, r.boxY + 1, r.boxW - 2, r.boxH - 2);
-        ctx.strokeStyle = '#5555FF';
+        ctx.strokeStyle = PAL.GOLD_BASE;
         ctx.lineWidth = 1;
         ctx.strokeRect(r.boxX + 4, r.boxY + 4, r.boxW - 8, r.boxH - 8);
 
@@ -2300,16 +2330,16 @@ class GameEngine {
 
             // Highlight bar behind selected option
             if (isHover) {
-                ctx.fillStyle = 'rgba(80, 80, 200, 0.5)';
+                ctx.fillStyle = 'rgba(217, 164, 65, 0.34)';
                 ctx.fillRect(r.boxX + 6, r.startY + i * r.lineH - 13, r.boxW - 12, r.lineH);
             }
 
             if (isHover) {
-                ctx.fillStyle = '#FFFF55';
+                ctx.fillStyle = PAL.GOLD_LIT;
             } else if (isRead) {
-                ctx.fillStyle = '#888899';
+                ctx.fillStyle = '#8d8168';
             } else {
-                ctx.fillStyle = '#FFFFFF';
+                ctx.fillStyle = PAL.WINDOW_PAPER;
             }
 
             ctx.fillText(lines[i].text, r.boxX + r.pad + 8, r.startY + i * r.lineH);
@@ -2369,6 +2399,11 @@ class GameEngine {
             }
         }
 
+        // Snapshot the baseline so exits and edges can be tested once per frame
+        // after whichever movement branch ran below.
+        const preMoveX = this.playerX, preMoveY = this.playerY;
+        const preMoveRoom = this.currentRoomId;
+
         // Arrow key walking
         const arrowLeft = this.keysDown['ArrowLeft'];
         const arrowRight = this.keysDown['ArrowRight'];
@@ -2417,32 +2452,6 @@ class GameEngine {
                 this.playerFrameTimer = 0;
                 if (this.playerFrame === 0 || this.playerFrame === 3) this.sound.footstep();
             }
-            // Check if player walked into an exit hotspot at its walk-to position
-            const room = this.rooms[this.currentRoomId];
-            if (this.exitCooldown <= 0 && room && room.hotspots) {
-                for (let i = room.hotspots.length - 1; i >= 0; i--) {
-                    const hs = room.hotspots[i];
-                    if (!hs.isExit || hs.hidden) continue;
-                    if (this.disarmedExits.includes(hs)) {
-                        if (!this.isPlayerWithinRearmRange(hs)) {
-                            this.disarmedExits = this.disarmedExits.filter((exit) => exit !== hs);
-                        }
-                        continue;
-                    }
-                    const point = this.exitTriggerPoint(hs);
-                    // Check if player is close enough to the exit walk-to point
-                    if (Math.abs(this.playerX - point.x) < EXIT_TRIGGER_X &&
-                        Math.abs(this.playerY - point.y) < EXIT_TRIGGER_Y) {
-                        if (hs.onExit) {
-                            this.playerWalking = false;
-                            hs.onExit(this);
-                        }
-                        break;
-                    }
-                }
-            }
-            // AGI-inspired: check screen edge transitions
-            this.checkEdgeTransitions();
         }
         // Click-target walking
         else if (this.playerWalking && (this.playerTargetX !== null || this.playerTargetY !== null)) {
@@ -2528,6 +2537,15 @@ class GameEngine {
                     this.idleElapsed = 0;
                 }
             }
+        }
+
+        // One exit/edge test per frame, for arrow keys and click-to-walk alike.
+        // Skipped if a handler above already changed room, so a fresh room's
+        // exits cannot fire on the same frame the player arrived.
+        if (this.currentRoomId === preMoveRoom &&
+            (this.playerX !== preMoveX || this.playerY !== preMoveY)) {
+            this.checkExitTriggers();
+            if (this.currentRoomId === preMoveRoom) this.checkEdgeTransitions();
         }
 
         // Reset idle timer when player moves (AGS reset_character_idling_time)
