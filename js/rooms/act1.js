@@ -100,7 +100,7 @@ CrownQuest.defineRooms((engine) => {
         hint: (e) => {
             if (!e.hasItem('bread')) return 'The larder shelf holds the last of the black bread. Take it — a hard crust has uses.';
             if (!e.hasItem('sea_salt')) return 'There is a crock of coarse sea salt on the larder shelf. Take a pinch.';
-            if (!e.hasItem('pail')) return 'Your pail hangs on its hook by the hearth. You will want it.';
+            if (!e.hasItem('pail')) return 'Your pail is stood on the hearthstone, to the left of the fire. You will want it.';
             return 'Morvane is out. The stair behind you goes up to his study, and you have never once been allowed in it.';
         },
         onEnter: (e) => {
@@ -247,7 +247,7 @@ CrownQuest.defineRooms((engine) => {
                 ctx.fill();
             }
 
-            // ---- Right wall: the pail hook and a rack of copper ----
+            // ---- Right wall: a rack of copper ----
             [0.3, 0.46].forEach((f) => {
                 F.trap(ctx, 502, 620, f, f + 0.05, F.rBand);
                 ctx.fillStyle = PAL.WOOD_SHADOW; ctx.fill();
@@ -269,36 +269,16 @@ CrownQuest.defineRooms((engine) => {
                 ctx.ellipse(px - 3, py - 16, 5 - i, 3.4 - i * 0.5, 0, 0, Math.PI * 2);
                 ctx.fill();
             });
-            // The pail on its hook
+            // The pail, stood on the hearthstone where he left it. Drawn from the
+            // shared inventory art so it is unmistakably the same object, and on
+            // the floor rather than far up a side wall where it read as a smudge.
             if (!eng.hasItem('pail')) {
-                const hx = 560, hy = F.rBand(560, 0.62);
-                ctx.fillStyle = '#3a352c';
-                ctx.fillRect(hx - 2, hy - 34, 4, 10);
-                ctx.fillStyle = '#100b06';
-                ctx.beginPath();
-                ctx.moveTo(hx - 18, hy - 24); ctx.lineTo(hx + 18, hy - 24);
-                ctx.lineTo(hx + 13, hy + 12); ctx.lineTo(hx - 13, hy + 12);
-                ctx.closePath(); ctx.fill();
-                ctx.fillStyle = PAL.WOOD_SHADOW;
-                ctx.beginPath();
-                ctx.moveTo(hx - 16, hy - 22); ctx.lineTo(hx + 16, hy - 22);
-                ctx.lineTo(hx + 12, hy + 10); ctx.lineTo(hx - 12, hy + 10);
-                ctx.closePath(); ctx.fill();
-                ctx.fillStyle = PAL.WOOD_BASE;
-                ctx.fillRect(hx - 15, hy - 22, 10, 32);
-                ctx.fillStyle = PAL.WOOD_LIT;
-                ctx.fillRect(hx - 15, hy - 22, 4, 32);
-                ctx.fillStyle = '#3a352c';
-                ctx.fillRect(hx - 16, hy - 12, 32, 4);
-                ctx.fillRect(hx - 14, hy + 2, 27, 3);
-                ctx.fillStyle = '#6a6355';
-                ctx.fillRect(hx - 16, hy - 12, 32, 1);
-                ctx.strokeStyle = '#3a352c';
-                ctx.lineWidth = 2;
-                ctx.beginPath();
-                ctx.arc(hx, hy - 22, 17, Math.PI, 0);
-                ctx.stroke();
-                ctx.lineWidth = 1;
+                eng.drawContactShadow(ctx, 250, 300, 1, { rx: 26, ry: 6, alpha: 0.34 });
+                ctx.save();
+                ctx.translate(250, 282);
+                ctx.scale(1.55, 1.55);
+                ITEM_ART.pail(ctx, 0, 0, eng.animTimer);
+                ctx.restore();
             }
 
             // ---- The great scrubbing table, near left ----
@@ -368,12 +348,14 @@ CrownQuest.defineRooms((engine) => {
                 use: (e) => e.showMessage('You give the broth a stir out of eleven years of habit. It gives back nothing.')
             },
             {
-                name: 'the larder shelf', x: 24, y: 96, w: 128, h: 78,
+                name: 'the larder shelf', x: 24, y: 58, w: 128, h: 122,
                 description: 'Two plank shelves of crocks and jars. Salt, dripping, a crock of goose fat, and the end of the black bread.',
                 get: (e) => e.showMessage('You will have to take things from the shelf one at a time.')
             },
             {
-                name: 'the crock of salt', x: 34, y: 106, w: 34, h: 34, walkToX: 150,
+                // The shelves are perspective bands on the left wall, so these
+                // rects follow lBand rather than sitting at a flat y.
+                name: 'the crock of salt', x: 32, y: 60, w: 40, h: 38, walkToX: 150,
                 description: 'A stone crock of coarse grey sea salt, panned from the crag\'s own tide pools.',
                 get: (e) => {
                     if (e.hasItem('sea_salt')) { e.showMessage('You have salt enough for whatever you are planning.'); return; }
@@ -385,7 +367,7 @@ CrownQuest.defineRooms((engine) => {
                 get hidden() { return engine.hasItem('sea_salt'); }
             },
             {
-                name: 'the black bread', x: 92, y: 128, w: 44, h: 30, walkToX: 168,
+                name: 'the black bread', x: 92, y: 114, w: 46, h: 34, walkToX: 168,
                 description: 'The heel of a black loaf, gone hard as a roof slate. Even Morvane gave up on it.',
                 get: (e) => {
                     e.sound.pickup();
@@ -396,13 +378,13 @@ CrownQuest.defineRooms((engine) => {
                 get hidden() { return engine.hasItem('bread'); }
             },
             {
-                name: 'the pail', x: 536, y: 220, w: 50, h: 62, walkToX: 500,
-                description: 'Your pail. You could pick it out of a thousand pails.',
+                name: 'the pail', x: 220, y: 250, w: 62, h: 56, walkToX: 292,
+                description: 'Your pail, stood on the hearthstone. You could pick it out of a thousand pails.',
                 get: (e) => {
                     e.sound.pickup();
                     e.addToInventory('pail');
                     e.addScore(2);
-                    e.showMessage('You lift the pail off its hook. It has hung there so long the hook looks lonely.');
+                    e.showMessage('You pick up the pail. It has stood in that spot so long the flagstone under it is a different colour.');
                 },
                 get hidden() { return engine.hasItem('pail'); }
             },

@@ -268,6 +268,85 @@ test.describe('overlapping hotspots resolve to the nearer object', () => {
     });
 });
 
+test.describe('findable items are clickable where they are drawn', () => {
+    // A hotspot rect that has drifted from its art is invisible at runtime: the
+    // object is on screen and clicking it does nothing. Each point below is a
+    // pixel on the drawn object, taken from the room art.
+    const TARGETS = [
+        ['scullery', 'the crock of salt', 51, 83],
+        ['scullery', 'the black bread', 112, 128],
+        ['scullery', 'the pail', 250, 285],
+        ['study', 'the hourglass', 372, 240],
+        ['study', 'the feather', 128, 212],
+        ['spell_room', 'the iron chest', 120, 300],
+        ['spell_room', 'the chalk circle', 320, 344],
+        ['dark_wood', 'the parchment', 214, 300],
+        ['dark_wood', 'the hare', 400, 340],
+        ['village_green', 'the well', 320, 300],
+        ['well_bottom', 'the pool', 200, 346],
+        ['cloud_realm', 'the Shield of Ardor', 340, 168],
+        ['dragon_cave', 'the fire pit', 216, 344],
+        ['dragon_cave', 'the Mirror of Ianthe', 480, 314],
+        ['amber_tower', 'the sockets', 320, 272]
+    ];
+
+    for (const [room, name, x, y] of TARGETS) {
+        test(`${room}: ${name}`, async ({ page }) => {
+            await boot(page);
+            const hit = await page.evaluate(({ room: r, x: px, y: py }) => {
+                const e = window.engine;
+                e.inventory = [];
+                e.flags = {};
+                e.goToRoom(r, 320, 336);
+                const hs = e.findHotspot(px, py, e.rooms[r]);
+                return hs && hs.name;
+            }, { room, x, y });
+            expect(hit).toBe(name);
+        });
+    }
+});
+
+test.describe('text windows leave room for their art', () => {
+    // The art panel is opaque and sits at the window's right edge, so every
+    // wrapped line must end before it or the panel eats the end of the text.
+    test('an item close-up opens its own window and does not cover the text', async ({ page }) => {
+        await boot(page);
+        const r = await page.evaluate(() => {
+            const e = window.engine;
+            e.addToInventory('spellbook');
+            e.showItemCloseUp(e.items['spellbook']);
+            const tw = e.textWindow;
+            if (!tw) return { error: 'no text window' };
+            const ctx = e._measureCtx;
+            ctx.font = '13px "Courier New"';
+            return {
+                widest: Math.round(Math.max(...tw.lines.map((l) => ctx.measureText(l).width))),
+                artLeft: Math.round(tw.w - 56 - 16)
+            };
+        });
+        expect(r.error).toBeUndefined();
+        expect(r.widest).toBeLessThan(r.artLeft);
+    });
+
+    test('a portrait message does not cover the text', async ({ page }) => {
+        await boot(page);
+        const r = await page.evaluate(() => {
+            const e = window.engine;
+            e.showMessage('"You came off a ship. It broke on the rocks below this house, eleven winters back, and he went down and came up with one thing."', { window: true, portrait: 'corvus' });
+            const tw = e.textWindow;
+            if (!tw) return { error: 'no text window' };
+            const ctx = e._measureCtx;
+            ctx.font = '13px "Courier New"';
+            return {
+                widest: Math.round(Math.max(...tw.lines.map((l) => ctx.measureText(l).width))),
+                artLeft: Math.round(tw.w - 56 - 16)
+            };
+        });
+        expect(r.error).toBeUndefined();
+        expect(r.widest).toBeLessThan(r.artLeft);
+    });
+});
+
 test.describe('save and load', () => {
     test('a round trip restores room, score, inventory and flags', async ({ page }) => {
         await boot(page);

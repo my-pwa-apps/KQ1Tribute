@@ -892,7 +892,10 @@ class GameEngine {
 
     showItemCloseUp(item) {
         this.itemCloseUp = item;
-        this.showMessage(item.description);
+        // Always open a fresh window: showTextWindow only reserves room for the
+        // art panel while sizing, so dropping the panel onto a stale window
+        // paints it over the tail of every line.
+        this.showMessage(item.description, { window: true });
     }
 
     // ---- Score & Flags ----
@@ -1012,7 +1015,9 @@ class GameEngine {
             this.showTextWindow(displayText, {
                 color: '#FFFFFF',
                 duration: opts.duration || 0,
-                maxWidth: 440,
+                // No width override: showTextWindow narrows the wrap itself when
+                // a portrait or item panel has to share the window.
+                maxWidth: opts.maxWidth,
                 portrait: opts.portrait
             });
         }
