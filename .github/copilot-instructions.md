@@ -111,7 +111,7 @@ Build the geometry with `perspectiveFrame()` and paint the shell with
 
 - Vanishing point near centre screen (x≈320, y≈45–90)
 - Wall-mounted objects are perspective trapezoids computed from the frame's
-  `lBand`/`rBand`, never flat rectangles. Use `wallPanel()` or `F.trap()`.
+  `lBand`/`rBand`, never flat rectangles. Use `F.trap()`.
 - **Do not draw floor perspective-grid lines.** Depth comes from the wall
   convergence, tonal floor banding and cast shadows.
 - Call `engine.setDepthScaling()` in `onEnter` and use `addForegroundLayer()`
@@ -153,13 +153,36 @@ Scattered detail uses `seededRandom(seed)`, never `Math.random()`. Rooms must
 render identically on every frame or the visual baselines are worthless.
 Animation reads `eng.animTimer`.
 
+### Static art is cached, not repainted
+
+Seeded textures, tree ranks and stone tessellation cost real time, and repeating
+them 60 times a second pushed the heaviest rooms past their frame budget. Wrap a
+room's static prefix:
+
+```js
+ctx.drawImage(eng.staticLayer('dark_wood|scenery', (ctx, w, h) => {
+    // shell, walls, floor, litter - anything that never changes
+}), 0, 0);
+// fire, water, light shafts and actors stay out here
+```
+
+The key must encode every piece of state the art depends on. Anything reading
+`eng.animTimer` or a flag must stay outside the layer. `npm run test:perf`
+prints the per-room frame cost; keep every room under 16ms.
+
 ## Development Workflow
 
 - **Run**: `npm run serve`, then http://127.0.0.1:8080
 - **Validate**: `npm run check:static`; full gate `npm run check`
 - **Art changes**: `npm run test:visual:update`, then **look at the PNGs** before
   accepting them. A pure refactor must produce byte-identical baselines.
+- **Performance**: `npm run test:perf` prints every room's frame cost.
 - Bump `VERSION` in `serviceworker.js` after every code change.
+
+Every shared helper in `js/art.js`, `js/actors.js`, `js/icons.js` and
+`js/cutscenes.js` must be referenced by something — `tools/find_dead_art.js`
+fails the static gate otherwise, because those files disable `no-unused-vars`
+and ESLint cannot see dead code in them.
 
 ## Common Pitfalls
 

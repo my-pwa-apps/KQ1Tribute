@@ -178,6 +178,7 @@ class GameEngine {
         this.vr = null;
         this._lightPoolCache = new Map();
         this._vignetteCache = new Map();
+        this._staticLayers = new Map();
         // Text measurement happens outside the render pass (word wrap, dialog
         // hit-testing). Measuring on the visible context leaves ctx.font dirty.
         this._measureCtx = document.createElement('canvas').getContext('2d');
@@ -325,6 +326,11 @@ class GameEngine {
         else if (this.sound && this.sound.stopAmbient) this.sound.stopAmbient();
         this.cutscene = null;
         this.sequence = null;
+        // Each cached room layer holds a 640x400 backing store; a replaced
+        // engine that keeps them alive leaks megabytes.
+        this._staticLayers.clear();
+        this._lightPoolCache.clear();
+        this._vignetteCache.clear();
         if (typeof window !== 'undefined' && window.engine === this) delete window.engine;
     }
 
@@ -1301,12 +1307,27 @@ class GameEngine {
         return null;
     }
 
+    /** Run a content-supplied handler. Room and dialog code runs from event
+     *  listeners, where a throw is swallowed by the browser and the player just
+     *  sees nothing happen; this turns that into a visible, reportable failure. */
+    runContentHandler(label, fn, ...args) {
+        try {
+            return fn(...args);
+        } catch (err) {
+            console.error(`Crown Quest: ${label} failed`, err);
+            this.sound.error();
+            this.showMessage('Something in the world refuses to cooperate. That is a fault in the game, not in you.', { window: true });
+            return undefined;
+        }
+    }
+
     performAction(hotspot) {
         const action = this.currentAction;
         const scope = this.actionScope;
+        const where = `${this.currentRoomId}/${hotspot.name || 'hotspot'}`;
         if (action === 'use' && this.selectedItem) {
             if (hotspot.useItem) {
-                hotspot.useItem(scope, this.selectedItem);
+                this.runContentHandler(`${where} useItem`, hotspot.useItem, scope, this.selectedItem);
             } else {
                 const itemObj = this.items[this.selectedItem];
                 const itemName = itemObj ? itemObj.name : 'that';
@@ -1326,7 +1347,7 @@ class GameEngine {
         const handler = hotspot[action] ||
             (action === 'use' && hotspot.isExit ? hotspot.onExit : null);
         if (handler) {
-            handler(scope);
+            this.runContentHandler(`${where} ${action}`, handler, scope);
         } else if (hotspot.isExit && action !== 'look') {
             // Exits only define onExit, so without this they fall through to
             // generic snark that never tells the player it is a way out.
@@ -3098,26 +3119,69 @@ class GameEngine {
         ctx.restore();
     }
 
+    /** Cache a room's static art in an offscreen canvas and blit it thereafter.
+     *
+     *  Scenery here is procedural: a wood is several ranks of seeded tree
+     *  helpers, a turf texture and a few hundred leaf-litter rects. None of it
+     *  changes between frames, but every frame paid for all of it, which put the
+     *  heaviest rooms over the 16ms frame budget on a fast machine alone.
+     *
+     *  `key` must encode every piece of state the art depends on, so a room
+     *  whose scenery changes composes that state into the key -- for example
+     *  `dragon_cave|fire:0` and `dragon_cave|fire:1` cache separately, and the
+     *  room picks the key from its own flag. Anything animated (fire, water,
+     *  actors) stays outside the layer entirely. */
+    staticLayer(key, drawFn, w = this.WIDTH, h = this.HEIGHT) {
+        let layer = this._staticLayers.get(key);
+        if (layer) {
+            // Refresh recency so the eviction below drops genuinely cold rooms.
+            this._staticLayers.delete(key);
+            this._staticLayers.set(key, layer);
+            return layer;
+        }
+        layer = document.createElement('canvas');
+        layer.width = w;
+        layer.height = h;
+        const lctx = layer.getContext('2d');
+        lctx.imageSmoothingEnabled = false;
+        drawFn(lctx, w, h, this);
+        this._staticLayers.set(key, layer);
+        // A 640x400 layer is ~1MB. Keep a few rooms' worth so walking back and
+        // forth stays free, but never let this grow without bound.
+        while (this._staticLayers.size > 8) {
+            const oldest = this._staticLayers.keys().next().value;
+            this._staticLayers.delete(oldest);
+        }
+        return layer;
+    }
+
     /** Soft pool of light on a surface. Rooms call this after painting the floor
-     *  so ceiling strips, fires and glowing props actually spill onto the ground. */
+     *  so ceiling strips, fires and glowing props actually spill onto the ground.
+     *
+     *  Rooms animate both radius and alpha, so the cached ramp is built at unit
+     *  alpha and keyed on a quantised radius; opacity is applied with
+     *  globalAlpha, which is mathematically the same and keeps the cache bounded.
+     *  Keying on the raw floats leaked a CanvasGradient every frame. */
     lightPool(ctx, x, y, radius, color, alpha) {
         if (radius <= 0) return;
-        const rgb = color || '255,235,180';
         const a = alpha == null ? 0.18 : alpha;
-        // Gradients are immutable once built; rooms call this every frame.
-        const key = `${radius}|${rgb}|${a}`;
+        if (a <= 0) return;
+        const rgb = color || '255,235,180';
+        const r = Math.max(4, Math.round(radius / 4) * 4);
+        const key = `${r}|${rgb}`;
         let g = this._lightPoolCache.get(key);
         if (!g) {
-            g = ctx.createRadialGradient(0, 0, 0, 0, 0, radius);
-            g.addColorStop(0, `rgba(${rgb},${a})`);
-            g.addColorStop(0.55, `rgba(${rgb},${a * 0.35})`);
+            g = ctx.createRadialGradient(0, 0, 0, 0, 0, r);
+            g.addColorStop(0, `rgba(${rgb},1)`);
+            g.addColorStop(0.55, `rgba(${rgb},0.35)`);
             g.addColorStop(1, `rgba(${rgb},0)`);
             this._lightPoolCache.set(key, g);
         }
         ctx.save();
+        ctx.globalAlpha = Math.min(1, a);
         ctx.translate(x, y);
         ctx.fillStyle = g;
-        ctx.fillRect(-radius, -radius, radius * 2, radius * 2);
+        ctx.fillRect(-r, -r, r * 2, r * 2);
         ctx.restore();
     }
 
@@ -3127,16 +3191,19 @@ class GameEngine {
         const s = strength == null ? 0.35 : strength;
         if (s <= 0) return;
         const W = this.WIDTH, H = this.HEIGHT, top = 17;
-        const key = `${s}|${color || '0,0,0'}`;
-        let g = this._vignetteCache.get(key);
+        const rgb = color || '0,0,0';
+        // Unit-alpha ramp scaled by globalAlpha, so an animated strength cannot
+        // grow the cache.
+        let g = this._vignetteCache.get(rgb);
         if (!g) {
             g = ctx.createRadialGradient(W / 2, H * 0.58, H * 0.28, W / 2, H * 0.58, H * 0.95);
-            g.addColorStop(0, 'rgba(0,0,0,0)');
-            g.addColorStop(0.6, `rgba(${color || '0,0,0'},${s * 0.35})`);
-            g.addColorStop(1, `rgba(${color || '0,0,0'},${s})`);
-            this._vignetteCache.set(key, g);
+            g.addColorStop(0, `rgba(${rgb},0)`);
+            g.addColorStop(0.6, `rgba(${rgb},0.35)`);
+            g.addColorStop(1, `rgba(${rgb},1)`);
+            this._vignetteCache.set(rgb, g);
         }
         ctx.save();
+        ctx.globalAlpha = Math.min(1, s);
         ctx.beginPath();
         ctx.rect(0, top, W, H - top);
         ctx.clip();
@@ -4152,15 +4219,58 @@ class GameEngine {
 
         const loop = (timestamp) => {
             if (!this._loopRunning) return;
-            if (!this.vrActive) {
-                const dt = Math.min(timestamp - this.lastTime, 100);
-                this.lastTime = timestamp;
-                this.update(dt);
-                this.render();
+            try {
+                if (!this.vrActive) {
+                    const dt = Math.min(timestamp - this.lastTime, 100);
+                    this.lastTime = timestamp;
+                    this.update(dt);
+                    this.render();
+                }
+            } catch (err) {
+                // An unhandled throw used to skip the requestAnimationFrame at
+                // the foot of this function, freezing the game on the last good
+                // frame with nothing on screen to explain it.
+                this.reportCrash(err);
+                return;
             }
             requestAnimationFrame(loop);
         };
         requestAnimationFrame(loop);
+    }
+
+    /** Stop the loop and put a legible failure on screen. The whole game is
+     *  procedural drawing, so a single bad branch can throw every frame;
+     *  continuing would only repaint the same broken frame forever. */
+    reportCrash(err) {
+        this._loopRunning = false;
+        this.lastError = err;
+        console.error('Crown Quest: stopped in room', this.currentRoomId, err);
+        const message = `The game hit an unexpected error in "${this.currentRoomId || 'startup'}".`;
+        this.announce(message + ' Your saved games are intact. Reload the page to continue.');
+        try {
+            const ctx = this.ctx;
+            ctx.fillStyle = 'rgba(10,7,4,0.92)';
+            ctx.fillRect(0, 0, this.WIDTH, this.HEIGHT);
+            ctx.strokeStyle = PAL.GOLD_SHADOW;
+            ctx.lineWidth = 2;
+            ctx.strokeRect(40, 110, this.WIDTH - 80, 180);
+            ctx.textAlign = 'center';
+            ctx.fillStyle = PAL.GOLD_LIT;
+            ctx.font = 'bold 20px "Courier New"';
+            ctx.fillText('THE TALE BREAKS OFF', this.WIDTH / 2, 152);
+            ctx.font = '13px "Courier New"';
+            ctx.fillStyle = PAL.WINDOW_PAPER;
+            ctx.fillText(message, this.WIDTH / 2, 186);
+            ctx.fillText('Your saved games are intact.', this.WIDTH / 2, 210);
+            ctx.fillStyle = PAL.TEXT_MUTED;
+            ctx.font = '12px "Courier New"';
+            ctx.fillText('Reload the page, then press F7 to load your last save.', this.WIDTH / 2, 240);
+            ctx.font = '10px "Courier New"';
+            ctx.fillText(String(err && err.message ? err.message : err).slice(0, 78), this.WIDTH / 2, 268);
+            ctx.textAlign = 'left';
+        } catch {
+            // The canvas itself is unusable; the announcement above still fired.
+        }
     }
 }
 

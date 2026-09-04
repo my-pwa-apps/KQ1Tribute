@@ -349,20 +349,6 @@ function interiorShell(ctx, w, h, F, tone) {
     ctx.restore();
 }
 
-/** A wall-mounted rectangle drawn as a perspective trapezoid on a side wall.
- *  Wall props drawn as flat rectangles are the single fastest way to destroy
- *  a Sierra interior, so every room goes through this. */
-function wallPanel(ctx, F, band, x1, x2, f1, f2, fill, stroke) {
-    F.trap(ctx, x1, x2, f1, f2, band);
-    ctx.fillStyle = fill;
-    ctx.fill();
-    if (stroke) {
-        ctx.strokeStyle = stroke;
-        ctx.lineWidth = 1;
-        ctx.stroke();
-    }
-}
-
 // ========== LIGHT AND ATMOSPHERE ==========
 
 /** Guttering torch or candle flame. Deterministic per-frame from animTimer so

@@ -123,10 +123,15 @@ CrownQuest.defineRooms((engine) => {
             });
         },
         draw: (ctx, w, h, eng) => {
-            interiorShell(ctx, w, h, F, HOUSE_TONE);
-            houseWalls(ctx, w);
-            flagstones(ctx, w, h);
-            ceilingBeams(ctx, w);
+            // Shell, walls, floor and beams are fixed geometry and seeded
+            // texture: paint them once, then blit. The fire below is animated
+            // and stays outside the cached layer.
+            ctx.drawImage(eng.staticLayer('scullery|shell', (ctx, w, h) => {
+                interiorShell(ctx, w, h, F, HOUSE_TONE);
+                houseWalls(ctx, w);
+                flagstones(ctx, w, h);
+                ceilingBeams(ctx, w);
+            }), 0, 0);
 
             // ---- Hearth on the back wall, banked low ----
             ctx.fillStyle = '#191410';
@@ -487,11 +492,13 @@ CrownQuest.defineRooms((engine) => {
             });
         },
         draw: (ctx, w, h, eng) => {
-            interiorShell(ctx, w, h, F, Object.assign({}, HOUSE_TONE, {
-                ceiling: '#120e14', leftWall: '#3a3340', rightWall: '#2f2936',
-                back: '#463e50', backShade: '#352e3d', floor: '#2a2530',
-                floorBands: [['#38323f', 258, 26], ['#312b3a', 284, 32], ['#2a2532', 316, 38], ['#231f2a', 354, 46]]
-            }));
+            ctx.drawImage(eng.staticLayer('study|shell', (ctx, w, h) => {
+                interiorShell(ctx, w, h, F, Object.assign({}, HOUSE_TONE, {
+                    ceiling: '#120e14', leftWall: '#3a3340', rightWall: '#2f2936',
+                    back: '#463e50', backShade: '#352e3d', floor: '#2a2530',
+                    floorBands: [['#38323f', 258, 26], ['#312b3a', 284, 32], ['#2a2532', 316, 38], ['#231f2a', 354, 46]]
+                }));
+            }), 0, 0);
             drawPerspectiveSurface(ctx, 150, 120, {
                 tl: { x: 0, y: 0 }, tr: { x: F.BW_L, y: F.BW_T },
                 bl: { x: 0, y: F.EDGE }, br: { x: F.BW_L, y: F.BW_B }
@@ -812,14 +819,16 @@ CrownQuest.defineRooms((engine) => {
         },
         draw: (ctx, w, h, eng) => {
             const G = perspectiveFrame(640, 160, 480, 90, 250, 292);
-            interiorShell(ctx, w, h, G, {
-                void: '#050409',
-                ceiling: '#0c0a12',
-                back: '#2b2636', backShade: '#1f1b2a',
-                leftWall: '#252031', rightWall: '#1d1928',
-                floor: '#211d2b',
-                floorBands: [['#2a2536', 250, 26], ['#252031', 276, 32], ['#201c2a', 308, 38], ['#1a1723', 346, 50]]
-            });
+            ctx.drawImage(eng.staticLayer('spell_room|shell', (ctx, w, h) => {
+                interiorShell(ctx, w, h, G, {
+                    void: '#050409',
+                    ceiling: '#0c0a12',
+                    back: '#2b2636', backShade: '#1f1b2a',
+                    leftWall: '#252031', rightWall: '#1d1928',
+                    floor: '#211d2b',
+                    floorBands: [['#2a2536', 250, 26], ['#252031', 276, 32], ['#201c2a', 308, 38], ['#1a1723', 346, 50]]
+                });
+            }), 0, 0);
             drawPerspectiveSurface(ctx, 150, 110, {
                 tl: { x: 0, y: 0 }, tr: { x: G.BW_L, y: G.BW_T },
                 bl: { x: 0, y: G.EDGE }, br: { x: G.BW_L, y: G.BW_B }

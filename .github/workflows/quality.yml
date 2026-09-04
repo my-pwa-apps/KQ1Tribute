@@ -1,0 +1,58 @@
+name: quality
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # check_sw_version diffs against the base branch, so it needs history.
+          # Without this it silently skips and the guard is worthless on PRs.
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      # Lint, syntax-check every module, cross-reference room/item/flag names
+      # and fail on unreferenced shared art helpers.
+      - name: Static checks
+        run: npm run check:static
+
+      # The service worker cache version must change whenever shipped code does,
+      # or returning players keep the previous build.
+      - name: Service worker version
+        run: node tools/check_sw_version.js "origin/${{ github.base_ref || 'main' }}"
+
+      # Visual baselines are recorded on Windows/Chromium and are not portable
+      # across platforms, so CI runs the behavioural suites only.
+      - name: Functional and accessibility tests
+        run: npm run test:functional
+
+      - name: Render performance budget
+        run: npm run test:perf
+
+      - name: Upload failure artefacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7

@@ -743,6 +743,9 @@ CrownQuest.defineRooms((engine) => {
             });
         },
         draw: (ctx, w, h, eng) => {
+            // Canopy, tree ranks, floor and litter never change between frames,
+            // so they are painted once into a cached layer and blitted after.
+            ctx.drawImage(eng.staticLayer('dark_wood|scenery', (ctx, w, h) => {
             // A wood is closed in at the top: canopy, not sky, fills the frame.
             ctx.fillStyle = '#0f1a10';
             ctx.fillRect(0, 0, w, h);
@@ -808,6 +811,7 @@ CrownQuest.defineRooms((engine) => {
             }
             grassFringe(ctx, 0, 300, w, 3131, 90, '#7a9a4c', '#56763a', '#334a22');
             turfTexture(ctx, 0, 258, w, h - 258, 8585, 'rgba(96,132,66,0.15)', 'rgba(30,54,26,0.17)');
+            }), 0, 0);
 
             // ---- Shafts of light through the canopy ----
             [140, 336, 520].forEach((sx, i) => {
