@@ -188,44 +188,78 @@ CrownQuest.defineRooms((engine) => {
             eng.lightPool(ctx, 322, 240, 210, '255,150,60', 0.20);
 
             // ---- Larder shelves on the left wall, in perspective ----
+            // One source of truth for the shelf heights: the planks and
+            // everything standing on them are both derived from SHELF_F.
+            const SHELF_F = [0.28, 0.44];
+            const shelfTop = (x, tier) => F.lBand(x, SHELF_F[tier]);
             const shelfTone = (fill) => { ctx.fillStyle = fill; ctx.fill(); };
-            [0.28, 0.44].forEach((f, i) => {
+            SHELF_F.forEach((f, i) => {
                 F.trap(ctx, 22, 138, f, f + 0.055, F.lBand);
                 shelfTone(i ? PAL.WOOD_SHADOW : PAL.WOOD_BASE);
                 F.trap(ctx, 22, 138, f, f + 0.018, F.lBand);
                 shelfTone(PAL.WOOD_LIT);
             });
-            // Crocks, a hanging onion rope and the bread
-            const shelfY = (x, f) => F.lBand(x, f);
-            ctx.fillStyle = '#0f0c08';
-            ctx.fillRect(40, shelfY(40, 0.28) - 20, 22, 21);
-            ctx.fillStyle = '#6a5a48';
-            ctx.fillRect(42, shelfY(42, 0.28) - 18, 18, 18);
-            ctx.fillStyle = '#8a7a64';
-            ctx.fillRect(42, shelfY(42, 0.28) - 18, 6, 18);
-            ctx.fillStyle = '#c9bfa4';
-            ctx.fillRect(40, shelfY(40, 0.28) - 21, 22, 4);
-            if (!eng.hasItem('sea_salt')) {
-                ctx.fillStyle = '#e8e0cc';
-                ctx.fillRect(46, shelfY(46, 0.28) - 24, 10, 4);
+            // Crocks, a hanging onion rope and the bread.
+            // The shelf top face slopes toward the vanishing point, so an object
+            // must be measured at its OWN centre x and have its base placed on
+            // that y. Measuring at some other x is how things end up hovering.
+            /** Ellipse of contact shadow, tilted to follow the shelf's slope. */
+            const shelfShadow = (cx, tier, rx) => {
+                const y = shelfTop(cx, tier);
+                const slope = Math.atan2(shelfTop(cx + 20, tier) - shelfTop(cx - 20, tier), 40);
+                ctx.save();
+                ctx.translate(cx, y);
+                ctx.rotate(slope);
+                ctx.fillStyle = 'rgba(12,8,4,0.5)';
+                ctx.beginPath();
+                ctx.ellipse(0, 0, rx, 2.6, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            };
+
+            // Salt crock, upper shelf
+            {
+                const cx = 51, base = shelfTop(cx, 0);
+                shelfShadow(cx, 0, 13);
+                ctx.fillStyle = '#0f0c08';
+                ctx.fillRect(cx - 11, base - 21, 22, 21);
+                ctx.fillStyle = '#6a5a48';
+                ctx.fillRect(cx - 9, base - 19, 18, 19);
+                ctx.fillStyle = '#8a7a64';
+                ctx.fillRect(cx - 9, base - 19, 6, 19);
+                ctx.fillStyle = '#c9bfa4';
+                ctx.fillRect(cx - 11, base - 24, 22, 4);
+                if (!eng.hasItem('sea_salt')) {
+                    ctx.fillStyle = '#e8e0cc';
+                    ctx.fillRect(cx - 5, base - 27, 10, 4);
+                }
             }
-            ctx.fillStyle = '#0f0c08';
-            ctx.fillRect(78, shelfY(78, 0.28) - 17, 26, 18);
-            ctx.fillStyle = '#4a4438';
-            ctx.fillRect(80, shelfY(80, 0.28) - 15, 22, 15);
+            // Fat jar, upper shelf
+            {
+                const cx = 91, base = shelfTop(cx, 0);
+                shelfShadow(cx, 0, 15);
+                ctx.fillStyle = '#0f0c08';
+                ctx.fillRect(cx - 13, base - 18, 26, 18);
+                ctx.fillStyle = '#4a4438';
+                ctx.fillRect(cx - 11, base - 16, 22, 16);
+                ctx.fillStyle = '#655d4c';
+                ctx.fillRect(cx - 11, base - 16, 7, 16);
+            }
+            // The black bread, lower shelf
             if (!eng.hasItem('bread')) {
-                const by = shelfY(108, 0.44) - 12;
+                const cx = 112, base = shelfTop(cx, 1);
+                shelfShadow(cx, 1, 15);
                 ctx.fillStyle = '#2a1a0c';
                 ctx.beginPath();
-                ctx.ellipse(112, by, 15, 8, -0.1, 0, Math.PI * 2);
+                ctx.ellipse(cx, base - 8, 15, 8, -0.1, 0, Math.PI * 2);
                 ctx.fill();
                 ctx.fillStyle = '#6b4522';
                 ctx.beginPath();
-                ctx.ellipse(112, by - 1, 13, 6.4, -0.1, 0, Math.PI * 2);
+                ctx.ellipse(cx, base - 9, 13, 6.4, -0.1, 0, Math.PI * 2);
                 ctx.fill();
                 ctx.fillStyle = '#8a5c30';
                 ctx.beginPath();
-                ctx.ellipse(109, by - 3, 8, 3, -0.1, 0, Math.PI * 2);
+                ctx.ellipse(cx - 3, base - 11, 8, 3, -0.1, 0, Math.PI * 2);
                 ctx.fill();
             }
             // Onion rope hanging from a ceiling hook
