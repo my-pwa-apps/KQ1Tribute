@@ -198,17 +198,27 @@ class SoundEngine {
         this._osc('sine', 500, t + 0.04, 0.12, 0.025);
     }
 
-    /** Descending buzzer — player died (Dissonant minor downward crash) */
+    /** Stately mournful brass cadence — player died (Classic Sierra death stinger) */
     death() {
         this._cue('you have died');
         if (!this.ctx) return;
         const t = this._t();
-        const o1 = this._osc('sawtooth', 466.16, t, 0.7, 0.16); // Bb4
-        if (o1) o1.frequency.exponentialRampToValueAtTime(55, t + 0.7);
-        const o2 = this._osc('square', 440, t, 0.65, 0.12);    // A4 (dissonant semitone)
-        if (o2) o2.frequency.exponentialRampToValueAtTime(50, t + 0.65);
-        this._noise(t + 0.08, 0.6, 0.06, 1200);
-        this._osc('sawtooth', 110, t + 0.25, 0.55, 0.09);
+        // Mournful descending minor brass motif (Eb4 -> D4 -> C4 -> G3)
+        const notes = [
+            { f: 311.13, tOfs: 0.00, dur: 0.28 }, // Eb4
+            { f: 293.66, tOfs: 0.28, dur: 0.26 }, // D4
+            { f: 261.63, tOfs: 0.54, dur: 0.38 }, // C4
+            { f: 196.00, tOfs: 0.92, dur: 0.90 }  // G3 (final sustained low toll)
+        ];
+        notes.forEach((n) => {
+            this._osc('triangle', n.f, t + n.tOfs, n.dur, 0.20);
+            this._osc('sawtooth', n.f * 0.5, t + n.tOfs, n.dur, 0.10);
+            this._osc('square', n.f, t + n.tOfs, n.dur * 0.7, 0.06);
+        });
+        // Low solemn timpani resonance on the final note
+        this._noise(t + 0.92, 0.5, 0.08, 320);
+        const boom = this._osc('sine', 98, t + 0.92, 1.1, 0.22);
+        if (boom) boom.frequency.exponentialRampToValueAtTime(45, t + 1.9);
     }
 
     /** Triumphant fanfare — victory! (4-voice brassy chiptune cadence) */

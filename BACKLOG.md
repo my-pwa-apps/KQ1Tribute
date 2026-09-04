@@ -1,4 +1,4 @@
-# Crown Quest — Engineering Backlog
+w# Crown Quest — Engineering Backlog
 
 Findings from a full-repository review (architecture, code, performance, security,
 reliability, testing, maintainability, UX). Items already fixed during the review
@@ -187,3 +187,7 @@ Priority: **P1** blocks confidence in the product · **P2** meaningful risk or c
 - [x] **No continuous integration** — added `.github/workflows/quality.yml` running the static gate, the service-worker version guard, the functional and accessibility suites and the performance budget on every push and pull request.
 - [x] **Cached canvases outlived the engine** — `destroy()` now clears the static-layer and gradient caches.
 - [x] **Inline CSP was weaker than the deployed header** — `_headers` is a Cloudflare Pages / Netlify convention, so hosts that ignore it fell back to a `<meta>` policy missing `base-uri`, `object-src` and `form-action`. The two now match on every directive a meta tag can express.
+- [x] **Doused dragon art direction** — replaced artificial purple palette swap with authentic Sierra-style narrative exhaustion: cooled crimson tones, drooped wings, head resting low on paws, heavy sleeping eyelid, soot/ash streaks, and cavern steam motes.
+- [x] **Organic canopy silhouetting in Dark Wood** — added gnarly branch silhouettes, twig breaks, and ragged leaf clusters cutting across the canopy sky openings to break procedural mathematical curve profiles.
+- [x] **Cloud Realm horizon grounding** — added billowing cumulus cloud crests along the horizon line nesting the marble pillars directly into the cloud deck.
+- [x] **Classic Sierra death stinger** — replaced generic descending pitch buzzer with a 4-note mournful minor brass stinger (Eb4 -> D4 -> C4 -> G3) and low timpani resonance.

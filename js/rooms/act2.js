@@ -792,6 +792,31 @@ CrownQuest.defineRooms((engine) => {
                 ctx.ellipse(cx, 26 + (cx % 4) * 6, 30, 18, 0, 0, Math.PI * 2);
                 ctx.fill();
             }
+            // Gnarly branch silhouettes and twig breaks cutting across the sky openings
+            ctx.fillStyle = '#0d0f0a';
+            const brGen = seededRandom(7722);
+            for (let bx = 16; bx < w + 20; bx += 46) {
+                const reach = 22 + brGen() * 26;
+                const by = 40 + (bx % 3) * 6;
+                ctx.beginPath();
+                ctx.moveTo(bx - 3, by);
+                ctx.lineTo(bx + 3, by);
+                ctx.lineTo(bx + 7, by + reach);
+                ctx.lineTo(bx + 3, by + reach);
+                ctx.closePath();
+                ctx.fill();
+                // Forked twig
+                ctx.beginPath();
+                ctx.moveTo(bx + 4, by + reach * 0.45);
+                ctx.lineTo(bx - 7, by + reach * 0.8);
+                ctx.lineTo(bx - 5, by + reach * 0.8 + 2);
+                ctx.closePath();
+                ctx.fill();
+                // Small leaf clusters breaking the silhouette
+                for (let li = 0; li < 4; li++) {
+                    ctx.fillRect(bx + 3 + li * 2 - (li % 2 ? 3 : 0), by + reach - 2 + (li % 3) * 2, 4, 3);
+                }
+            }
             // Forest floor
             ctx.fillStyle = '#2c3a20';
             ctx.fillRect(0, 254, w, h - 254);
@@ -1219,6 +1244,18 @@ CrownQuest.defineRooms((engine) => {
             ctx.fillStyle = '#c6d6e6';
             ctx.fillRect(0, 200, w, h - 200);
             blendSeam(ctx, 0, 206, w, '#a8cbe8', '#c6d6e6');
+            // Billowing cumulus crests along the horizon line to nest the pillars into the cloud deck
+            const horizCloud = seededRandom(5151);
+            for (let hx = -12; hx < w + 24; hx += 24) {
+                const hr = 18 + horizCloud() * 16;
+                const hy = 202 + horizCloud() * 6;
+                ctx.fillStyle = '#b8cee0';
+                ctx.beginPath(); ctx.ellipse(hx, hy + 3, hr, hr * 0.52, 0, 0, Math.PI * 2); ctx.fill();
+                ctx.fillStyle = '#d8e8f8';
+                ctx.beginPath(); ctx.ellipse(hx, hy, hr * 0.9, hr * 0.46, 0, 0, Math.PI * 2); ctx.fill();
+                ctx.fillStyle = '#ffffff';
+                ctx.beginPath(); ctx.ellipse(hx - hr * 0.2, hy - hr * 0.15, hr * 0.45, hr * 0.24, 0, 0, Math.PI * 2); ctx.fill();
+            }
             ctx.fillStyle = '#dae6f0';
             ctx.fillRect(0, 248, w, h - 248);
             blendSeam(ctx, 0, 242 + 8, w, '#c6d6e6', '#dae6f0');
@@ -1572,6 +1609,10 @@ CrownQuest.defineRooms((engine) => {
             mouth(20, '#a8c48a');
             // Daylight spilling back onto the cave floor
             lightShaft(ctx, 596, 268, 40, 574, 372, 92, 0.16, 'rgba(200,240,170,1)');
+
+            if (doused) {
+                dustMotes(ctx, w, h, eng.animTimer, 24, 'rgba(215,225,235,0.22)');
+            }
 
             eng.vignette(ctx, doused ? 0.6 : 0.42, doused ? '6,6,12' : '40,8,4');
         },

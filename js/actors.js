@@ -791,18 +791,18 @@ function drawSleepingGiant(ctx, x, groundY, s, animTimer) {
 
 /** The cave dragon. Coiled around its fire, or recoiling from a drenching. */
 function drawDragon(ctx, x, groundY, s, animTimer, doused) {
-    const breathe = Math.sin((animTimer || 0) / 620) * 2 * s;
+    const breathe = Math.sin((animTimer || 0) / 620) * (doused ? 0.9 : 2) * s;
     ctx.save();
     ctx.translate(x, groundY);
     if (doused) {
-        // Backed off, head raised, wings clamped: same beast, humiliated.
-        ctx.translate(28 * s, 0);
-        ctx.scale(0.92, 0.92);
+        // Humbled, curled down over the dead ash, head resting low.
+        ctx.translate(14 * s, 6 * s);
     }
-    const body = doused ? '#4a3550' : '#5a2a2a';
-    const bodyHi = doused ? '#6c4f72' : '#8a4034';
-    const bodyLo = doused ? '#2c1d34' : '#331414';
-    const belly = doused ? '#8a7a5a' : '#c29a4a';
+    // Doused dragon: still the red dragon of Alderhaven, but cooled, sooty, and subdued
+    const body = doused ? '#442220' : '#5a2a2a';
+    const bodyHi = doused ? '#623230' : '#8a4034';
+    const bodyLo = doused ? '#221010' : '#331414';
+    const belly = doused ? '#6e624c' : '#c29a4a';
 
     // Tail curling away to the right
     ctx.fillStyle = '#0d0708';
@@ -868,44 +868,46 @@ function drawDragon(ctx, x, groundY, s, animTimer, doused) {
         ctx.closePath();
         ctx.fill();
     });
-    // Wing, folded high on the back
+    // Wing, folded on the back (drooping when cooled and exhausted)
+    const wingPeakY = (doused ? -68 : -92) * s - breathe;
+    const wingMidY = (doused ? -44 : -60) * s - breathe;
     ctx.fillStyle = '#0d0708';
     ctx.beginPath();
     ctx.moveTo(-4 * s, -52 * s - breathe);
-    ctx.lineTo(34 * s, -92 * s - breathe);
-    ctx.lineTo(46 * s, -60 * s - breathe);
+    ctx.lineTo(34 * s, wingPeakY);
+    ctx.lineTo(46 * s, wingMidY);
     ctx.lineTo(20 * s, -46 * s - breathe);
     ctx.closePath();
     ctx.fill();
-    ctx.fillStyle = doused ? '#3a2a44' : '#4a2020';
+    ctx.fillStyle = doused ? '#2c1414' : '#4a2020';
     ctx.beginPath();
     ctx.moveTo(-2 * s, -52 * s - breathe);
-    ctx.lineTo(32 * s, -88 * s - breathe);
-    ctx.lineTo(42 * s, -60 * s - breathe);
+    ctx.lineTo(32 * s, wingPeakY + 4 * s);
+    ctx.lineTo(42 * s, wingMidY);
     ctx.lineTo(19 * s, -47 * s - breathe);
     ctx.closePath();
     ctx.fill();
     ctx.strokeStyle = bodyHi;
     ctx.lineWidth = Math.max(1, 2 * s);
-    [[32, -88], [40, -70], [42, -60]].forEach(([wx, wy]) => {
+    [[32, wingPeakY + 4 * s], [40, (wingPeakY + wingMidY) * 0.5], [42, wingMidY]].forEach(([wx, wy]) => {
         ctx.beginPath();
         ctx.moveTo(-1 * s, -52 * s - breathe);
-        ctx.lineTo(wx * s, wy * s - breathe);
+        ctx.lineTo(wx * s, wy);
         ctx.stroke();
     });
     ctx.lineWidth = 1;
     // Spine ridge
-    ctx.fillStyle = '#e8dcb0';
+    ctx.fillStyle = doused ? '#9a9072' : '#e8dcb0';
     for (let i = -30; i < 24; i += 10) {
         ctx.beginPath();
         ctx.moveTo(i * s, -56 * s - breathe);
         ctx.lineTo((i + 7) * s, -56 * s - breathe);
-        ctx.lineTo((i + 3.5) * s, -66 * s - breathe);
+        ctx.lineTo((i + 3.5) * s, (doused ? -62 : -66) * s - breathe);
         ctx.closePath();
         ctx.fill();
     }
-    // Neck and head
-    const headY = doused ? -104 : -84;
+    // Neck and head - slumped low when doused
+    const headY = doused ? -66 : -84;
     ctx.fillStyle = '#0d0708';
     ctx.beginPath();
     ctx.moveTo(-30 * s, -48 * s - breathe);
@@ -964,36 +966,58 @@ function drawDragon(ctx, x, groundY, s, animTimer, doused) {
         ctx.fill();
     });
     // Horns
-    ctx.fillStyle = '#d8cca0';
+    ctx.fillStyle = doused ? '#8c8266' : '#d8cca0';
     ctx.beginPath();
     ctx.moveTo(-64 * s, (headY - 8) * s);
     ctx.lineTo(-58 * s, (headY - 6) * s);
     ctx.lineTo(-42 * s, (headY - 26) * s);
     ctx.closePath();
     ctx.fill();
-    ctx.fillStyle = '#a2966e';
+    ctx.fillStyle = doused ? '#605844' : '#a2966e';
     ctx.beginPath();
     ctx.moveTo(-68 * s, (headY - 6) * s);
     ctx.lineTo(-64 * s, (headY - 4) * s);
     ctx.lineTo(-50 * s, (headY - 20) * s);
     ctx.closePath();
     ctx.fill();
-    // The eye: a hard slit that reads at any size
-    ctx.fillStyle = doused ? '#c8d8f0' : '#ffdc55';
-    ctx.beginPath();
-    ctx.ellipse(-81 * s, (headY - 3) * s, 5.2 * s, 3.6 * s, -0.16, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = '#120808';
-    ctx.fillRect(-82 * s, (headY - 6) * s, 1.8 * s, 6 * s);
-    ctx.fillStyle = '#0d0708';
-    ctx.fillRect(-86 * s, (headY - 8) * s, 10 * s, 2 * s);
+    // The eye: bright amber when awake; heavy hooded and asleep when doused
+    if (doused) {
+        ctx.fillStyle = '#0d0708';
+        ctx.beginPath();
+        ctx.ellipse(-81 * s, (headY - 2) * s, 6 * s, 2.5 * s, -0.16, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#5c4826';
+        ctx.beginPath();
+        ctx.ellipse(-81 * s, (headY - 2) * s, 5 * s, 1.4 * s, -0.16, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#2a1a12';
+        ctx.fillRect(-85 * s, (headY - 4) * s, 9 * s, 2 * s);
+    } else {
+        ctx.fillStyle = '#ffdc55';
+        ctx.beginPath();
+        ctx.ellipse(-81 * s, (headY - 3) * s, 5.2 * s, 3.6 * s, -0.16, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#120808';
+        ctx.fillRect(-82 * s, (headY - 6) * s, 1.8 * s, 6 * s);
+        ctx.fillStyle = '#0d0708';
+        ctx.fillRect(-86 * s, (headY - 8) * s, 10 * s, 2 * s);
+    }
+    // Ash and soot streaks across the back and snout when doused
+    if (doused) {
+        ctx.fillStyle = 'rgba(15,10,12,0.42)';
+        ctx.beginPath();
+        ctx.ellipse(-8 * s, -38 * s - breathe, 32 * s, 14 * s, -0.1, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = 'rgba(25,18,20,0.36)';
+        ctx.fillRect(-92 * s, (headY + 1) * s, 18 * s, 5 * s);
+    }
     // Nostril smoke, or steam if it has just been soaked
     const puff = Math.floor((animTimer || 0) / 380) % 4;
     ctx.fillStyle = doused
-        ? `rgba(230,235,240,${0.4 - puff * 0.09})`
+        ? `rgba(220,230,240,${0.34 - puff * 0.08})`
         : `rgba(60,50,44,${0.34 - puff * 0.08})`;
     ctx.beginPath();
-    ctx.ellipse((-104 - puff * 5) * s, (headY + 1 - puff * 6) * s, (4 + puff * 3) * s, (3 + puff * 2) * s, 0, 0, Math.PI * 2);
+    ctx.ellipse((-104 - puff * 5) * s, (headY + 1 - puff * 5) * s, (4 + puff * 3) * s, (3 + puff * 2) * s, 0, 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
 }
