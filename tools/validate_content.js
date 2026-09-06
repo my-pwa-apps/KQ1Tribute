@@ -115,8 +115,16 @@ for (const flag of written) {
 
 // maxScore is the published contract for the status bar and the rank thresholds.
 // The walkthrough proves it is reachable; this proves the awards still fund it.
-const awarded = [...(game + contentSource).matchAll(/addScore\((\d+)\)/g)]
-    .reduce((sum, m) => sum + Number(m[1]), 0);
-if (awarded < content.maxScore) {
-    fail(`Score awards total ${awarded} but maxScore is ${content.maxScore}; the bar advertises unreachable points.`);
+const awardValues = Object.values(content.rules.awards);
+const awarded = awardValues.reduce((sum, points) => sum + points, 0);
+if (awardValues.some(points => !Number.isInteger(points) || points <= 0) || awarded !== content.game.maxScore) {
+    fail(`Score awards total ${awarded} but maxScore is ${content.game.maxScore}; the score ledger must match exactly.`);
 }
+const awardRefs = [...(game + contentSource).matchAll(/\.award\([^,]+,\s*['"]([^'"]+)['"]/g)].map(match => match[1]);
+for (const event of Object.keys(content.rules.awards)) {
+    if (awardRefs.filter(reference => reference === event).length !== 1) fail(`Score event needs one award site: ${event}`);
+}
+for (const event of awardRefs) {
+    if (!Object.hasOwn(content.rules.awards, event)) fail(`Unknown score event: ${event}`);
+}
+if (/addScore\(\d+\)/.test(game + contentSource)) fail('Content must award named score events, not literal point values.');

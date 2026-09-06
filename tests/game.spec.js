@@ -46,7 +46,105 @@ test.describe('boot and title screen', () => {
     });
 });
 
+test.describe('simulation timing', () => {
+    for (const control of ['keyboard', 'click', 'sequence']) {
+        test(`${control} walking covers the same distance at every frame rate`, async ({ page }) => {
+            await boot(page);
+            const distances = await page.evaluate((mode) => {
+                const game = window.engine;
+                game._loopRunning = false;
+                return [30, 60, 120, 144].map((fps) => {
+                    game.goToRoom('harbour_road', 200, 350);
+                    game.textWindow = null;
+                    game.sequence = null;
+                    game.keysDown = {};
+                    if (mode === 'keyboard') game.keysDown.ArrowRight = true;
+                    else if (mode === 'sequence') game.runSequence([{ walk: [600, 350] }]);
+                    else {
+                        game.playerTargetX = 600;
+                        game.playerTargetY = 350;
+                        game.playerWalking = true;
+                    }
+                    for (let frame = 0; frame < fps; frame++) game.update(1000 / fps);
+                    return game.playerX - 200;
+                });
+            }, control);
+            for (const distance of distances) expect(distance).toBeCloseTo(180, 5);
+        });
+    }
+
+    test('room updates run once and pause for blocking presentation', async ({ page }) => {
+        await boot(page);
+        const result = await page.evaluate(() => {
+            const game = window.engine;
+            game._loopRunning = false;
+            game.textWindow = null;
+            const room = game.rooms[game.currentRoomId];
+            const originalUpdate = room.onUpdate;
+            let elapsed = 0;
+            room.onUpdate = (_engine, dt) => { elapsed += dt; };
+            try {
+                game.update(100);
+                const once = elapsed;
+                game.showTextWindow('Read this at your own pace.');
+                game.update(100);
+                const reading = elapsed;
+                game.textWindow = null;
+                game.runSequence([1000]);
+                game.update(100);
+                const sequencing = elapsed;
+                game.sequence = null;
+                game.activeDialog = { phase: 'options' };
+                game.update(100);
+                return { once, reading, sequencing, dialog: elapsed };
+            } finally {
+                room.onUpdate = originalUpdate;
+                game.activeDialog = null;
+            }
+        });
+        expect(result).toEqual({ once: 100, reading: 100, sequencing: 100, dialog: 100 });
+    });
+
+    test('crag warning leaves the full escape time after reading', async ({ page }) => {
+        await boot(page);
+        const result = await page.evaluate(() => {
+            const game = window.engine;
+            game._loopRunning = false;
+            game.goToRoom('crag_path', 90, 322);
+            for (let tick = 0; tick < 100; tick++) game.update(100);
+            const reading = { timer: game.getCounter('crag_timer'), dead: game.dead };
+            game.textWindow = null;
+            game.update(100);
+            return { reading, timer: game.getCounter('crag_timer'), dead: game.dead };
+        });
+        expect(result).toEqual({ reading: { timer: 0, dead: false }, timer: 100, dead: false });
+    });
+});
+
 test.describe('inventory and hotspots', () => {
+    test('a consumed feather stays collected and cannot score twice', async ({ page }) => {
+        await boot(page);
+        const result = await page.evaluate(() => {
+            const game = window.engine;
+            game._loopRunning = false;
+            game.goToRoom('study', 300, 336);
+            const feather = game.rooms.study.hotspots.find((hotspot) => hotspot.name === 'the feather');
+            feather.get(game.actionScope);
+            game.setFlag('read_spell');
+            game.goToRoom('spell_room', 320, 336);
+            game.rooms.spell_room.hotspots.find((hotspot) => hotspot.name === 'the chalk circle')
+                .useItem(game.actionScope, 'raven_feather');
+            game.goToRoom('study', 300, 336);
+            feather.get(game.actionScope);
+            const current = { hidden: feather.hidden, score: game.score, carried: game.hasItem('raven_feather') };
+            game.setFlag('feather_taken', false);
+            feather.get(game.actionScope);
+            return { current, legacy: { hidden: feather.hidden, score: game.score, carried: game.hasItem('raven_feather') } };
+        });
+        expect(result.current).toEqual({ hidden: true, score: 3, carried: false });
+        expect(result.legacy).toEqual(result.current);
+    });
+
     test('picking up an item scores once and only once', async ({ page }) => {
         await boot(page);
         const run = async () => page.evaluate(() => {
@@ -89,6 +187,38 @@ test.describe('inventory and hotspots', () => {
         expect(await page.evaluate(() => window.engine.rooms.study.hotspots
             .find((h) => h.name === 'Corvus').hidden)).toBeFalsy();
     });
+});
+
+test('actors and scenery share the same two-pixel world raster', async ({ page }) => {
+    await boot(page);
+    const mismatches = await page.evaluate(() => {
+        const game = window.engine;
+        game._loopRunning = false;
+        return ['dragon_cave', 'village_green', 'study'].map((roomId) => {
+            game.goToRoom(roomId, 500, 350);
+            game.animTimer = 4000;
+            game.ctx.clearRect(0, 0, game.WIDTH, game.HEIGHT);
+            game.drawScene(game.ctx, game.rooms[roomId]);
+            const pixels = game.ctx.getImageData(0, 0, game.WIDTH, game.HEIGHT).data;
+            let differences = 0;
+            for (let row = 0; row < game.HEIGHT; row += 2) {
+                for (let column = 0; column < game.WIDTH; column += 2) {
+                    const base = (row * game.WIDTH + column) * 4;
+                    for (const offset of [4, game.WIDTH * 4, (game.WIDTH + 1) * 4]) {
+                        for (let channel = 0; channel < 4; channel++) {
+                            if (pixels[base + channel] !== pixels[base + offset + channel]) differences++;
+                        }
+                    }
+                }
+            }
+            return { roomId, differences };
+        });
+    });
+    expect(mismatches).toEqual([
+        { roomId: 'dragon_cave', differences: 0 },
+        { roomId: 'village_green', differences: 0 },
+        { roomId: 'study', differences: 0 }
+    ]);
 });
 
 test.describe('parser', () => {
@@ -181,6 +311,31 @@ test.describe('deaths are fair and recoverable', () => {
 });
 
 test.describe('no unwinnable states', () => {
+    test('both crag return exits lead back to the study without the storm', async ({ page }) => {
+        await boot(page);
+        const rooms = await page.evaluate(() => {
+            const game = window.engine;
+            game._loopRunning = false;
+            return ['the house', 'the path back to the house'].map((name) => {
+                game.goToRoom('crag_path', 90, 322);
+                const hotspot = game.rooms.crag_path.hotspots.find((entry) => entry.name === name);
+                if (!hotspot.isExit) throw new Error(`${name} is not an exit`);
+                hotspot.onExit(game.actionScope);
+                return game.currentRoomId;
+            });
+        });
+        expect(rooms).toEqual(['study', 'study']);
+    });
+
+    test('Hattie clues the name puzzle without revealing its answer', async ({ page }) => {
+        await boot(page);
+        const response = await page.evaluate(() => window.engine.dialogs.hattie.topics[0].options
+            .find((option) => option.text === 'Tell me about the gnome.').response);
+        expect(response).not.toContain('Mendharbe');
+        expect(response).toContain('backwards');
+        expect(response).toContain('wood');
+    });
+
     test('the shore path west stays shut until all three treasures are held', async ({ page }) => {
         await boot(page);
         await page.evaluate(() => {
@@ -218,6 +373,31 @@ test.describe('no unwinnable states', () => {
 });
 
 test.describe('walking out of a room', () => {
+    for (const returning of [false, true]) {
+        test(`clicking the scullery stairs approaches below the barrier (returning: ${returning})`, async ({ page }) => {
+            await boot(page);
+            await page.evaluate((arriving) => {
+                const game = window.engine;
+                game._loopRunning = false;
+                if (arriving) game.goToRoom('study', 96, 330);
+                game.goToRoom('scullery', arriving ? 424 : 320, arriving ? 280 : 300);
+                game.textWindow = null;
+                game.currentAction = 'walk';
+            }, returning);
+            const canvas = page.locator('#game-canvas');
+            const bounds = await canvas.boundingBox();
+            await canvas.click({ position: { x: 444 / 640 * bounds.width, y: 210 / 400 * bounds.height } });
+            const result = await page.evaluate(() => {
+                const game = window.engine;
+                for (let frame = 0; frame < 300 && game.currentRoomId === 'scullery'; frame++) {
+                    game.update(1000 / 60);
+                }
+                return { room: game.currentRoomId, pending: !!game.pendingAction };
+            });
+            expect(result).toEqual({ room: 'study', pending: false });
+        });
+    }
+
     /** Drive the ego to a point with click-to-walk and let update() run. */
     async function walkTo(page, x, y) {
         await page.evaluate(({ x: tx, y: ty }) => {
@@ -395,6 +575,111 @@ test.describe('save and load', () => {
         expect(ok).toBeFalsy();
         expect(await page.evaluate(() => window.engine.currentRoomId)).toBe('scullery');
     });
+});
+
+test.describe('story continuity', () => {
+    test('the gnome name and conversation change only after the bargain', async ({ page }) => {
+        await boot(page);
+        const result = await page.evaluate(() => {
+            const game = window.engine;
+            game.goToRoom('well_bottom', 320, 330);
+            const gnome = game.rooms.well_bottom.hotspots.find(hotspot => hotspot.name === 'the gnome');
+            const before = { name: gnome.name, description: gnome.description };
+            window.CrownQuestContent.rules.nameTheGnome(game.actionScope);
+            gnome.talk(game.actionScope);
+            return { before, after: { name: gnome.name, description: gnome.description },
+                topic: game.activeDialog.topicId, greeting: game.activeDialog.greetingText,
+                chestVisible: !game.rooms.well_bottom.hotspots.find(hotspot => hotspot.name === 'the chest').hidden };
+        });
+        expect(result.before.name).toBe('the gnome');
+        expect(result.before.description).not.toContain('Mendharbe');
+        expect(result.after.name).toBe('Mendharbe');
+        expect(result.after.description).toContain('no longer his seat');
+        expect(result.topic).toBe('after_bargain');
+        expect(result.greeting).toContain('packing');
+        expect(result.chestVisible).toBe(false);
+    });
+
+    test('returning indoors acknowledges Morvane without closing retreat paths', async ({ page }) => {
+        await boot(page);
+        const result = await page.evaluate(() => {
+            const game = window.engine;
+            game.setFlag('morvane_passed');
+            const descriptions = ['scullery', 'study', 'spell_room'].map(id => {
+                game.goToRoom(id, 300, 336);
+                return game.rooms[id].description;
+            });
+            const options = game.dialogs.corvus.topics[0].options;
+            return { descriptions,
+                out: options.find(option => option.text === 'Where is Morvane?').condition(game),
+                indoors: options.find(option => option.text === 'Where is Morvane now?').condition(game) };
+        });
+        result.descriptions.forEach(description => expect(description).toContain('observatory'));
+        expect(result.out).toBe(false);
+        expect(result.indoors).toBe(true);
+    });
+
+    test('literacy and the eleven-year treasure history are established before the ending', async ({ page }) => {
+        await boot(page);
+        const result = await page.evaluate(() => {
+            const game = window.engine;
+            const find = (room, name) => game.rooms[room].hotspots.find(hotspot => hotspot.name === name);
+            const marker = find('harbour_road', 'the signpost') || game.rooms.harbour_road.hotspots.find(hotspot => hotspot.description?.includes('waymarker'));
+            find('dark_wood', 'the parchment').look(game.actionScope);
+            return { sign: marker.description, parchment: game.message,
+                history: game.dialogs.hattie.topics[0].options.find(option => option.text === 'What is wrong with this kingdom?').response,
+                gnome: game.dialogs.gnome.topics[0].text };
+        });
+        expect(result.sign).toContain('ordinary letters');
+        expect(result.parchment).toContain('flour sacks');
+        expect(result.history).toContain('six-year-old son');
+        expect(result.history).toContain('eleven winters');
+        expect(result.gnome).toContain('Thirty years');
+        expect(result.gnome).toContain('Eleven years ago this chest');
+    });
+
+    for (const skipping of [false, true]) {
+        test(`treasures and royal reunion stay consistent (skipping: ${skipping})`, async ({ page }) => {
+            await boot(page);
+            const result = await page.evaluate((skip) => {
+                const game = window.engine;
+                game._loopRunning = false;
+                const treasures = ['chest_of_cormac', 'shield_of_ardor', 'mirror_of_ianthe'];
+                treasures.forEach(id => game.addToInventory(id));
+                game.goToRoom('amber_tower', 400, 336);
+                const sockets = game.rooms.amber_tower.hotspots.find(hotspot => hotspot.name === 'the sockets');
+                treasures.forEach(id => sockets.useItem(game.actionScope, id));
+                const advanceSequence = () => {
+                    if (skip) game.skipSequence();
+                    else for (let step = 0; step < 100 && game.sequence; step++) {
+                        if (game.textWindow) game.dismissTextWindow();
+                        game.update(100);
+                    }
+                };
+                advanceSequence();
+                const duelInventory = [...game.inventory];
+                game.update(15000);
+                const reunion = game.sequence.steps.filter(step => step.say).map(step => step.say).join(' ');
+                const afterDuel = [...game.inventory];
+                advanceSequence();
+                game.update(12000);
+                return { duelInventory, afterDuel, reunion, freed: game.getFlag('elowen_freed'), won: game.won, score: game.score,
+                    treasuresLeft: game.inventory.filter(id => treasures.includes(id)) };
+            }, skipping);
+            expect(result.duelInventory).toEqual(expect.arrayContaining(['shield_of_ardor', 'mirror_of_ianthe']));
+            expect(result.duelInventory).not.toContain('chest_of_cormac');
+            expect(result.afterDuel).not.toContain('shield_of_ardor');
+            expect(result.reunion).toContain('Your mother');
+            expect(result.reunion).toContain('Your father is Aldric');
+            expect(result.reunion).toContain('seventeen');
+            expect(result.reunion).toContain('Aldric does not die');
+            expect(result.reunion).toContain('ward is finished');
+            expect(result.treasuresLeft).toEqual([]);
+            expect(result.won).toBe(true);
+            expect(result.freed).toBe(true);
+            expect(result.score).toBe(30);
+        });
+    }
 });
 
 test.describe('progression rules have one implementation', () => {

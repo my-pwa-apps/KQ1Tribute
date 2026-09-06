@@ -299,10 +299,22 @@ function cutsceneSailAway(ctx, w, h, progress, elapsed) {
 /** The confrontation at the tower door. Morvane strikes; the shield takes it
  *  and breaks; the mirror gives the second stroke back to him. */
 function cutsceneMorvaneDuel(ctx, w, h, progress, elapsed) {
-    // Dusk headland, matching the room it interrupts
-    skyBands(ctx, 0, 0, w, 170, ['#2a2f60', '#5c4b84', '#a86a70', '#e0a06a']);
+    // Dusk headland. The tower stays a distant silhouette so it is not wallpaper
+    // behind two people standing in a line.
+    const strike1 = beat(progress, 0.10, 0.26);
+    const shatter = beat(progress, 0.26, 0.40);
+    const strike2 = beat(progress, 0.50, 0.66);
+    const undone = beat(progress, 0.66, 0.94);
+    const boltLive = (strike1 > 0 && strike1 < 1) || (strike2 > 0 && strike2 < 1);
+    const flash = boltLive ? 0.55 : (shatter > 0 && shatter < 1 ? 0.22 : undone * 0.18);
+
+    skyBands(ctx, 0, 0, w, 170, ['#1a1848', '#3a2a68', '#7a4868', '#c07a58']);
+    if (flash > 0) {
+        ctx.fillStyle = `rgba(185,140,255,${0.16 * flash})`;
+        ctx.fillRect(0, 0, w, 170);
+    }
     waterBand(ctx, 0, 170, w, 90, elapsed, 4646);
-    ctx.fillStyle = 'rgba(255,190,120,0.16)';
+    ctx.fillStyle = flash > 0 ? `rgba(160,110,220,${0.14 * flash})` : 'rgba(255,190,120,0.12)';
     ctx.fillRect(0, 170, w, 90);
     ctx.fillStyle = '#14151c';
     ctx.beginPath();
@@ -318,97 +330,132 @@ function cutsceneMorvaneDuel(ctx, w, h, progress, elapsed) {
     ctx.fillStyle = '#3f4a24';
     ctx.fillRect(0, 292, w, h - 292);
     ctx.restore();
-    drawAmberTower(ctx, 470, 336, 0.9, 3, elapsed);
+    // Tower far right, small, so the fight owns the frame
+    drawAmberTower(ctx, 572, 268, 0.38, 3, elapsed);
+    ctx.fillStyle = 'rgba(20,16,28,0.28)';
+    ctx.fillRect(540, 200, 100, 80);
 
-    const strike1 = beat(progress, 0.10, 0.26);
-    const shatter = beat(progress, 0.26, 0.40);
-    const strike2 = beat(progress, 0.50, 0.66);
-    const undone = beat(progress, 0.66, 0.94);
-
-    // Morvane, left, arm up
-    const mArm = 0.2 + strike1 * 1.1 + strike2 * 0.4;
+    // Morvane, larger, filling the left third
+    const mArm = 0.35 + strike1 * 1.25 + strike2 * 0.5;
     if (undone < 1) {
         ctx.save();
         if (undone > 0) {
             ctx.globalAlpha = 1 - undone;
             ctx.translate(0, undone * 6);
         }
-        ctx.fillStyle = 'rgba(0,0,0,0.3)';
-        ctx.beginPath(); ctx.ellipse(142, 350, 26, 6, 0, 0, Math.PI * 2); ctx.fill();
-        drawVgaPerson(ctx, 142, 350, 2.5, Object.assign({}, CAST_MORVANE, {
-            nearArm: { side: 1, up: -mArm, lo: -0.3 },
-            farArm: { side: -1, up: 0.2, lo: 0.4 }
+        ctx.fillStyle = 'rgba(0,0,0,0.34)';
+        ctx.beginPath(); ctx.ellipse(118, 358, 36, 8, 0, 0, Math.PI * 2); ctx.fill();
+        drawVgaPerson(ctx, 118, 358, 3.15, Object.assign({}, CAST_MORVANE, {
+            hood: CAST_MORVANE.hood,
+            nearArm: { side: 1, up: -mArm, lo: -0.55 },
+            farArm: { side: -1, up: 0.35, lo: 0.5 }
         }));
+        // A face inside the hood. Without it he is a purple bell with a glove.
+        ctx.fillStyle = '#0d0a14';
+        ctx.beginPath();
+        ctx.ellipse(118, 262, 13, 16, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#6d5f78';
+        ctx.beginPath();
+        ctx.ellipse(119, 264, 9.5, 12.5, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#8b7d95';
+        ctx.beginPath();
+        ctx.ellipse(115, 260, 5, 7, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#2a2233';
+        ctx.fillRect(111, 261, 15, 3);
+        ctx.fillStyle = flash > 0 ? '#ffd9a0' : '#c8503a';
+        ctx.fillRect(113, 259, 4, 3);
+        ctx.fillRect(121, 259, 4, 3);
+        ctx.fillStyle = '#1a1420';
+        ctx.fillRect(114, 271, 10, 2);
         ctx.restore();
     }
 
-    // Rowan, right of centre, shield or mirror raised
-    const rowanArm = (strike1 > 0 && shatter < 1) ? 0.9 : (strike2 > 0 ? 1.0 : 0.2);
+    // Rowan, closer to camera, shield or mirror raised
+    const rowanArm = (strike1 > 0 && shatter < 1) ? 1.05 : (strike2 > 0 ? 1.15 : 0.25);
     if (window.engine) {
-        window.engine.drawContactShadow(ctx, 330, 352, 1, { rx: 24, ry: 5, alpha: 0.3 });
-        window.engine.drawEgoFront(ctx, 330, 352, 2.1, { armAngle: rowanArm });
+        window.engine.drawContactShadow(ctx, 368, 360, 1, { rx: 30, ry: 6, alpha: 0.32 });
+        window.engine.drawEgoFront(ctx, 368, 360, 2.35, { armAngle: rowanArm });
     }
     if (shatter < 1) {
-        drawShieldOfArdor(ctx, 292, 316, 1.1 + shatter * 0.1, elapsed);
+        drawShieldOfArdor(ctx, 318, 318, 1.35 + shatter * 0.15, elapsed);
         if (shatter > 0) {
-            // Cracks opening across it before it goes
             ctx.strokeStyle = '#2a1c14';
-            ctx.lineWidth = 2;
+            ctx.lineWidth = 2.4;
             for (let i = 0; i < 6; i++) {
                 const a = i * 1.05;
                 ctx.beginPath();
-                ctx.moveTo(292, 316);
-                ctx.lineTo(292 + Math.cos(a) * 20 * shatter, 316 + Math.sin(a) * 20 * shatter);
+                ctx.moveTo(318, 318);
+                ctx.lineTo(318 + Math.cos(a) * 26 * shatter, 318 + Math.sin(a) * 26 * shatter);
                 ctx.stroke();
             }
             ctx.lineWidth = 1;
         }
     } else {
-        // Fragments falling
         for (let i = 0; i < 9; i++) {
             const f = (progress - 0.40) * 3 + i * 0.06;
             if (f < 0 || f > 1) continue;
             ctx.fillStyle = i % 2 ? PAL.SILVER_BASE : PAL.SILVER_SHADOW;
-            ctx.fillRect(292 + (i - 4) * 9 * f, 316 + f * f * 46, 5, 4);
+            ctx.fillRect(318 + (i - 4) * 11 * f, 318 + f * f * 52, 6, 4);
         }
     }
     if (strike2 > 0) {
-        drawMirrorOfIanthe(ctx, 296, 306, 1.0, elapsed);
+        drawMirrorOfIanthe(ctx, 324, 308, 1.15, elapsed);
     }
 
-    // The bolt
-    if ((strike1 > 0 && strike1 < 1) || (strike2 > 0 && strike2 < 1)) {
+    // The bolt, thick and forked, lighting the ground under it
+    if (boltLive) {
         const outbound = strike1 > 0 && strike1 < 1;
         const f = outbound ? strike1 : strike2;
-        const x0 = outbound ? 168 : 168;
-        const x1 = outbound ? 168 + f * 120 : 296 - f * 130;
+        const x0 = 168;
+        const y0 = 268;
+        const x1 = outbound ? 168 + f * 150 : 324 - f * 156;
+        const y1 = outbound ? 268 + f * 42 : 308;
         ctx.strokeStyle = PAL.ARCANE_BRIGHT;
-        ctx.lineWidth = 5;
+        ctx.lineWidth = 7;
         ctx.beginPath();
-        ctx.moveTo(outbound ? x0 : 296, 308);
-        for (let i = 1; i <= 6; i++) {
-            const t2 = i / 6;
-            const bx = (outbound ? x0 : 296) + ((outbound ? x1 : x1) - (outbound ? x0 : 296)) * t2;
-            ctx.lineTo(bx, 308 + Math.sin(t2 * 9 + elapsed / 40) * 9);
+        ctx.moveTo(outbound ? x0 : 324, outbound ? y0 : 308);
+        for (let i = 1; i <= 7; i++) {
+            const t2 = i / 7;
+            const bx = (outbound ? x0 : 324) + (x1 - (outbound ? x0 : 324)) * t2;
+            const by = (outbound ? y0 : 308) + (y1 - (outbound ? y0 : 308)) * t2;
+            ctx.lineTo(bx + Math.sin(t2 * 11 + elapsed / 30) * 12, by + Math.sin(t2 * 9 + elapsed / 40) * 8);
         }
         ctx.stroke();
         ctx.strokeStyle = '#f0e2ff';
-        ctx.lineWidth = 2;
+        ctx.lineWidth = 3;
         ctx.stroke();
         ctx.lineWidth = 1;
-        if (window.engine) window.engine.lightPool(ctx, x1, 308, 120, '185,140,255', 0.3);
+        // Forks
+        ctx.strokeStyle = '#d8b8ff';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo((x0 + x1) / 2, (y0 + y1) / 2);
+        ctx.lineTo((x0 + x1) / 2 + 18, (y0 + y1) / 2 + 22);
+        ctx.moveTo((x0 + x1) / 2, (y0 + y1) / 2);
+        ctx.lineTo((x0 + x1) / 2 - 10, (y0 + y1) / 2 + 16);
+        ctx.stroke();
+        ctx.lineWidth = 1;
+        if (window.engine) {
+            window.engine.lightPool(ctx, x1, y1, 160, '185,140,255', 0.42);
+            window.engine.lightPool(ctx, 240, 300, 220, '185,140,255', 0.18);
+        }
+        ctx.fillStyle = 'rgba(185,140,255,0.12)';
+        ctx.fillRect(0, 250, w, h - 250);
     }
 
     // Morvane coming apart
     if (undone > 0) {
         const next = seededRandom(3939);
-        for (let i = 0; i < 90; i++) {
+        for (let i = 0; i < 120; i++) {
             const a = next() * Math.PI * 2;
-            const r = next() * 70 * undone;
-            ctx.fillStyle = `rgba(185,140,255,${(1 - undone) * 0.8})`;
-            ctx.fillRect(142 + Math.cos(a) * r, 300 + Math.sin(a) * r * 0.9 - undone * 40, 2, 2);
+            const r = next() * 90 * undone;
+            ctx.fillStyle = `rgba(185,140,255,${(1 - undone) * 0.85})`;
+            ctx.fillRect(118 + Math.cos(a) * r, 290 + Math.sin(a) * r * 0.9 - undone * 48, 3, 3);
         }
-        if (window.engine) window.engine.lightPool(ctx, 142, 300, 200 * undone, '185,140,255', 0.3 * (1 - undone));
+        if (window.engine) window.engine.lightPool(ctx, 118, 290, 240 * undone, '185,140,255', 0.36 * (1 - undone));
     }
 
     let caption = '"Stand aside," says Morvane, "and I will make it quick."';
@@ -469,76 +516,210 @@ function cutsceneCoronation(ctx, w, h, progress, elapsed) {
     wallTorch(ctx, 96, F.lBand(96, 0.3), 1.1, elapsed, window.engine);
     wallTorch(ctx, 546, F.rBand(546, 0.3), 1.1, elapsed, window.engine);
 
-    // Dais
-    ctx.fillStyle = '#221d17';
-    ctx.fillRect(210, 244, 220, 12);
-    ctx.fillStyle = '#4a4234';
-    ctx.fillRect(212, 246, 216, 8);
-    ctx.fillStyle = '#6a6050';
-    ctx.fillRect(212, 246, 216, 2);
-    ctx.fillStyle = '#8c2f2a';
-    ctx.fillRect(250, 254, 140, 96);
-    ctx.fillStyle = '#a8443a';
-    ctx.fillRect(250, 254, 140, 4);
-    ctx.fillStyle = PAL.GOLD_SHADOW;
-    ctx.fillRect(250, 254, 3, 96);
-    ctx.fillRect(387, 254, 3, 96);
+    // Dais in three receding steps so it has depth
+    [[168, 236, 304, 18, '#3a342c'], [196, 250, 248, 16, '#4a4234'], [224, 262, 192, 14, '#5a5040']].forEach(([dx, dy, dw, dh, col]) => {
+        ctx.fillStyle = '#221d17';
+        ctx.fillRect(dx - 2, dy - 2, dw + 4, dh + 4);
+        ctx.fillStyle = col;
+        ctx.fillRect(dx, dy, dw, dh);
+        ctx.fillStyle = '#6a6050';
+        ctx.fillRect(dx, dy, dw, 3);
+        ctx.fillStyle = '#2a241c';
+        ctx.fillRect(dx, dy + dh - 3, dw, 3);
+    });
+    // Runner up the three treads, widening as it descends, so the carpet does
+    // not stop dead at the bottom step.
+    [[236, 18, 104], [250, 16, 120], [262, 14, 136]].forEach(([ry, rh, rw]) => {
+        ctx.fillStyle = '#5b1b18';
+        ctx.fillRect(320 - rw / 2 - 2, ry, rw + 4, rh);
+        ctx.fillStyle = '#8c2f2a';
+        ctx.fillRect(320 - rw / 2, ry, rw, rh);
+        ctx.fillStyle = PAL.GOLD_SHADOW;
+        ctx.fillRect(320 - rw / 2, ry, 3, rh);
+        ctx.fillRect(320 + rw / 2 - 3, ry, 3, rh);
+        ctx.fillStyle = '#a8443a';
+        ctx.fillRect(320 - rw / 2, ry, rw, 2);
+    });
 
-    // The court, in two ranks either side, all from the shared cel
+    // Carpet running from the dais lip out past the bottom of frame. Its edges,
+    // borders and cross-weave all come off the same two lines, so the gold
+    // splays with the cloth instead of standing up as two vertical bars.
+    const CT = 276, CB = 404;
+    const carpetT = (y) => (y - CT) / (CB - CT);
+    const carpetL = (y) => 250 - 64 * carpetT(y);
+    const carpetR = (y) => 390 + 64 * carpetT(y);
+    ctx.fillStyle = '#6d211d';
+    ctx.beginPath();
+    ctx.moveTo(carpetL(CT) - 3, CT); ctx.lineTo(carpetR(CT) + 3, CT);
+    ctx.lineTo(carpetR(CB) + 3, CB); ctx.lineTo(carpetL(CB) - 3, CB);
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#8c2f2a';
+    ctx.beginPath();
+    ctx.moveTo(carpetL(CT), CT); ctx.lineTo(carpetR(CT), CT);
+    ctx.lineTo(carpetR(CB), CB); ctx.lineTo(carpetL(CB), CB);
+    ctx.closePath(); ctx.fill();
+    // Weave bands, spaced wider as they come toward the viewer
+    for (let i = 1; i < 7; i++) {
+        const y = CT + (CB - CT) * Math.pow(i / 7, 1.7);
+        const th = 1.4 + carpetT(y) * 2.6;
+        ctx.fillStyle = 'rgba(168,68,58,0.55)';
+        ctx.fillRect(carpetL(y), y, carpetR(y) - carpetL(y), th);
+    }
+    // Gold borders: trapezoids following each edge, widening with depth
+    [-1, 1].forEach((side) => {
+        const edge = side < 0 ? carpetL : carpetR;
+        const bw = (y) => (4 + carpetT(y) * 5) * -side;
+        ctx.fillStyle = PAL.GOLD_SHADOW;
+        ctx.beginPath();
+        ctx.moveTo(edge(CT), CT);
+        ctx.lineTo(edge(CT) + bw(CT), CT);
+        ctx.lineTo(edge(CB) + bw(CB), CB);
+        ctx.lineTo(edge(CB), CB);
+        ctx.closePath(); ctx.fill();
+        ctx.fillStyle = PAL.GOLD_BASE;
+        ctx.beginPath();
+        ctx.moveTo(edge(CT) + bw(CT) * 0.25, CT);
+        ctx.lineTo(edge(CT) + bw(CT) * 0.75, CT);
+        ctx.lineTo(edge(CB) + bw(CB) * 0.75, CB);
+        ctx.lineTo(edge(CB) + bw(CB) * 0.25, CB);
+        ctx.closePath(); ctx.fill();
+    });
+    ctx.fillStyle = '#a8443a';
+    ctx.fillRect(carpetL(CT), CT, carpetR(CT) - carpetL(CT), 5);
+
+    // The court in overlapping ranks, far first, denser on the left
     const crowd = [
-        [116, 348, 2.2, CAST_HATTIE], [168, 342, 2.05, CAST_VILLAGER],
-        [500, 348, 2.2, CAST_VILLAGER], [552, 342, 2.05, CAST_HATTIE],
-        [90, 322, 1.65, CAST_VILLAGER], [566, 322, 1.65, CAST_FENNOW]
+        [64, 306, 1.35, CAST_VILLAGER], [548, 308, 1.4, CAST_FENNOW],
+        [108, 328, 1.8, CAST_VILLAGER], [500, 330, 1.7, CAST_VILLAGER],
+        [84, 354, 2.2, CAST_HATTIE], [152, 348, 2.0, CAST_VILLAGER],
+        [536, 358, 2.2, CAST_HATTIE]
     ];
     crowd.forEach(([cx, cy, cs, pal], i) => {
         if (window.engine) window.engine.drawContactShadow(ctx, cx, cy, 1, { rx: 7 * cs, ry: 2 * cs, alpha: 0.24 });
         drawVgaPerson(ctx, cx, cy, cs, Object.assign({}, pal, {
+            animTimer: elapsed,
+            phase: i * 1.31,
             nearArm: { side: 1, up: 0.2 + Math.sin(elapsed / 700 + i) * 0.14, lo: 0.4 },
             farArm: { side: -1, up: -0.2, lo: 0.4 }
         }));
     });
+    // Heralds at the foot of the dais, sounding the fanfare outward
+    [[196, 344, 2.05, -1, 0.4], [472, 346, 2.08, 1, 2.2]].forEach(([hx, hy, hs, face, ph]) => {
+        if (window.engine) window.engine.drawContactShadow(ctx, hx, hy, 1, { rx: 7 * hs, ry: 2 * hs, alpha: 0.26 });
+        drawTrumpeter(ctx, hx, hy, hs, face, elapsed, ph);
+    });
 
     // Elowen sets the crown; Rowan kneels, then stands.
     const kneel = 1 - beat(progress, 0.55, 0.75);
-    const crownY = 250 + beat(progress, 0.2, 0.5) * 34;
+    const seated = beat(progress, 0.2, 0.5);
+    // drawEgoFront origin is the belt line; seat the circlet on the brim
+    // (y - 24.2*s), not above the feather and not over the face.
+    const rowanGround = 328;
+    const rowanScale = 2.05;
+    const squash = 1 - kneel * 0.22;
+    const brimY = rowanGround - 24.2 * rowanScale * squash;
+    const crownY = 188 + seated * (brimY - 188);
     if (window.engine) {
-        window.engine.drawContactShadow(ctx, 320, 350, 1, { rx: 26, ry: 5, alpha: 0.3 });
+        window.engine.drawContactShadow(ctx, 320, rowanGround, 1, { rx: 26, ry: 5, alpha: 0.3 });
         ctx.save();
-        ctx.translate(320, 350);
+        ctx.translate(320, rowanGround);
         ctx.scale(1, 1 - kneel * 0.22);
-        window.engine.drawEgoFront(ctx, 0, 0, 2.1, { armAngle: kneel > 0.5 ? 0 : 0.4 });
+        window.engine.drawEgoFront(ctx, 0, 0, rowanScale, { armAngle: kneel > 0.5 ? 0 : 0.4 });
         ctx.restore();
     }
-    drawVgaPerson(ctx, 250, 350, 2.25, Object.assign({}, CAST_ELOWEN, {
-        nearArm: { side: 1, up: -0.9, lo: -0.5 },
-        farArm: { side: -1, up: 0.2, lo: 0.4 }
+    drawVgaPerson(ctx, 246, 336, 2.2, Object.assign({}, CAST_ELOWEN, {
+        animTimer: elapsed,
+        phase: 3.3,
+        nearArm: { side: 1, up: -0.95, lo: -0.55 },
+        farArm: { side: -1, up: 0.15, lo: 0.4 }
     }));
-    // The crown itself, descending
+    // A circlet the width of the cap, not a gold hat
+    const bandW = 16;
+    const bandX = 320 - bandW / 2;
     ctx.fillStyle = PAL.GOLD_SHADOW;
-    ctx.fillRect(304, crownY, 32, 12);
+    ctx.fillRect(bandX, crownY, bandW, 5);
     ctx.fillStyle = PAL.GOLD_BASE;
-    ctx.fillRect(304, crownY + 2, 32, 8);
-    [304, 312, 320, 328].forEach((cx) => {
+    ctx.fillRect(bandX, crownY + 1, bandW, 3);
+    [bandX, bandX + 4, bandX + 8, bandX + 12].forEach((cx) => {
         ctx.beginPath();
-        ctx.moveTo(cx, crownY + 2); ctx.lineTo(cx + 6, crownY + 2); ctx.lineTo(cx + 3, crownY - 8);
+        ctx.moveTo(cx, crownY + 1); ctx.lineTo(cx + 4, crownY + 1); ctx.lineTo(cx + 2, crownY - 4);
         ctx.closePath(); ctx.fill();
     });
     ctx.fillStyle = PAL.GOLD_LIT;
-    ctx.fillRect(304, crownY + 2, 32, 2);
+    ctx.fillRect(bandX, crownY + 1, bandW, 1);
     ctx.fillStyle = '#c23a26';
-    ctx.fillRect(316, crownY + 4, 5, 4);
-    if (window.engine) window.engine.lightPool(ctx, 320, crownY, 90, '255,230,160', 0.22);
+    ctx.fillRect(318, crownY + 2, 3, 2);
+    if (window.engine) window.engine.lightPool(ctx, 320, crownY, 50, '255,230,160', 0.16);
 
     // The goat, in the great hall, unremovable
     if (progress > 0.4) {
-        drawGoat(ctx, 430, 356, 0.72, -1, false, elapsed);
+        drawGoat(ctx, 412, 360, 0.78, -1, false, elapsed);
     }
 
     let caption = 'They bring you into the great hall in a borrowed cloak, and nobody laughs.';
-    if (progress > 0.22) caption = 'Elowen of the Amber Tower lifts the crown of Alderhaven.';
+    if (progress > 0.22) caption = 'Your mother, Queen Elowen, lifts the crown your father has laid down.';
     if (progress > 0.5) caption = 'It is heavier than a pail of water, which you did not expect.';
-    if (progress > 0.72) caption = 'From the sorcerer\'s scullery to the throne of Alderhaven. Nobody sees this coming. Including you.';
+    if (progress > 0.72) caption = 'From the sorcerer\'s scullery to the throne. This time, the choice is yours.';
     cutsceneCaption(ctx, w, h, caption, 1);
+}
+
+function drawScrubbingRowan(ctx, eng, brushX, elapsed) {
+    const hipX = 320, hipY = 328;
+    const lean = 0.95 + Math.sin(elapsed / 280) * 0.035;
+    const cosine = Math.cos(lean), sine = Math.sin(lean);
+    const palette = PAL.PLAYER;
+    eng.drawContactShadow(ctx, hipX + 4, 344, 1, { rx: 48, ry: 7, alpha: 0.34 });
+    ctx.save();
+    ctx.translate(hipX, hipY);
+    ctx.rotate(lean);
+    eng.drawEgoFront(ctx, 0, 0, 3.6, {
+        drawLegs: (cel) => {
+            cel.save();
+            cel.rotate(-lean);
+            cel.lineJoin = 'round';
+            for (const offset of [-7, 7]) {
+                for (const [colour, width] of [[palette.bootDeep, 15], [palette.hose, 11], [palette.hoseHi, 3]]) {
+                    cel.strokeStyle = colour;
+                    cel.lineWidth = width;
+                    cel.beginPath();
+                    cel.moveTo(offset, -4);
+                    cel.lineTo(offset + 14, 10);
+                    cel.lineTo(offset - 23, 10);
+                    cel.stroke();
+                }
+                cel.fillStyle = palette.bootDeep;
+                cel.fillRect(offset - 35, 0, 15, 17);
+                cel.fillStyle = palette.boot;
+                cel.fillRect(offset - 33, 2, 11, 13);
+                cel.fillStyle = palette.bootHi;
+                cel.fillRect(offset - 32, 3, 3, 10);
+            }
+            cel.restore();
+        },
+        drawArms: (cel, centerX, centerY, scale) => {
+            const colours = { edge: palette.tunicOutline, sleeve: '#DDDDDD', sleeveLo: '#AAAAAA',
+                skin: palette.skin, skinLo: palette.skinDeep };
+            for (const [side, gripOffset] of [[-1, -24], [1, 12]]) {
+                const shoulderX = centerX + side * 4.8 * scale;
+                const shoulderY = centerY - 14.6 * scale;
+                const worldX = brushX + gripOffset - hipX;
+                const worldY = 323 - hipY;
+                const targetX = worldX * cosine + worldY * sine;
+                const targetY = -worldX * sine + worldY * cosine;
+                const deltaX = targetX - shoulderX, deltaY = targetY - shoulderY;
+                const upper = 6.2 * scale, lower = 6.15 * scale;
+                const distance = Math.hypot(deltaX, deltaY);
+                const bend = Math.acos(Math.max(-1, Math.min(1,
+                    (distance * distance + upper * upper - lower * lower) / (2 * distance * upper))));
+                const upperAngle = Math.atan2(-deltaX, deltaY) - bend;
+                const elbowX = shoulderX - Math.sin(upperAngle) * upper;
+                const elbowY = shoulderY + Math.cos(upperAngle) * upper;
+                const foreAngle = Math.atan2(-(targetX - elbowX), targetY - elbowY) - upperAngle;
+                drawVgaArm(cel, shoulderX, shoulderY, scale, 1, upperAngle, foreAngle, colours);
+            }
+        }
+    });
+    ctx.restore();
 }
 
 /** The opening: eleven years of scrubbing, in four beats. */
@@ -616,7 +797,7 @@ function cutsceneOpening(ctx, w, h, progress, elapsed) {
             depth *= 1.3;
             row++;
         }
-        const scrub = Math.sin(elapsed / 200) * 34;
+        const scrub = Math.sin(elapsed / 280) * 12;
         // The wet arc already scrubbed, with suds along its edge
         ctx.fillStyle = 'rgba(150,180,190,0.16)';
         ctx.beginPath();
@@ -634,17 +815,7 @@ function cutsceneOpening(ctx, w, h, progress, elapsed) {
         ctx.scale(3.4, 3.4);
         ITEM_ART.pail(ctx, 0, 0, 0);
         ctx.restore();
-        // Rowan, knelt over the brush: the ego cel squashed rather than redrawn
-        if (window.engine) {
-            window.engine.drawContactShadow(ctx, 330, 356, 1, { rx: 62, ry: 10, alpha: 0.34 });
-            ctx.save();
-            ctx.translate(330, 356);
-            ctx.scale(1, 0.74);
-            window.engine.drawEgoFront(ctx, 0, 0, 3.6, { armAngle: 0.45 });
-            ctx.restore();
-        }
-        // Brush under his hands
-        const bx = 400 + scrub;
+        const bx = 380 + scrub;
         ctx.fillStyle = '#140d05';
         ctx.fillRect(bx - 38, 318, 76, 22);
         ctx.fillStyle = PAL.WOOD_SHADOW;
@@ -659,6 +830,7 @@ function cutsceneOpening(ctx, w, h, progress, elapsed) {
             ctx.fillStyle = i % 3 ? '#9c8a5e' : '#7b6c47';
             ctx.fillRect(bx - 34 + i * 2.9, 340, 2, 10);
         }
+        if (window.engine) drawScrubbingRowan(ctx, window.engine, bx, elapsed);
         window.engine && window.engine.vignette(ctx, 0.6, '6,5,10');
     } else if (phase === 2) {
         // Morvane's silhouette in a doorway, seen from the floor

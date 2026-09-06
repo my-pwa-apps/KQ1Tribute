@@ -4,10 +4,21 @@
 // ============================================================
 
 CrownQuest.defineRooms((engine) => {
+    const RULES = CrownQuestContent.rules;
     // ---------- Shared shell for the three interior rooms ----------
     // All three sit inside the same building, so they share a vanishing point
     // and a stone vocabulary. Only the dressing changes.
     const F = perspectiveFrame(640, 150, 490, 52, 258, 300);
+
+    // Heights of the surfaces props stand on. onEnter registers them and draw()
+    // paints from the same numbers, so a prop cannot drift off its own shelf.
+    const SHELF_F = [0.28, 0.44];
+    const RACK_F = [0.3, 0.46];
+    const DESK_TOP = 262;
+
+    function featherCollected(e) {
+        return e.getFlag('feather_taken') || e.getFlag('circle_feather') || e.hasItem('raven_feather');
+    }
 
     const HOUSE_TONE = {
         void: '#0a0806',
@@ -46,20 +57,21 @@ CrownQuest.defineRooms((engine) => {
     /** Stone dressing on both side walls, drawn through the perspective frame
      *  so courses converge instead of running flat. */
     function houseWalls(ctx, w) {
-        drawPerspectiveSurface(ctx, 150, 120, {
+        drawPerspectiveSurface(ctx, 100, 80, {
             tl: { x: 0, y: 0 }, tr: { x: F.BW_L, y: F.BW_T },
             bl: { x: 0, y: F.EDGE }, br: { x: F.BW_L, y: F.BW_B }
-        }, (s) => stoneWall(s, 0, 0, 150, 120, 1201, '#7a6b52', '#5e5240', '#43392c', '#312a20'));
-        drawPerspectiveSurface(ctx, 150, 120, {
+        }, (s) => stoneWall(s, 0, 0, 100, 80, 1201, '#7a6b52', '#5e5240', '#43392c', '#312a20'));
+        drawPerspectiveSurface(ctx, 100, 80, {
             tl: { x: w, y: 0 }, tr: { x: F.BW_R, y: F.BW_T },
             bl: { x: w, y: F.EDGE }, br: { x: F.BW_R, y: F.BW_B }
-        }, (s) => stoneWall(s, 0, 0, 150, 120, 3307, '#63563f', '#4a4132', '#352e23', '#272119'));
+        }, (s) => stoneWall(s, 0, 0, 100, 80, 3307, '#63563f', '#4a4132', '#352e23', '#272119'));
         stoneWall(ctx, F.BW_L, F.BW_T, F.BW_R - F.BW_L, F.BW_B - F.BW_T, 5501,
             '#7f7057', '#5f5341', '#443a2d', '#322b21');
     }
 
-    /** Worn flagstones. Courses widen toward the viewer, which is what makes
-     *  the floor recede without drawing a single grid line. */
+    /** Worn flagstones. Courses compress with distance AND their joints run to
+     *  the back wall, so the stones lie down. Axis-aligned rectangles at a fixed
+     *  pitch read as brickwork stood on end, however the courses are spaced. */
     function flagstones(ctx, w, h) {
         ctx.save();
         ctx.beginPath();
@@ -67,24 +79,63 @@ CrownQuest.defineRooms((engine) => {
         ctx.lineTo(w, F.EDGE); ctx.lineTo(w, h); ctx.lineTo(0, h);
         ctx.closePath();
         ctx.clip();
+        // Floor width at a given depth: the back wall foot opens out to the full
+        // frame at the near edge, so a joint at fraction t follows that spread.
+        const jointX = (y, t) => {
+            const d = (y - F.BW_B) / (h - F.BW_B);
+            const x0 = F.BW_L * (1 - d);
+            const x1 = F.BW_R + (w - F.BW_R) * d;
+            return x0 + (x1 - x0) * t;
+        };
         const next = seededRandom(8080);
+        const COLS = 9;
         let y = F.BW_B;
-        let row = 0;
         let depth = 7;
+        let row = 0;
         while (y < h + 20) {
-            const stoneW = depth * 4.4;
-            let x = -stoneW * (row % 2 ? 0.5 : 0);
-            while (x < w + stoneW) {
+            const y2 = y + depth;
+            const shift = row % 2 ? 0.5 / COLS : 0;
+            for (let c = -1; c <= COLS; c++) {
+                const t1 = c / COLS + shift, t2 = (c + 1) / COLS + shift;
+                const ax = jointX(y, t1), bx = jointX(y, t2);
+                const cx2 = jointX(y2, t2), dx = jointX(y2, t1);
                 const tone = next();
-                ctx.fillStyle = tone > 0.7 ? '#403a2f' : (tone > 0.32 ? '#37322a' : '#2d2922');
-                ctx.fillRect(x + 1, y + 1, stoneW - 2, depth - 2);
-                ctx.fillStyle = '#4a4438';
-                ctx.fillRect(x + 1, y + 1, stoneW - 2, 1);
-                ctx.fillStyle = '#1d1a15';
-                ctx.fillRect(x + 1, y + depth - 2, stoneW - 2, 1);
-                x += stoneW;
+                ctx.globalAlpha = 0.62;
+                ctx.fillStyle = tone > 0.72 ? '#4b4438' : (tone > 0.34 ? '#3f3930' : '#332e26');
+                ctx.beginPath();
+                ctx.moveTo(ax, y); ctx.lineTo(bx, y); ctx.lineTo(cx2, y2); ctx.lineTo(dx, y2);
+                ctx.closePath();
+                ctx.fill();
+                ctx.globalAlpha = 1;
+                // Joints: a dark near edge on every stone and a lit lip on most,
+                // but no full lattice of highlights.
+                ctx.strokeStyle = 'rgba(18,15,11,0.6)';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(dx, y2 - 0.5); ctx.lineTo(cx2, y2 - 0.5);
+                ctx.stroke();
+                if (next() > 0.3) {
+                    ctx.strokeStyle = 'rgba(122,112,92,0.45)';
+                    ctx.beginPath();
+                    ctx.moveTo(ax + 1, y + 0.5); ctx.lineTo(bx - 1, y + 0.5);
+                    ctx.stroke();
+                }
+                // Side joint, so the converging columns are legible up close
+                if (depth > 10) {
+                    ctx.strokeStyle = 'rgba(18,15,11,0.4)';
+                    ctx.beginPath();
+                    ctx.moveTo(ax, y); ctx.lineTo(dx, y2);
+                    ctx.stroke();
+                }
+                // Wear: a scuff on the odd stone rather than every one
+                if (depth > 12 && next() > 0.84) {
+                    ctx.fillStyle = 'rgba(74,68,56,0.32)';
+                    ctx.beginPath();
+                    ctx.ellipse((ax + bx + cx2 + dx) / 4, (y + y2) / 2, (bx - ax) * 0.24, depth * 0.2, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                }
             }
-            y += depth;
+            y = y2;
             depth *= 1.24;
             row++;
         }
@@ -95,21 +146,30 @@ CrownQuest.defineRooms((engine) => {
     engine.registerRoom({
         id: 'scullery',
         name: 'The Scullery',
-        description: 'Morvane\'s scullery. Cold stone, a banked fire, and eleven years of your life spent scrubbing it.',
+        get description() { return engine.getFlag('morvane_passed')
+            ? 'The scullery is empty. Far overhead, a shutter clicks in Morvane\'s locked observatory. Keep quiet; he still thinks you are working.'
+            : 'Morvane\'s scullery. Cold stone, a banked fire, and eleven years of your life spent scrubbing it.'; },
         smell: 'Wet ash, onion skins, and lye. It smells like every morning you can remember.',
         hint: (e) => {
             if (!e.hasItem('bread')) return 'The larder shelf holds the last of the black bread. Take it — a hard crust has uses.';
             if (!e.hasItem('sea_salt')) return 'There is a crock of coarse sea salt on the larder shelf. Take a pinch.';
             if (!e.hasItem('pail')) return 'Your pail is stood on the hearthstone, to the left of the fire. You will want it.';
-            return 'Morvane is out. The stair behind you goes up to his study, and you have never once been allowed in it.';
+            return e.getFlag('morvane_passed')
+                ? 'Morvane is shut in the upper observatory. The lower rooms are clear, but do not linger. The stair leads to the study.'
+                : 'Morvane is out. The stair behind you goes up to his study, and you have never once been allowed in it.';
         },
         onEnter: (e) => {
             e.sound.startAmbient('hearth');
             e.setDepthScaling(266, 372, 0.72, 1.12);
+            e.setWalkableArea((px, py) => py > 270 && py < 372 && px > 34 && px < 596);
+            e.addSurface('larder_upper', 22, 138, (x) => F.lBand(x, SHELF_F[0]));
+            e.addSurface('larder_lower', 22, 138, (x) => F.lBand(x, SHELF_F[1]));
+            e.addSurface('copper_rack', 502, 620, (x) => F.rBand(x, RACK_F[0]));
             // The great table and the hearth are solid.
             e.addBarrier(56, 292, 168, 40);
             e.addBarrier(432, 276, 150, 46);
-            e.setEdgeTransition('right', (eng) => eng.goToRoom('study', 96, 330));
+            // No edge transition: the stair is the only way out, and it is drawn.
+            // Walking into a blank wall must not teleport you upstairs.
 
             // A trestle bench across the near floor gives the ego something to
             // walk behind, which is what sells the depth of the room.
@@ -193,10 +253,9 @@ CrownQuest.defineRooms((engine) => {
             eng.lightPool(ctx, 322, 240, 210, '255,150,60', 0.20);
 
             // ---- Larder shelves on the left wall, in perspective ----
-            // One source of truth for the shelf heights: the planks and
-            // everything standing on them are both derived from SHELF_F.
-            const SHELF_F = [0.28, 0.44];
-            const shelfTop = (x, tier) => F.lBand(x, SHELF_F[tier]);
+            // The planks and everything standing on them come off SHELF_F, which
+            // onEnter also registered as the 'larder_*' surfaces.
+            const shelfTop = (x, tier) => eng.standOn(tier ? 'larder_lower' : 'larder_upper', x);
             const shelfTone = (fill) => { ctx.fillStyle = fill; ctx.fill(); };
             SHELF_F.forEach((f, i) => {
                 F.trap(ctx, 22, 138, f, f + 0.055, F.lBand);
@@ -208,10 +267,11 @@ CrownQuest.defineRooms((engine) => {
             // The shelf top face slopes toward the vanishing point, so an object
             // must be measured at its OWN centre x and have its base placed on
             // that y. Measuring at some other x is how things end up hovering.
-            /** Ellipse of contact shadow, tilted to follow the shelf's slope. */
-            const shelfShadow = (cx, tier, rx) => {
-                const y = shelfTop(cx, tier);
-                const slope = Math.atan2(shelfTop(cx + 20, tier) - shelfTop(cx - 20, tier), 40);
+            /** Ellipse of contact shadow on a shelf, tilted to follow the plank's
+             *  slope. Measure at the object's OWN x, on the wall it stands on. */
+            const shelfShadow = (cx, band, f, rx) => {
+                const y = band(cx, f);
+                const slope = Math.atan2(band(cx + 20, f) - band(cx - 20, f), 40);
                 ctx.save();
                 ctx.translate(cx, y);
                 ctx.rotate(slope);
@@ -225,7 +285,7 @@ CrownQuest.defineRooms((engine) => {
             // Salt crock, upper shelf
             {
                 const cx = 51, base = shelfTop(cx, 0);
-                shelfShadow(cx, 0, 13);
+                shelfShadow(cx, F.lBand, SHELF_F[0], 13);
                 ctx.fillStyle = '#0f0c08';
                 ctx.fillRect(cx - 11, base - 21, 22, 21);
                 ctx.fillStyle = '#6a5a48';
@@ -242,7 +302,7 @@ CrownQuest.defineRooms((engine) => {
             // Fat jar, upper shelf
             {
                 const cx = 91, base = shelfTop(cx, 0);
-                shelfShadow(cx, 0, 15);
+                shelfShadow(cx, F.lBand, SHELF_F[0], 15);
                 ctx.fillStyle = '#0f0c08';
                 ctx.fillRect(cx - 13, base - 18, 26, 18);
                 ctx.fillStyle = '#4a4438';
@@ -253,7 +313,7 @@ CrownQuest.defineRooms((engine) => {
             // The black bread, lower shelf
             if (!eng.hasItem('bread')) {
                 const cx = 112, base = shelfTop(cx, 1);
-                shelfShadow(cx, 1, 15);
+                shelfShadow(cx, F.lBand, SHELF_F[1], 15);
                 ctx.fillStyle = '#2a1a0c';
                 ctx.beginPath();
                 ctx.ellipse(cx, base - 8, 15, 8, -0.1, 0, Math.PI * 2);
@@ -287,35 +347,42 @@ CrownQuest.defineRooms((engine) => {
             }
 
             // ---- Right wall: a rack of copper ----
-            [0.3, 0.46].forEach((f) => {
+            RACK_F.forEach((f) => {
                 F.trap(ctx, 502, 620, f, f + 0.05, F.rBand);
                 ctx.fillStyle = PAL.WOOD_SHADOW; ctx.fill();
                 F.trap(ctx, 502, 620, f, f + 0.016, F.rBand);
                 ctx.fillStyle = PAL.WOOD_LIT; ctx.fill();
             });
-            [[540, 0.3], [578, 0.3]].forEach(([px, f], i) => {
-                const py = F.rBand(px, f) - 4;
+            [[540, RACK_F[0]], [578, RACK_F[0]]].forEach(([px, f], i) => {
+                // Base on the plank at this pan's own x, then build upward: an
+                // ellipse centred above the plank leaves the pan hovering.
+                const base = eng.standOn('copper_rack', px);
+                const rx = 13 - i * 2, ry = 12 - i * 2;
+                shelfShadow(px, F.rBand, f, rx);
                 ctx.fillStyle = '#191512';
                 ctx.beginPath();
-                ctx.ellipse(px, py - 12, 13 - i * 2, 12 - i * 2, 0, 0, Math.PI * 2);
+                ctx.ellipse(px, base - ry, rx, ry, 0, 0, Math.PI * 2);
                 ctx.fill();
                 ctx.fillStyle = '#8a5a28';
                 ctx.beginPath();
-                ctx.ellipse(px, py - 13, 11 - i * 2, 10 - i * 2, 0, 0, Math.PI * 2);
+                ctx.ellipse(px, base - ry - 1, rx - 2, ry - 2, 0, 0, Math.PI * 2);
                 ctx.fill();
                 ctx.fillStyle = '#c98a3c';
                 ctx.beginPath();
-                ctx.ellipse(px - 3, py - 16, 5 - i, 3.4 - i * 0.5, 0, 0, Math.PI * 2);
+                ctx.ellipse(px - 3, base - ry - 4, 5 - i, 3.4 - i * 0.5, 0, 0, Math.PI * 2);
                 ctx.fill();
             });
             // The pail, stood on the hearthstone where he left it. Drawn from the
             // shared inventory art so it is unmistakably the same object, and on
             // the floor rather than far up a side wall where it read as a smudge.
             if (!eng.hasItem('pail')) {
-                eng.drawContactShadow(ctx, 250, 300, 1, { rx: 26, ry: 6, alpha: 0.34 });
+                // ITEM_ART.pail is drawn about its middle: its base is 17 units
+                // below the origin, so the origin lifts off the ground line.
+                const groundY = 306, s = 1.55;
+                eng.drawContactShadow(ctx, 250, groundY, 1, { rx: 26, ry: 6, alpha: 0.34 });
                 ctx.save();
-                ctx.translate(250, 282);
-                ctx.scale(1.55, 1.55);
+                ctx.translate(250, groundY - 17 * s);
+                ctx.scale(s, s);
                 ITEM_ART.pail(ctx, 0, 0, eng.animTimer);
                 ctx.restore();
             }
@@ -362,12 +429,38 @@ CrownQuest.defineRooms((engine) => {
             ctx.fillRect(432, 136, 28, 26);
             // Warm light spilling down from the study above
             lightShaft(ctx, 446, 138, 22, 446, 262, 66, 0.11, 'rgba(255,214,150,1)');
-            // Jambs, so the opening is cut into a wall rather than painted on it
-            ctx.fillStyle = '#1a150e';
-            ctx.fillRect(398, 132, 6, 126);
-            ctx.fillRect(484, 132, 6, 126);
-            ctx.fillStyle = '#6b5c45';
-            ctx.fillRect(398, 132, 2, 126);
+            // Timber casing last, so it frames the opening: posts, a head beam
+            // and a worn sill, rather than a black line painted round a hole.
+            const doorTimber = (tx, ty2, tw, th, vertical, seed) => {
+                ctx.fillStyle = '#150e05';
+                ctx.fillRect(tx - 2, ty2 - 2, tw + 4, th + 4);
+                woodPlanks(ctx, tx, ty2, tw, th, vertical, seed);
+                ctx.fillStyle = PAL.WOOD_LIT;
+                if (vertical) ctx.fillRect(tx, ty2, 2.5, th); else ctx.fillRect(tx, ty2, tw, 2.5);
+                ctx.fillStyle = PAL.WOOD_DEEP;
+                if (vertical) ctx.fillRect(tx + tw - 2.5, ty2, 2.5, th); else ctx.fillRect(tx, ty2 + th - 2.5, tw, 2.5);
+            };
+            doorTimber(392, 134, 14, 126, true, 811);
+            doorTimber(482, 134, 14, 126, true, 823);
+            doorTimber(388, 116, 112, 20, false, 837);
+            doorTimber(396, 256, 96, 8, false, 849);
+            // Iron straps over the head beam, and pegs in the posts
+            [404, 440, 476].forEach((sx) => {
+                ctx.fillStyle = '#241f19';
+                ctx.fillRect(sx, 116, 5, 20);
+                ctx.fillStyle = '#4a443a';
+                ctx.fillRect(sx, 116, 1.6, 20);
+            });
+            ctx.fillStyle = '#2e2114';
+            [396, 486].forEach((sx) => {
+                ctx.fillRect(sx, 168, 4, 4);
+                ctx.fillRect(sx, 228, 4, 4);
+            });
+            ctx.fillStyle = '#8a7a5c';
+            [396, 486].forEach((sx) => {
+                ctx.fillRect(sx, 168, 1.6, 1.6);
+                ctx.fillRect(sx, 228, 1.6, 1.6);
+            });
 
             // ---- Light from the high window, and its motes ----
             lightShaft(ctx, 210, 40, 30, 268, 330, 84, 0.13);
@@ -400,7 +493,7 @@ CrownQuest.defineRooms((engine) => {
                     if (e.hasItem('sea_salt')) { e.showMessage('You have salt enough for whatever you are planning.'); return; }
                     e.sound.pickup();
                     e.addToInventory('sea_salt');
-                    e.addScore(3);
+                    if (!e.getFlag('circle_salt')) RULES.award(e, 'sea_salt');
                     e.showMessage('You twist a pinch of coarse sea salt into a scrap of cloth and pocket it. Morvane counts many things. He has never once counted the salt.');
                 },
                 get hidden() { return engine.hasItem('sea_salt'); }
@@ -411,7 +504,7 @@ CrownQuest.defineRooms((engine) => {
                 get: (e) => {
                     e.sound.pickup();
                     e.addToInventory('bread');
-                    e.addScore(2);
+                    RULES.award(e, 'bread');
                     e.showMessage('You pocket the crust. It is inedible, which in your experience only broadens its uses.');
                 },
                 get hidden() { return engine.hasItem('bread'); }
@@ -422,7 +515,7 @@ CrownQuest.defineRooms((engine) => {
                 get: (e) => {
                     e.sound.pickup();
                     e.addToInventory('pail');
-                    e.addScore(2);
+                    RULES.award(e, 'pail');
                     e.showMessage('You pick up the pail. It has stood in that spot so long the flagstone under it is a different colour.');
                 },
                 get hidden() { return engine.hasItem('pail'); }
@@ -438,7 +531,7 @@ CrownQuest.defineRooms((engine) => {
                 use: (e) => e.showMessage('You could scrub it again. You have scrubbed it every day of your remembered life, and today the house is empty.')
             },
             {
-                name: 'the stair up', x: 398, y: 132, w: 92, h: 126, isExit: true, walkToX: 430,
+                name: 'the stair up', x: 388, y: 116, w: 112, h: 148, isExit: true, walkToX: 430, walkToY: 336,
                 description: 'Worn steps curving up into the dark, toward the study. You have been forbidden that stair since you could walk.',
                 onExit: (e) => e.goToRoom('study', 96, 330)
             }
@@ -449,21 +542,25 @@ CrownQuest.defineRooms((engine) => {
     engine.registerRoom({
         id: 'study',
         name: 'Morvane\'s Study',
-        description: 'The sorcerer\'s study. A desk, an hourglass, a raven, and a great deal of silence.',
+        get description() { return engine.getFlag('morvane_passed')
+            ? 'The study is empty except for Corvus. Above the ceiling, Morvane turns the great glass in his locked observatory. The hidden stair and front door are clear.'
+            : 'The sorcerer\'s study. A desk, an hourglass, a raven, and a great deal of silence.'; },
         smell: 'Old vellum, cold candle wax, and something underneath that you would rather not name.',
         hint: (e) => {
             if (!e.getFlag('found_key')) return 'The hourglass on the desk sits oddly high on one side. Look under it.';
             if (!e.getFlag('stair_revealed')) return 'That tapestry is the only thing in this house Morvane never lets you clean. Look behind it.';
-            if (!e.hasItem('raven_feather')) return 'Corvus moults. There is a feather on the perch, and he will let you have it if you ask.';
+            if (!featherCollected(e)) return 'Corvus moults. There is a feather on the perch, and he will let you have it if you ask.';
             return 'The stair behind the tapestry goes down. The front door goes out. Neither is going to make Morvane happier.';
         },
         onEnter: (e) => {
             e.sound.startAmbient('tower');
             e.setDepthScaling(266, 372, 0.72, 1.12);
+            e.setWalkableArea((px, py) => py > 270 && py < 372 && px > 40 && px < 600);
+            e.addSurface('desk', 232, 416, DESK_TOP);
             e.addBarrier(238, 268, 172, 46);
             e.addBarrier(38, 250, 92, 60);
-            e.setEdgeTransition('left', (eng) => eng.goToRoom('scullery', 470, 330));
-            e.setEdgeTransition('right', (eng) => eng.goToRoom('crag_path', 90, 322));
+            // Exits are the stair down, the front door and the hidden stair.
+            // All three are drawn, so no edge transition duplicates them.
 
             // Corvus perches at the ego's depth so Rowan can pass behind him.
             e.addForegroundLayer(300, (ctx, eng) => {
@@ -477,7 +574,7 @@ CrownQuest.defineRooms((engine) => {
                 ctx.fillRect(74, 210, 56, 9);
                 ctx.fillStyle = PAL.WOOD_BASE;
                 ctx.fillRect(76, 212, 52, 5);
-                if (!eng.hasItem('raven_feather')) {
+                if (!featherCollected(eng)) {
                     ctx.save();
                     ctx.translate(126, 216);
                     ctx.rotate(0.9);
@@ -499,14 +596,14 @@ CrownQuest.defineRooms((engine) => {
                     floorBands: [['#38323f', 258, 26], ['#312b3a', 284, 32], ['#2a2532', 316, 38], ['#231f2a', 354, 46]]
                 }));
             }), 0, 0);
-            drawPerspectiveSurface(ctx, 150, 120, {
+            drawPerspectiveSurface(ctx, 100, 80, {
                 tl: { x: 0, y: 0 }, tr: { x: F.BW_L, y: F.BW_T },
                 bl: { x: 0, y: F.EDGE }, br: { x: F.BW_L, y: F.BW_B }
-            }, (s) => stoneWall(s, 0, 0, 150, 120, 1201, '#585067', '#463e50', '#332d3c', '#252030'));
-            drawPerspectiveSurface(ctx, 150, 120, {
+            }, (s) => stoneWall(s, 0, 0, 100, 80, 1201, '#585067', '#463e50', '#332d3c', '#252030'));
+            drawPerspectiveSurface(ctx, 100, 80, {
                 tl: { x: w, y: 0 }, tr: { x: F.BW_R, y: F.BW_T },
                 bl: { x: w, y: F.EDGE }, br: { x: F.BW_R, y: F.BW_B }
-            }, (s) => stoneWall(s, 0, 0, 150, 120, 3307, '#4b4359', '#3a3345', '#2a2532', '#1f1b28'));
+            }, (s) => stoneWall(s, 0, 0, 100, 80, 3307, '#4b4359', '#3a3345', '#2a2532', '#1f1b28'));
             stoneWall(ctx, F.BW_L, F.BW_T, F.BW_R - F.BW_L, F.BW_B - F.BW_T, 5501,
                 '#5c5470', '#4a4258', '#342e40', '#262130');
             flagstones(ctx, w, h);
@@ -590,8 +687,8 @@ CrownQuest.defineRooms((engine) => {
 
             // ---- The desk, near right, with the hourglass ----
             ctx.fillStyle = '#0d0a06';
-            ctx.fillRect(232, 262, 184, 14);
-            woodPlanks(ctx, 236, 264, 176, 11, false, 909);
+            ctx.fillRect(232, DESK_TOP, 184, 14);
+            woodPlanks(ctx, 236, DESK_TOP + 2, 176, 11, false, 909);
             ctx.fillStyle = '#0d0a06';
             ctx.fillRect(246, 274, 16, 48);
             ctx.fillRect(388, 274, 16, 48);
@@ -629,7 +726,7 @@ CrownQuest.defineRooms((engine) => {
             ctx.closePath(); ctx.fill();
             ctx.restore();
             // Hourglass: brass frame, two glass bulbs, one thin falling stream
-            const hx = 372, hy = 262;
+            const hx = 372, hy = eng.standOn('desk', 372);
             ctx.fillStyle = '#3a2a08';
             ctx.fillRect(hx - 13, hy - 3, 26, 4);
             ctx.fillRect(hx - 13, hy - 42, 26, 4);
@@ -663,17 +760,25 @@ CrownQuest.defineRooms((engine) => {
             }
 
             // ---- Candle on the desk, and the front door on the right wall ----
+            // Dish base on the desk surface, stick built up from the dish.
+            const candleX = 244, deskTop = eng.standOn('desk', candleX);
+            ctx.fillStyle = '#0d0a06';
+            ctx.fillRect(candleX - 7, deskTop - 2, 14, 3);
             ctx.fillStyle = '#3a352c';
-            ctx.fillRect(276, 236, 10, 4);
+            ctx.fillRect(candleX - 6, deskTop - 5, 12, 5);
+            ctx.fillStyle = '#565045';
+            ctx.fillRect(candleX - 6, deskTop - 5, 12, 1.6);
             ctx.fillStyle = '#e8e0c8';
-            ctx.fillRect(278, 216, 6, 22);
+            ctx.fillRect(candleX - 3, deskTop - 27, 6, 22);
             ctx.fillStyle = '#c4bca4';
-            ctx.fillRect(282, 216, 2, 22);
-            flame(ctx, 281, 216, 0.42, eng.animTimer);
-            eng.lightPool(ctx, 281, 212, 108, '255,200,120', 0.14);
+            ctx.fillRect(candleX + 1, deskTop - 27, 2, 22);
+            flame(ctx, candleX, deskTop - 27, 0.42, eng.animTimer);
+            eng.lightPool(ctx, candleX, deskTop - 31, 108, '255,200,120', 0.14);
 
-            const df1 = 0.06, df2 = 0.86;
-            F.trap(ctx, 512, 606, df1 - 0.04, df2 + 0.03, F.rBand);
+            // rBand(x, 1) IS the wall/floor junction, so the leaf and its
+            // surround both run to 1: anything short leaves the door hovering.
+            const df1 = 0.06, df2 = 1;
+            F.trap(ctx, 512, 606, df1 - 0.04, df2, F.rBand);
             ctx.fillStyle = '#08070a'; ctx.fill();
             F.trap(ctx, 518, 600, df1, df2, F.rBand);
             ctx.fillStyle = PAL.WOOD_SHADOW; ctx.fill();
@@ -686,6 +791,11 @@ CrownQuest.defineRooms((engine) => {
                 F.trap(ctx, 518, 600, f, f + 0.05, F.rBand);
                 ctx.fill();
             });
+            // Worn stone threshold the door closes onto
+            F.trap(ctx, 508, 610, 0.985, 1.055, F.rBand);
+            ctx.fillStyle = '#2a2620'; ctx.fill();
+            F.trap(ctx, 508, 610, 0.985, 1.012, F.rBand);
+            ctx.fillStyle = '#4e483d'; ctx.fill();
             ctx.fillStyle = PAL.GOLD_SHADOW;
             ctx.beginPath();
             ctx.arc(556, F.rBand(556, 0.5), 6, 0, Math.PI * 2);
@@ -700,7 +810,7 @@ CrownQuest.defineRooms((engine) => {
         hotspots: [
             {
                 name: 'the bookcase', x: 300, y: 64, w: 186, h: 194,
-                description: 'Shelf upon shelf of Morvane\'s books. You cannot read a word of any of them, which he has always found extremely funny.',
+                description: 'Shelf upon shelf of Morvane\'s books. You taught yourself ordinary letters from flour sacks, slowly. These curling magical alphabets are another matter, which he has always found extremely funny.',
                 get: (e) => e.showMessage('You touch one spine. It is unpleasantly warm, and you decide against the rest.'),
                 use: (e) => e.showMessage('You tug at a few volumes. They are all quite firmly not for you.')
             },
@@ -724,14 +834,14 @@ CrownQuest.defineRooms((engine) => {
                     }
                     e.setFlag('found_key');
                     e.addToInventory('brass_key');
-                    e.addScore(5);
+                    RULES.award(e, 'brass_key');
                     e.sound.pickup();
                     e.showMessage('You tilt the hourglass. Beneath one brass foot, worn smooth by years of being sat on, lies a small brass key. Morvane hid it in the one place in this house nobody is allowed to dust.');
                 },
                 use: (e) => e.showMessage('You turn the hourglass over. The sand starts again, exactly as unhurried as before.')
             },
             {
-                name: 'the candle', x: 272, y: 210, w: 20, h: 32,
+                name: 'the candle', x: 234, y: 228, w: 22, h: 36,
                 description: 'A tallow candle burning steadily, though nobody has been up here since dawn.',
                 get: (e) => e.showMessage('The flame leans toward your fingers with more interest than a flame should show. You leave it.')
             },
@@ -748,14 +858,14 @@ CrownQuest.defineRooms((engine) => {
                         return;
                     }
                     e.setFlag('stair_revealed');
-                    e.addScore(5);
+                    RULES.award(e, 'stair_revealed');
                     e.sound.metalScrape();
                     e.showMessage('You take hold of the tapestry and haul it aside. Behind it the stone is not stone at all, but a low doorway, and a stair going down into the crag. Eleven years. It has been eleven years, and it was behind the one thing he never let you touch.');
                 },
-                use: (e) => e.showMessage('You give the hanging a tug. Dust comes off it in a grey breath.')
+                use: (e) => e.rooms.study.hotspots.find(hotspot => hotspot.name === 'the tapestry').look(e)
             },
             {
-                name: 'the hidden stair', x: 24, y: 96, w: 76, h: 156, isExit: true, walkToX: 150,
+                name: 'the hidden stair', x: 24, y: 96, w: 76, h: 156, isExit: true, walkToX: 150, walkToY: 318,
                 description: 'A narrow stair cut into the rock, going down. Cold air comes up it.',
                 onExit: (e) => e.goToRoom('spell_room', 320, 344),
                 get hidden() { return !engine.getFlag('stair_revealed'); }
@@ -770,15 +880,17 @@ CrownQuest.defineRooms((engine) => {
                 name: 'the feather', x: 118, y: 200, w: 24, h: 26, walkToX: 168,
                 description: 'A long black feather lying on the perch where Corvus dropped it.',
                 get: (e) => {
+                    if (featherCollected(e)) return;
+                    e.setFlag('feather_taken');
                     e.sound.pickup();
                     e.addToInventory('raven_feather');
-                    e.addScore(3);
+                    RULES.award(e, 'raven_feather');
                     e.showMessage('You take the feather. Corvus watches you do it and says, distinctly, "Mm." You have never been so unnerved by a bird.');
                 },
-                get hidden() { return engine.hasItem('raven_feather'); }
+                get hidden() { return featherCollected(engine); }
             },
             {
-                name: 'the front door', x: 512, y: 60, w: 96, h: 200, isExit: true, walkToX: 540,
+                name: 'the front door', x: 508, y: 42, w: 100, h: 252, isExit: true, walkToX: 540,
                 description: 'The front door, banded in iron. Daylight shows in a bright seam all round it.',
                 onExit: (e) => e.goToRoom('crag_path', 90, 322)
             },
@@ -790,30 +902,26 @@ CrownQuest.defineRooms((engine) => {
         ]
     });
 
-    /** Reading the one legible page. Reached from the lectern's `use` handler
-     *  and from dropping the book on it, so both routes tell the same story. */
-    function readTheSpell(e) {
-        if (!e.hasItem('spellbook')) { e.showMessage('You have nothing to put on it.'); return; }
-        if (e.getFlag('read_spell')) { e.showMessage('You have read the one page it will show you. Twice, now.'); return; }
-        e.setFlag('read_spell');
-        e.showTextWindow('You lay the book on the lectern. Most of it will not let your eyes rest on it at all. One page will: STORM IN A THIMBLE. Take a feather of a black bird and a pinch of salt from the sea. Lay them in a circle of chalk and say over them the word that follows. Keep the storm close, and spend it once.', { maxWidth: 420 });
-    }
-
     // ================= ROOM 3: THE SPELL ROOM =================
     engine.registerRoom({
         id: 'spell_room',
         name: 'The Hidden Room',
-        description: 'A low chamber cut into the crag, lit by nothing you can identify. A chalk circle is drawn on the floor.',
+        get description() { return engine.getFlag('morvane_passed')
+            ? 'The hidden chamber is still empty. Morvane is occupied far above in the observatory; down here even his footsteps cannot reach you.'
+            : 'A low chamber cut into the crag, lit by nothing you can identify. A chalk circle is drawn on the floor.'; },
         smell: 'Cold stone, iron filings, and a sharp green smell like a storm that has not happened yet.',
         hint: (e) => {
             if (!e.hasItem('spellbook')) return 'The iron chest is locked, and you found a brass key under the hourglass upstairs.';
             if (!e.getFlag('read_spell')) return 'Read the spellbook. It only has one page it will let you see.';
             if (!e.hasItem('thimble')) return 'The spell wants a feather of a black bird and a pinch of sea salt, laid in the chalk circle. Then say the words.';
-            return 'You have what you came for. Morvane will be back, and you should not be here when he is.';
+            return e.getFlag('morvane_passed')
+                ? 'You have what you came for. Leave while Morvane is occupied in the observatory.'
+                : 'You have what you came for. Morvane will be back, and you should not be here when he is.';
         },
         onEnter: (e) => {
             e.sound.startAmbient('tower');
             e.setDepthScaling(288, 372, 0.8, 1.08);
+            e.setWalkableArea((px, py) => py > 292 && py < 372 && px > 40 && px < 600);
             e.addBarrier(58, 286, 128, 42);
             e.addBarrier(462, 276, 130, 48);
         },
@@ -1064,7 +1172,7 @@ CrownQuest.defineRooms((engine) => {
                 get: (e) => {
                     e.sound.pickup();
                     e.addToInventory('spellbook');
-                    e.addScore(10);
+                    RULES.award(e, 'spellbook');
                     e.showMessage('You lift the book out. It is colder than the chest was, and it settles into your hands as though it had been waiting for smaller ones.');
                 },
                 get hidden() { return !engine.getFlag('chest_open') || engine.hasItem('spellbook'); }
@@ -1072,9 +1180,9 @@ CrownQuest.defineRooms((engine) => {
             {
                 name: 'the lectern', x: 464, y: 246, w: 92, h: 88, walkToX: 440,
                 description: 'A reading stand worn smooth at the edges. Whatever usually lies here has been taken away.',
-                use: (e) => readTheSpell(e),
+                use: (e) => RULES.readTheSpell(e),
                 useItem: (e, itemId) => {
-                    if (itemId === 'spellbook') { readTheSpell(e); return; }
+                    if (itemId === 'spellbook') { RULES.readTheSpell(e); return; }
                     e.showMessage('The lectern is for books.');
                 }
             },
@@ -1120,7 +1228,7 @@ CrownQuest.defineRooms((engine) => {
                         e.showMessage('The circle is not ready. It wants a feather of a black bird and a pinch of salt from the sea.');
                         return;
                     }
-                    e.addScore(20);
+                    RULES.award(e, 'thimble');
                     e.runSequence([
                         'You say the word on the page. Your voice does not sound like your voice.',
                         (eng) => { eng.sound.castSpell(); eng.shake(6); },
@@ -1166,15 +1274,30 @@ CrownQuest.defineRooms((engine) => {
             if (!e.hasItem('thimble')) return 'The skiff is becalmed. You need a wind, and you know exactly where to find one.';
             return 'Use the Thimble of Storms on the skiff.';
         },
-        onEnter: (e) => {
+        onEnter: (e, { restoring = false } = {}) => {
             e.sound.startAmbient('wind');
             e.setDepthScaling(250, 372, 0.62, 1.1);
             e.setWalkableArea((px, py) => py > 236 && py < 372 && px > 24 && px < 616);
             e.addBarrier(408, 250, 130, 60);
+            e.addForegroundLayer(346, (ctx, eng) => {
+                const elapsed = eng.getCounter('crag_timer');
+                if (eng.getFlag('morvane_passed') || elapsed < 6000) return;
+                const approach = Math.min(1, (elapsed - 6000) / 3000);
+                const groundX = 600 - approach * 230;
+                const scale = vgaPersonScale(eng, 346, 1.08);
+                eng.drawContactShadow(ctx, groundX, 346, scale);
+                drawVgaPerson(ctx, groundX, 346, scale, Object.assign({}, CAST_MORVANE, {
+                    animTimer: eng.animTimer,
+                    nearArm: { side: 1, up: 0.4, lo: 0.2 },
+                    farArm: { side: -1, up: -0.3, lo: 0.3 }
+                }));
+            });
             // The approach restarts each time Rowan steps back out onto the path,
             // so returning from the house is never an instant death.
-            e.setFlag('crag_timer', 0);
-            e.setFlag('crag_nudged', false);
+            if (!restoring) {
+                e.setFlag('crag_timer', 0);
+                e.setFlag('crag_nudged', false);
+            }
             if (!e.getFlag('morvane_passed') && !e.getFlag('morvane_warned')) {
                 e.setFlag('morvane_warned');
                 e.showMessage('The wind off the sea hits you like a door opening. Then, from somewhere below the shoulder of the path, you hear a stick strike stone. Once. Then again, closer.', { window: true });
@@ -1189,7 +1312,10 @@ CrownQuest.defineRooms((engine) => {
                 e.showMessage('The stick strikes stone again. It is very close now, and it is coming up.', { window: true });
             }
             if (t > 9000) {
-                e.die('Morvane comes round the shoulder of the path and stops. For a long moment he simply looks at you standing in the open with his book under your arm. "Ah," he says. Nothing after that is worth writing down.');
+                e.runSequence([
+                    1600,
+                    (game) => game.die('Morvane comes round the shoulder of the path and stops. For a long moment he simply looks at you standing in the open. "Ah," he says. Nothing after that is worth writing down.')
+                ]);
             }
         },
         draw: (ctx, w, h, eng) => {
@@ -1278,10 +1404,23 @@ CrownQuest.defineRooms((engine) => {
             ctx.fillRect(46, 142, 16, 20);
             ctx.fillStyle = '#0c0a10';
             ctx.fillRect(53, 142, 2, 20);
+            // The stack is sunk to the thatch surface at its downhill edge, so
+            // it cannot drift off the slope and float.
+            const chimBase = roofSurfaceY(88, 84, 70, 124, 136) + 6;
+            ctx.fillStyle = '#191622';
+            ctx.fillRect(114, 58, 22, chimBase - 58);
             ctx.fillStyle = '#2a2530';
-            ctx.fillRect(116, 60, 18, 34);
+            ctx.fillRect(116, 60, 18, chimBase - 62);
             ctx.fillStyle = '#413a4e';
-            ctx.fillRect(116, 60, 6, 34);
+            ctx.fillRect(116, 60, 6, chimBase - 62);
+            ctx.fillStyle = '#3a2c12';
+            ctx.beginPath();
+            ctx.moveTo(110, roofSurfaceY(88, 84, 70, 124, 110) + 2);
+            ctx.lineTo(140, chimBase - 2);
+            ctx.lineTo(140, chimBase + 4);
+            ctx.lineTo(110, roofSurfaceY(88, 84, 70, 124, 110) + 8);
+            ctx.closePath();
+            ctx.fill();
             // Chimney smoke leaning hard downwind
             for (let i = 0; i < 5; i++) {
                 const p = (eng.animTimer / 420 + i * 1.4) % 6;
@@ -1352,12 +1491,12 @@ CrownQuest.defineRooms((engine) => {
                 use: (e) => {
                     if (e.getFlag('morvane_passed')) { e.showMessage('You have already used it once today. Once was enough.'); return; }
                     e.setFlag('morvane_passed');
-                    e.addScore(10);
+                    RULES.award(e, 'morvane_passed');
                     e.playCutscene({
                         duration: 7000,
                         draw: (c, cw, ch, progress, elapsed) => cutsceneMorvanePasses(c, cw, ch, progress, elapsed),
                         onEnd: () => {
-                            engine.showMessage('He goes into the house. The door closes. You are still alive, which you had not counted on, and the path to the cove is open.', { window: true });
+                            engine.showMessage('He goes into the house. High above, the observatory shutter opens: his evening watch, behind a locked door. The lower rooms are clear if you forgot anything. The path to the cove is open.', { window: true });
                         }
                     });
                 },
@@ -1368,9 +1507,9 @@ CrownQuest.defineRooms((engine) => {
                 }
             },
             {
-                name: 'the house', x: 26, y: 60, w: 124, h: 166,
-                description: 'Morvane\'s house, squat against the wind. From out here you can see how small it is.',
-                walk: (e) => e.showMessage('You are not going back in there.')
+                name: 'the house', x: 26, y: 60, w: 124, h: 166, isExit: true, walkToX: 90,
+                description: 'Morvane\'s house, squat against the wind. The path on your left leads back up to its front door.',
+                onExit: (e) => e.goToRoom('study', 560, 330)
             },
             {
                 name: 'the sea', x: 0, y: 154, w: 640, h: 60,
@@ -1394,15 +1533,19 @@ CrownQuest.defineRooms((engine) => {
                 useItem: (e, itemId) => {
                     if (itemId !== 'thimble') { e.showMessage('That will not move a boat.'); return; }
                     if (!e.getFlag('morvane_passed')) { e.showMessage('Not while there is something coming up the path.'); return; }
+                    if (!e.hasItem('bread') || !e.hasItem('pail')) {
+                        e.showMessage('One wind, one crossing. Before you leave this shore for good, fetch your bread and water pail from the scullery. A free boy will still need to eat and carry water.');
+                        return;
+                    }
                     e.removeFromInventory('thimble');
                     e.updateInventoryUI();
-                    e.addScore(15);
+                    RULES.award(e, 'sailed');
                     e.playCutscene({
                         duration: 9000,
                         draw: (c, cw, ch, progress, elapsed) => cutsceneSailAway(c, cw, ch, progress, elapsed),
                         onEnd: () => {
                             engine.goToRoom('harbour_road', 120, 336);
-                            engine.showMessage('The keel grates on shingle on the far shore. You step out onto Alderhaven with a stolen book, an empty thimble, and no plan whatsoever.', { window: true });
+                            engine.showMessage('The keel grates on shingle on the far shore. You step out onto Alderhaven with a stolen book, your old pail, and no plan whatsoever.', { window: true });
                         }
                     });
                 }
@@ -1412,7 +1555,7 @@ CrownQuest.defineRooms((engine) => {
                 description: 'Gorse, thrift and sea pink, all of it flattened permanently eastward by the wind.'
             },
             {
-                name: 'the path down', x: 0, y: 330, w: 120, h: 60, isExit: true, walkToX: 100,
+                name: 'the path back to the house', x: 0, y: 330, w: 120, h: 60, isExit: true, walkToX: 100,
                 description: 'The path back up to the house.',
                 onExit: (e) => e.goToRoom('study', 560, 330)
             }

@@ -67,6 +67,12 @@ function drawVgaPerson(ctx, x, y, s, o) {
     const hs = o.headScale || 1;
     const stoop = o.stoop || 0;
     const c = { edge: o.edge, sleeve: o.coat, sleeveLo: o.coatLo, skin: o.skin, skinLo: o.skinLo };
+    // Idle life. A figure that never breathes or blinks reads as scenery, so
+    // callers pass animTimer and a per-character phase to stagger the cast.
+    const at = o.animTimer || 0;
+    const phase = o.phase || 0;
+    const breath = at ? Math.sin(at / 1500 + phase) * 0.24 * s : 0;
+    const blink = at ? ((at / 1000 + phase * 2.3) % 5.2) < 0.13 : false;
 
     if (o.robe) {
         // Floor-length robe: a flared trapezoid with vertical fold shadows.
@@ -171,36 +177,72 @@ function drawVgaPerson(ctx, x, y, s, o) {
 
     // Head is scaled about the neck so a child or a gnome keeps a larger skull.
     ctx.save();
-    ctx.translate(x, b - 16.4 * s + stoop * s);
+    ctx.translate(x, b - 16.4 * s + stoop * s - breath);
     ctx.scale(hs, hs);
     ctx.fillStyle = o.skinLo;
     ctx.fillRect(-1.3 * s, -1.4 * s, 2.6 * s, 2 * s);
     ctx.fillStyle = o.edge;
-    ctx.fillRect(-3 * s, -7 * s, 6 * s, 6.2 * s);
+    ctx.beginPath();
+    ctx.moveTo(-2.2 * s, -7 * s);
+    ctx.lineTo(2.2 * s, -7 * s);
+    ctx.lineTo(3 * s, -6 * s);
+    ctx.lineTo(3 * s, -2.8 * s);
+    ctx.lineTo(1.5 * s, -0.8 * s);
+    ctx.lineTo(-1.5 * s, -0.8 * s);
+    ctx.lineTo(-3 * s, -2.8 * s);
+    ctx.lineTo(-3 * s, -6 * s);
+    ctx.closePath();
+    ctx.fill();
     ctx.fillStyle = o.skin;
-    ctx.fillRect(-2.6 * s, -6.6 * s, 5.2 * s, 5.6 * s);
-    ctx.fillStyle = o.skinHi;
-    ctx.fillRect(-2.1 * s, -6.2 * s, 2.1 * s, 2.2 * s);
+    ctx.beginPath();
+    ctx.moveTo(-2 * s, -6.6 * s);
+    ctx.lineTo(2 * s, -6.6 * s);
+    ctx.lineTo(2.5 * s, -5.8 * s);
+    ctx.lineTo(2.5 * s, -2.8 * s);
+    ctx.lineTo(1.2 * s, -1.2 * s);
+    ctx.lineTo(-1.2 * s, -1.2 * s);
+    ctx.lineTo(-2.5 * s, -2.8 * s);
+    ctx.lineTo(-2.5 * s, -5.8 * s);
+    ctx.closePath();
+    ctx.fill();
     ctx.fillStyle = o.skinLo;
-    ctx.fillRect(1.7 * s, -6.2 * s, 0.9 * s, 4.8 * s);
+    ctx.fillRect(-3 * s, -4.7 * s, 0.6 * s, 1.6 * s);
+    ctx.fillRect(2.4 * s, -4.7 * s, 0.6 * s, 1.6 * s);
+    ctx.fillStyle = o.skinHi;
+    ctx.fillRect(-2 * s, -6.2 * s, 1.7 * s, 2 * s);
+    ctx.fillRect(-1.8 * s, -3.4 * s, 0.8 * s, 0.6 * s);
+    ctx.fillStyle = o.skinLo;
+    ctx.fillRect(1.9 * s, -5.8 * s, 0.6 * s, 2.8 * s);
+    ctx.fillRect(1.2 * s, -2.7 * s, 0.7 * s, 0.7 * s);
     ctx.fillStyle = o.hairLo;
     ctx.fillRect(-2.2 * s, -5 * s, 1.5 * s, 0.5 * s);
     ctx.fillRect(0.7 * s, -5 * s, 1.5 * s, 0.5 * s);
-    ctx.fillStyle = '#F2F0E2';
-    ctx.fillRect(-2.1 * s, -4.3 * s, 1.5 * s, 1.2 * s);
-    ctx.fillRect(0.6 * s, -4.3 * s, 1.5 * s, 1.2 * s);
-    ctx.fillStyle = o.eye;
-    ctx.fillRect(-1.6 * s, -4.2 * s, 0.8 * s, 1.1 * s);
-    ctx.fillRect(0.9 * s, -4.2 * s, 0.8 * s, 1.1 * s);
-    ctx.fillStyle = '#2A2018';
-    ctx.fillRect(-2.1 * s, -4.4 * s, 1.5 * s, 0.3 * s);
-    ctx.fillRect(0.6 * s, -4.4 * s, 1.5 * s, 0.3 * s);
+    if (blink) {
+        ctx.fillStyle = '#2A2018';
+        ctx.fillRect(-2.1 * s, -3.9 * s, 1.4 * s, 0.35 * s);
+        ctx.fillRect(0.7 * s, -3.9 * s, 1.4 * s, 0.35 * s);
+    } else {
+        ctx.fillStyle = '#F2F0E2';
+        ctx.fillRect(-2.1 * s, -4.2 * s, 1.4 * s, 0.65 * s);
+        ctx.fillRect(0.7 * s, -4.2 * s, 1.4 * s, 0.65 * s);
+        ctx.fillStyle = o.eye;
+        ctx.fillRect(-1.5 * s, -4.2 * s, 0.65 * s, 0.65 * s);
+        ctx.fillRect(1 * s, -4.2 * s, 0.65 * s, 0.65 * s);
+        ctx.fillStyle = '#2A2018';
+        ctx.fillRect(-2.1 * s, -4.5 * s, 1.4 * s, 0.3 * s);
+        ctx.fillRect(0.7 * s, -4.5 * s, 1.4 * s, 0.3 * s);
+        ctx.fillRect(-1.3 * s, -4.1 * s, 0.4 * s, 0.55 * s);
+        ctx.fillRect(1.2 * s, -4.1 * s, 0.4 * s, 0.55 * s);
+    }
     ctx.fillStyle = o.skinLo;
-    ctx.fillRect(-0.4 * s, -3.5 * s, 0.9 * s, 1.4 * s);
+    ctx.fillRect(0, -3.8 * s, 0.45 * s, 1.1 * s);
+    ctx.fillRect(-0.2 * s, -2.8 * s, 0.9 * s, 0.35 * s);
+    ctx.fillStyle = o.skinHi;
+    ctx.fillRect(-0.4 * s, -3.8 * s, 0.4 * s, 0.9 * s);
     ctx.fillStyle = o.mouth;
-    ctx.fillRect(-1.3 * s, -1.9 * s, 2.6 * s, 0.6 * s);
-    ctx.fillRect(-1.7 * s, -2.3 * s, 0.6 * s, 0.5 * s);
-    ctx.fillRect(1.1 * s, -2.3 * s, 0.6 * s, 0.5 * s);
+    ctx.fillRect(-0.9 * s, -2.1 * s, 1.8 * s, 0.35 * s);
+    ctx.fillStyle = o.skinHi;
+    ctx.fillRect(-0.5 * s, -1.7 * s, 0.9 * s, 0.3 * s);
     if (o.tear) {
         ctx.fillStyle = '#9de8ff';
         ctx.fillRect(1.9 * s, -3.6 * s, 0.6 * s, 1.8 * s);
@@ -210,14 +252,35 @@ function drawVgaPerson(ctx, x, y, s, o) {
         ctx.fillRect(1 * s, -2.6 * s, 1.5 * s, 0.9 * s);
     }
     if (o.beard) {
+        const beardTip = (o.beard - 3.2) * s;
         ctx.fillStyle = o.hairLo;
-        ctx.fillRect(-2.9 * s, -3.2 * s, 5.8 * s, o.beard * s);
+        ctx.beginPath();
+        ctx.moveTo(-2.9 * s, -3.2 * s);
+        ctx.lineTo(2.9 * s, -3.2 * s);
+        ctx.lineTo(2.4 * s, -0.7 * s);
+        ctx.lineTo(0, beardTip);
+        ctx.lineTo(-2.4 * s, -0.7 * s);
+        ctx.closePath();
+        ctx.fill();
         ctx.fillStyle = o.hair;
-        ctx.fillRect(-2.5 * s, -3 * s, 5 * s, (o.beard - 0.6) * s);
+        ctx.beginPath();
+        ctx.moveTo(-2.4 * s, -3 * s);
+        ctx.lineTo(2.3 * s, -3 * s);
+        ctx.lineTo(1.8 * s, -0.7 * s);
+        ctx.lineTo(0, beardTip - 0.6 * s);
+        ctx.lineTo(-1.8 * s, -0.7 * s);
+        ctx.closePath();
+        ctx.fill();
         ctx.fillStyle = o.hairHi;
-        ctx.fillRect(-2.1 * s, -2.8 * s, 1.4 * s, (o.beard - 1.4) * s);
+        ctx.beginPath();
+        ctx.moveTo(-2 * s, -2.8 * s);
+        ctx.lineTo(-0.8 * s, -2.8 * s);
+        ctx.lineTo(-0.3 * s, beardTip - s);
+        ctx.lineTo(-1.5 * s, -0.2 * s);
+        ctx.closePath();
+        ctx.fill();
         ctx.fillStyle = o.mouth;
-        ctx.fillRect(-1.1 * s, -2 * s, 2.2 * s, 0.6 * s);
+        ctx.fillRect(-0.8 * s, -2 * s, 1.6 * s, 0.4 * s);
     }
     // Hair last so it overlaps the skull edge
     ctx.fillStyle = o.hair;
@@ -295,7 +358,7 @@ function drawVgaPerson(ctx, x, y, s, o) {
         ctx.fillRect(-0.7 * s, -8 * s, 1.4 * s, 1.6 * s);
     }
     ctx.restore();
-    if (o.nearArm) drawVgaArm(ctx, x + o.nearArm.side * 3.4 * s, b - 15.2 * s + stoop * s, s, o.nearArm.side, o.nearArm.up, o.nearArm.lo, c);
+    if (o.nearArm) drawVgaArm(ctx, x + o.nearArm.side * 3.4 * s, b - 15.2 * s + stoop * s - breath * 0.6, s, o.nearArm.side, o.nearArm.up, o.nearArm.lo, c);
 }
 
 // ========== CAST PALETTES ==========
@@ -368,6 +431,102 @@ const CAST_VILLAGER = {
     apron: '#c2b492', apronLo: '#8f8468',
     eye: '#4a5a3a', mouth: '#8a4030', hairStyle: 'bangs'
 };
+
+/** A court herald in Alderhaven livery, for the coronation fanfare. */
+const CAST_HERALD = {
+    edge: '#0a0806', skin: '#d6a077', skinHi: '#f0be93', skinLo: '#96684a',
+    hair: '#4a3620', hairHi: '#6d5230', hairLo: '#2a1d10',
+    coat: '#8f2f2c', coatHi: '#b34a42', coatLo: '#5e1c1a',
+    trousers: '#2f3a52', trousersHi: '#41506e', boot: '#1a140e', bootHi: '#372b1c',
+    collar: '#e8d59a', belt: '#2a1d10', buckle: '#d9a441',
+    eye: '#3f4a2c', mouth: '#8a4030', hairStyle: 'bangs'
+};
+
+/** A herald sounding a long trumpet, banner hanging from the tube.
+ *  `facing` is +1 to point the bell right, -1 to point it left. */
+function drawTrumpeter(ctx, x, groundY, s, facing, animTimer, phase) {
+    const t = animTimer || 0;
+    const ph = phase || 0;
+    // The bell lifts on the fanfare, and the banner swings a beat behind it.
+    const lift = Math.sin(t / 620 + ph) * 0.07;
+    drawVgaPerson(ctx, x, groundY, s, Object.assign({}, CAST_HERALD, {
+        animTimer: t, phase: ph,
+        nearArm: { side: facing, up: -1.0, lo: -0.62 },
+        farArm: { side: -facing, up: -0.72, lo: -0.42 }
+    }));
+    // Trumpet from the lips, angled up and outward
+    const mouthX = x + facing * 2.2 * s;
+    const mouthY = groundY - 26.6 * s;
+    ctx.save();
+    ctx.translate(mouthX, mouthY);
+    ctx.rotate(facing * (-0.58 + lift));
+    ctx.scale(facing, 1);
+    const L = 20 * s;
+    ctx.fillStyle = '#20180a';
+    ctx.fillRect(0, -1.6 * s, L + 5.6 * s, 3.2 * s);
+    ctx.fillStyle = PAL.GOLD_BASE;
+    ctx.fillRect(0, -1.1 * s, L, 2.2 * s);
+    ctx.fillStyle = PAL.GOLD_LIT;
+    ctx.fillRect(0, -1.1 * s, L, 0.8 * s);
+    ctx.fillStyle = PAL.GOLD_SHADOW;
+    ctx.fillRect(0, 0.5 * s, L, 0.6 * s);
+    // Flared bell
+    ctx.fillStyle = '#20180a';
+    ctx.beginPath();
+    ctx.moveTo(L - 1 * s, -1.8 * s);
+    ctx.lineTo(L + 6 * s, -5.4 * s);
+    ctx.lineTo(L + 6 * s, 5.4 * s);
+    ctx.lineTo(L - 1 * s, 1.8 * s);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = PAL.GOLD_BASE;
+    ctx.beginPath();
+    ctx.moveTo(L - 0.4 * s, -1.4 * s);
+    ctx.lineTo(L + 5 * s, -4.4 * s);
+    ctx.lineTo(L + 5 * s, 4.4 * s);
+    ctx.lineTo(L - 0.4 * s, 1.4 * s);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = PAL.GOLD_LIT;
+    ctx.beginPath();
+    ctx.moveTo(L - 0.4 * s, -1.4 * s);
+    ctx.lineTo(L + 5 * s, -4.4 * s);
+    ctx.lineTo(L + 5 * s, -2.6 * s);
+    ctx.lineTo(L - 0.4 * s, -0.6 * s);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = '#3a2a10';
+    ctx.fillRect(L * 0.42, -1.4 * s, 1.4 * s, 2.8 * s);
+    // Banner slung under the tube, with the stag device
+    const swing = Math.sin(t / 520 + ph + 0.9) * 1.1 * s;
+    ctx.fillStyle = '#1a0f0c';
+    ctx.beginPath();
+    ctx.moveTo(L * 0.44, 1.2 * s);
+    ctx.lineTo(L * 0.84, 1.2 * s);
+    ctx.lineTo(L * 0.84 + swing, 9.2 * s);
+    ctx.lineTo(L * 0.44 + swing, 9.6 * s);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = '#8f2f2c';
+    ctx.beginPath();
+    ctx.moveTo(L * 0.46, 1.6 * s);
+    ctx.lineTo(L * 0.82, 1.6 * s);
+    ctx.lineTo(L * 0.82 + swing, 8.4 * s);
+    ctx.lineTo(L * 0.46 + swing, 8.7 * s);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = '#b34a42';
+    ctx.fillRect(L * 0.46, 1.6 * s, 1.2 * s, 7 * s);
+    ctx.fillStyle = PAL.GOLD_BASE;
+    ctx.save();
+    ctx.translate(L * 0.64 + swing * 0.5, 5 * s);
+    ctx.rotate(Math.PI / 4);
+    ctx.fillRect(-1.5 * s, -1.5 * s, 3 * s, 3 * s);
+    ctx.fillStyle = PAL.GOLD_LIT;
+    ctx.fillRect(-1.5 * s, -1.5 * s, 1.4 * s, 1.4 * s);
+    ctx.restore();
+    ctx.restore();
+}
 
 // ========== CREATURES ==========
 // One helper per creature, used by every room and cutscene that shows it.
@@ -563,228 +722,326 @@ function drawGoat(ctx, x, groundY, s, facing, charging, animTimer) {
     ctx.restore();
 }
 
-/** Grumbold the bridge troll: squat, wide, and largely jaw. */
+/** Two-segment troll arm: same hinge language as drawVgaArm, scaled for a
+ *  long, heavy limb that actually bends at the elbow. */
+function drawTrollArm(ctx, sx, sy, s, sign, upperAngle, foreAngle) {
+    ctx.save();
+    ctx.translate(sx, sy);
+    ctx.rotate(sign * upperAngle);
+    ctx.fillStyle = '#0c1008';
+    ctx.fillRect(-2.6 * s, -1.4 * s, 5.2 * s, 18 * s);
+    ctx.fillStyle = '#3d5029';
+    ctx.fillRect(-2 * s, -0.8 * s, 4 * s, 16.6 * s);
+    ctx.fillStyle = '#4f6635';
+    ctx.fillRect(sign > 0 ? -2 * s : 0.4 * s, -0.8 * s, 1.6 * s, 16.6 * s);
+    ctx.fillStyle = '#243019';
+    ctx.fillRect(sign > 0 ? 0.6 * s : -2 * s, -0.8 * s, 1.4 * s, 16.6 * s);
+    ctx.translate(0, 15.4 * s);
+    ctx.rotate(sign * foreAngle);
+    ctx.fillStyle = '#0c1008';
+    ctx.fillRect(-2.4 * s, -1.2 * s, 4.8 * s, 17.2 * s);
+    ctx.fillStyle = '#3d5029';
+    ctx.fillRect(-1.8 * s, -0.6 * s, 3.6 * s, 15.4 * s);
+    ctx.fillStyle = '#4f6635';
+    ctx.fillRect(sign > 0 ? -1.8 * s : 0.4 * s, -0.6 * s, 1.4 * s, 15.4 * s);
+    ctx.fillStyle = '#4f6635';
+    ctx.fillRect(-2.6 * s, 13.2 * s, 5.2 * s, 4.6 * s);
+    ctx.fillStyle = '#617d42';
+    ctx.fillRect(-2.6 * s, 13.2 * s, 5.2 * s, 1.4 * s);
+    ctx.fillStyle = '#2c3a20';
+    ctx.fillRect(-2.6 * s, 16.4 * s, 5.2 * s, 1.4 * s);
+    ctx.restore();
+}
+
+/** Grumbold the bridge troll: hunched, long-armed, largely jaw. Built on
+ *  hinged limbs so he reads as a person and not a crate with tusks. */
 function drawTroll(ctx, x, groundY, s, animTimer, angry) {
-    const breathe = Math.sin((animTimer || 0) / 520) * 1.2 * s;
+    const breathe = Math.sin((animTimer || 0) / 520) * 1.1 * s;
     ctx.save();
     ctx.translate(x, groundY);
-    // Silhouette
+
+    // Far arm, hanging long toward the far rope
+    drawTrollArm(ctx, 12 * s, -46 * s + breathe * 0.4, s, 1, 0.42, 0.62);
+
+    // Short bowed legs, three-tone, planted on the planks
+    [[-16, -0.18], [8, 0.14]].forEach(([lx, lean]) => {
+        ctx.save();
+        ctx.translate(lx * s, 0);
+        ctx.rotate(lean);
+        ctx.fillStyle = '#0c1008';
+        ctx.fillRect(-8 * s, -22 * s, 15 * s, 22 * s);
+        ctx.fillStyle = '#2c3a20';
+        ctx.fillRect(-7 * s, -21 * s, 13 * s, 20 * s);
+        ctx.fillStyle = '#3d5029';
+        ctx.fillRect(-7 * s, -21 * s, 5 * s, 18 * s);
+        ctx.fillStyle = '#243019';
+        ctx.fillRect(3 * s, -21 * s, 3 * s, 18 * s);
+        ctx.fillStyle = '#0c1008';
+        ctx.fillRect(-9 * s, -4 * s, 18 * s, 4.2 * s);
+        ctx.fillStyle = '#c8bb8a';
+        ctx.fillRect(-8 * s, -3.6 * s, 4 * s, 2 * s);
+        ctx.fillRect(-2 * s, -3.6 * s, 4 * s, 2 * s);
+        ctx.fillRect(4 * s, -3.6 * s, 4 * s, 2 * s);
+        ctx.restore();
+    });
+
+    // Hunched torso: a forward-leaning barrel, not a circle
     ctx.fillStyle = '#0c1008';
     ctx.beginPath();
-    ctx.ellipse(0, -30 * s, 30 * s, 30 * s, 0, 0, Math.PI * 2);
+    ctx.moveTo(-22 * s, -22 * s);
+    ctx.lineTo(-18 * s, -52 * s + breathe);
+    ctx.lineTo(16 * s, -50 * s + breathe);
+    ctx.lineTo(24 * s, -20 * s);
+    ctx.closePath();
     ctx.fill();
-    // Legs
-    ctx.fillStyle = '#2c3a20';
-    ctx.fillRect(-19 * s, -22 * s, 15 * s, 22 * s);
-    ctx.fillRect(5 * s, -22 * s, 15 * s, 22 * s);
-    ctx.fillStyle = '#3d5029';
-    ctx.fillRect(-18 * s, -22 * s, 6 * s, 20 * s);
-    ctx.fillRect(6 * s, -22 * s, 6 * s, 20 * s);
-    ctx.fillStyle = '#0c1008';
-    ctx.fillRect(-22 * s, -4 * s, 20 * s, 4 * s);
-    ctx.fillRect(3 * s, -4 * s, 20 * s, 4 * s);
-    ctx.fillStyle = '#c8bb8a';
-    [-20, -15, -10, 5, 10, 15].forEach((tx) => ctx.fillRect(tx * s, -4.6 * s, 3 * s, 2.2 * s));
-    // Belly
     ctx.fillStyle = '#3d5029';
     ctx.beginPath();
-    ctx.ellipse(0, -32 * s + breathe, 27 * s, 24 * s, 0, 0, Math.PI * 2);
+    ctx.moveTo(-19 * s, -22 * s);
+    ctx.lineTo(-15 * s, -50 * s + breathe);
+    ctx.lineTo(14 * s, -48 * s + breathe);
+    ctx.lineTo(21 * s, -20 * s);
+    ctx.closePath();
     ctx.fill();
     ctx.fillStyle = '#4f6635';
     ctx.beginPath();
-    ctx.ellipse(-7 * s, -38 * s + breathe, 16 * s, 13 * s, 0, 0, Math.PI * 2);
+    ctx.moveTo(-19 * s, -28 * s);
+    ctx.lineTo(-15 * s, -50 * s + breathe);
+    ctx.lineTo(2 * s, -48 * s + breathe);
+    ctx.lineTo(-4 * s, -24 * s);
+    ctx.closePath();
     ctx.fill();
     ctx.fillStyle = '#243019';
     ctx.beginPath();
-    ctx.ellipse(9 * s, -26 * s + breathe, 15 * s, 12 * s, 0, 0, Math.PI * 2);
+    ctx.moveTo(6 * s, -24 * s);
+    ctx.lineTo(8 * s, -46 * s + breathe);
+    ctx.lineTo(14 * s, -46 * s + breathe);
+    ctx.lineTo(21 * s, -20 * s);
+    ctx.closePath();
     ctx.fill();
-    // Loincloth: one saturated accent on a green mass
+
+    // Loincloth: the one saturated accent
     ctx.fillStyle = '#0c1008';
-    ctx.fillRect(-16 * s, -24 * s, 32 * s, 12 * s);
+    ctx.fillRect(-15 * s, -24 * s, 30 * s, 13 * s);
     ctx.fillStyle = '#8a4a1f';
-    ctx.fillRect(-15 * s, -23 * s, 30 * s, 10 * s);
+    ctx.fillRect(-14 * s, -23 * s, 28 * s, 11 * s);
     ctx.fillStyle = '#ab6a3a';
-    ctx.fillRect(-15 * s, -23 * s, 30 * s, 2.4 * s);
-    // Arms
+    ctx.fillRect(-14 * s, -23 * s, 28 * s, 2.6 * s);
+    ctx.fillStyle = '#5a2c10';
+    ctx.fillRect(-4 * s, -20 * s, 3 * s, 8 * s);
+    ctx.fillRect(4 * s, -21 * s, 2.4 * s, 9 * s);
+
+    // Near arm, hinged, fist on the near rope / club
+    drawTrollArm(ctx, -14 * s, -44 * s + breathe * 0.3, s, -1, 0.22, 0.78);
+    ctx.save();
+    ctx.translate(-28 * s, -12 * s);
+    ctx.rotate(-0.7);
     ctx.fillStyle = '#0c1008';
-    ctx.fillRect(-36 * s, -46 * s, 13 * s, 34 * s);
-    ctx.fillRect(23 * s, -46 * s, 13 * s, 34 * s);
-    ctx.fillStyle = '#3d5029';
-    ctx.fillRect(-35 * s, -45 * s, 11 * s, 32 * s);
-    ctx.fillRect(24 * s, -45 * s, 11 * s, 32 * s);
-    ctx.fillStyle = '#4f6635';
-    ctx.fillRect(-35 * s, -45 * s, 4 * s, 32 * s);
-    ctx.fillRect(24 * s, -45 * s, 4 * s, 32 * s);
-    ctx.fillStyle = '#2c3a20';
-    ctx.fillRect(-37 * s, -14 * s, 15 * s, 8 * s);
-    ctx.fillRect(22 * s, -14 * s, 15 * s, 8 * s);
-    // Head, sunk between the shoulders
+    ctx.fillRect(-4 * s, -22 * s, 8 * s, 36 * s);
+    ctx.fillStyle = '#5a3c18';
+    ctx.fillRect(-3 * s, -21 * s, 6 * s, 34 * s);
+    ctx.fillStyle = '#8a6a3c';
+    ctx.fillRect(-3 * s, -21 * s, 6 * s, 2 * s);
+    ctx.fillStyle = '#0c1008';
+    ctx.beginPath(); ctx.arc(0, -22 * s, 8 * s, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#4a3214';
+    ctx.beginPath(); ctx.arc(0, -22 * s, 6.4 * s, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+
+    // Head, sunk between the shoulders, mostly jaw
+    const hy = -56 * s + breathe;
     ctx.fillStyle = '#0c1008';
     ctx.beginPath();
-    ctx.ellipse(0, -58 * s + breathe, 20 * s, 16 * s, 0, 0, Math.PI * 2);
+    ctx.ellipse(-2 * s, hy, 18 * s, 15 * s, -0.12, 0, Math.PI * 2);
     ctx.fill();
     ctx.fillStyle = '#4f6635';
     ctx.beginPath();
-    ctx.ellipse(-1 * s, -59 * s + breathe, 18 * s, 14 * s, 0, 0, Math.PI * 2);
+    ctx.ellipse(-3 * s, hy - 1 * s, 16 * s, 13 * s, -0.12, 0, Math.PI * 2);
     ctx.fill();
     ctx.fillStyle = '#617d42';
     ctx.beginPath();
-    ctx.ellipse(-6 * s, -64 * s + breathe, 9 * s, 6 * s, 0, 0, Math.PI * 2);
+    ctx.ellipse(-8 * s, hy - 6 * s, 8 * s, 5.5 * s, -0.2, 0, Math.PI * 2);
     ctx.fill();
-    // Jaw and tusks
-    ctx.fillStyle = '#243019';
+    // Jaw slab
+    ctx.fillStyle = '#0c1008';
     ctx.beginPath();
-    ctx.ellipse(0, -51 * s + breathe, 15 * s, 8 * s, 0, 0, Math.PI * 2);
+    ctx.ellipse(-1 * s, hy + 8 * s, 17 * s, 9 * s, 0.05, 0, Math.PI * 2);
     ctx.fill();
-    ctx.fillStyle = '#12180c';
-    ctx.fillRect(-11 * s, -53 * s + breathe, 22 * s, 4 * s);
+    ctx.fillStyle = '#3d5029';
+    ctx.beginPath();
+    ctx.ellipse(-1 * s, hy + 7 * s, 15 * s, 7.5 * s, 0.05, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#243019';
+    ctx.fillRect(-12 * s, hy + 4 * s, 24 * s, 3.4 * s);
+    // Tusks
     ctx.fillStyle = '#e2d9ae';
     ctx.beginPath();
-    ctx.moveTo(-9 * s, -50 * s + breathe);
-    ctx.lineTo(-6 * s, -50 * s + breathe);
-    ctx.lineTo(-7.5 * s, -58 * s + breathe);
+    ctx.moveTo(-9 * s, hy + 6 * s);
+    ctx.lineTo(-5.5 * s, hy + 6 * s);
+    ctx.lineTo(-7.4 * s, hy - 4 * s);
     ctx.closePath();
     ctx.fill();
     ctx.beginPath();
-    ctx.moveTo(6 * s, -50 * s + breathe);
-    ctx.lineTo(9 * s, -50 * s + breathe);
-    ctx.lineTo(7.5 * s, -58 * s + breathe);
+    ctx.moveTo(5 * s, hy + 6 * s);
+    ctx.lineTo(8.6 * s, hy + 6 * s);
+    ctx.lineTo(6.6 * s, hy - 3 * s);
     ctx.closePath();
     ctx.fill();
-    // Nose and small, furious eyes
+    ctx.fillStyle = '#f4eed4';
+    ctx.fillRect(-8.2 * s, hy + 2 * s, 1.6 * s, 4 * s);
+    ctx.fillRect(6 * s, hy + 2 * s, 1.6 * s, 4 * s);
+    // Nose and small furious eyes
     ctx.fillStyle = '#5f7b40';
     ctx.beginPath();
-    ctx.ellipse(0, -57 * s + breathe, 5 * s, 4 * s, 0, 0, Math.PI * 2);
+    ctx.ellipse(-1 * s, hy + 1 * s, 5.2 * s, 4 * s, 0, 0, Math.PI * 2);
     ctx.fill();
     ctx.fillStyle = '#243019';
-    ctx.fillRect(-2.6 * s, -56 * s + breathe, 1.6 * s, 1.6 * s);
-    ctx.fillRect(1 * s, -56 * s + breathe, 1.6 * s, 1.6 * s);
+    ctx.fillRect(-3.4 * s, hy + 2 * s, 1.6 * s, 1.6 * s);
+    ctx.fillRect(0.8 * s, hy + 2 * s, 1.6 * s, 1.6 * s);
     ctx.fillStyle = '#f2e8c0';
-    ctx.fillRect(-10 * s, -64 * s + breathe, 5 * s, 3.4 * s);
-    ctx.fillRect(5 * s, -64 * s + breathe, 5 * s, 3.4 * s);
+    ctx.fillRect(-11 * s, hy - 6 * s, 5.4 * s, 3.6 * s);
+    ctx.fillRect(4 * s, hy - 6 * s, 5.4 * s, 3.6 * s);
     ctx.fillStyle = angry ? '#c2381f' : '#3a2a10';
-    ctx.fillRect(-8.6 * s, -63.4 * s + breathe, 2.6 * s, 2.6 * s);
-    ctx.fillRect(6.4 * s, -63.4 * s + breathe, 2.6 * s, 2.6 * s);
+    ctx.fillRect(-9.4 * s, hy - 5.4 * s, 2.8 * s, 2.6 * s);
+    ctx.fillRect(5.6 * s, hy - 5.4 * s, 2.8 * s, 2.6 * s);
     ctx.fillStyle = '#12180c';
-    ctx.fillRect(-11 * s, -65.6 * s + breathe, 6 * s, 1.6 * s);
-    ctx.fillRect(5 * s, -65.6 * s + breathe, 6 * s, 1.6 * s);
+    ctx.fillRect(-12 * s, hy - 8 * s, 7 * s, 1.8 * s);
+    ctx.fillRect(4 * s, hy - 8 * s, 7 * s, 1.8 * s);
     // Ears
     ctx.fillStyle = '#3d5029';
     ctx.beginPath();
-    ctx.moveTo(-17 * s, -62 * s + breathe);
-    ctx.lineTo(-27 * s, -70 * s + breathe);
-    ctx.lineTo(-16 * s, -55 * s + breathe);
+    ctx.moveTo(-16 * s, hy - 4 * s);
+    ctx.lineTo(-28 * s, hy - 14 * s);
+    ctx.lineTo(-15 * s, hy + 4 * s);
     ctx.closePath();
     ctx.fill();
     ctx.beginPath();
-    ctx.moveTo(16 * s, -62 * s + breathe);
-    ctx.lineTo(26 * s, -70 * s + breathe);
-    ctx.lineTo(15 * s, -55 * s + breathe);
+    ctx.moveTo(12 * s, hy - 4 * s);
+    ctx.lineTo(24 * s, hy - 12 * s);
+    ctx.lineTo(13 * s, hy + 5 * s);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = '#617d42';
+    ctx.beginPath();
+    ctx.moveTo(-16 * s, hy - 3 * s);
+    ctx.lineTo(-24 * s, hy - 10 * s);
+    ctx.lineTo(-15 * s, hy + 2 * s);
     ctx.closePath();
     ctx.fill();
     ctx.restore();
 }
 
-/** The cloud-realm giant, asleep. Drawn lying down, head to the left. */
+/** The cloud-realm giant, asleep. A person on his side, not a brown loaf:
+ *  bent knees, one arm under the head, the near hand hanging over the cloud lip. */
 function drawSleepingGiant(ctx, x, groundY, s, animTimer) {
-    const breathe = Math.sin((animTimer || 0) / 900) * 3 * s;
+    const breathe = Math.sin((animTimer || 0) / 900) * 2.2 * s;
     ctx.save();
     ctx.translate(x, groundY);
-    // Silhouette of the whole reclining mass
+
+    const mass = (cx, cy, rx, ry, rot, edge, mid, hi) => {
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.rotate(rot);
+        ctx.fillStyle = edge;
+        ctx.beginPath(); ctx.ellipse(0, 0, rx, ry, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = mid;
+        ctx.beginPath(); ctx.ellipse(-rx * 0.04, -ry * 0.06, rx * 0.9, ry * 0.86, 0, 0, Math.PI * 2); ctx.fill();
+        if (hi) {
+            ctx.fillStyle = hi;
+            ctx.beginPath(); ctx.ellipse(-rx * 0.22, -ry * 0.28, rx * 0.48, ry * 0.38, 0, 0, Math.PI * 2); ctx.fill();
+        }
+        ctx.restore();
+    };
+
+    // Far arm, a short pillow tucked under the skull — keep it compact
+    mass(-42 * s, -42 * s, 14 * s, 8 * s, -0.28, '#12100c', '#8d7a52', '#a89364');
+
+    // Bent legs: thigh into shin into boot, overlapping at the joints
+    mass(28 * s, -28 * s, 40 * s, 16 * s, -0.08, '#12100c', '#4a3d2c', '#5d4d38');
+    mass(62 * s, -22 * s, 28 * s, 14 * s, 0.85, '#12100c', '#4a3d2c', '#5d4d38');
+    ctx.save();
+    ctx.translate(78 * s, -4 * s);
+    ctx.rotate(0.9);
     ctx.fillStyle = '#12100c';
-    ctx.beginPath();
-    ctx.ellipse(0, -34 * s, 118 * s, 36 * s, 0, 0, Math.PI * 2);
-    ctx.fill();
-    // Legs, stretched away to the right
-    ctx.fillStyle = '#4a3d2c';
-    ctx.fillRect(30 * s, -40 * s, 84 * s, 30 * s);
-    ctx.fillStyle = '#5d4d38';
-    ctx.fillRect(30 * s, -40 * s, 84 * s, 10 * s);
-    ctx.fillStyle = '#332a1e';
-    ctx.fillRect(30 * s, -16 * s, 84 * s, 6 * s);
-    ctx.fillStyle = '#12100c';
-    ctx.fillRect(104 * s, -52 * s, 22 * s, 42 * s);
+    ctx.fillRect(-8 * s, -12 * s, 18 * s, 28 * s);
     ctx.fillStyle = '#241a10';
-    ctx.fillRect(106 * s, -50 * s, 18 * s, 38 * s);
+    ctx.fillRect(-6 * s, -10 * s, 14 * s, 24 * s);
     ctx.fillStyle = '#4a3826';
-    ctx.fillRect(106 * s, -50 * s, 6 * s, 38 * s);
-    // Torso, rising and falling
-    ctx.fillStyle = '#12100c';
-    ctx.beginPath();
-    ctx.ellipse(-14 * s, -46 * s - breathe, 52 * s, 30 * s, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = '#8d7a52';
-    ctx.beginPath();
-    ctx.ellipse(-14 * s, -47 * s - breathe, 49 * s, 27 * s, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = '#a89364';
-    ctx.beginPath();
-    ctx.ellipse(-22 * s, -58 * s - breathe, 30 * s, 13 * s, 0, 0, Math.PI * 2);
-    ctx.fill();
+    ctx.fillRect(-6 * s, -10 * s, 5 * s, 24 * s);
+    ctx.fillStyle = '#1a1208';
+    ctx.fillRect(-8 * s, 12 * s, 18 * s, 6 * s);
+    ctx.restore();
+
+    // Torso, one connected barrel on its side, breathing
+    mass(-6 * s, -36 * s - breathe, 46 * s, 24 * s, 0.04, '#12100c', '#8d7a52', '#a89364');
     ctx.fillStyle = '#5f5133';
     ctx.beginPath();
-    ctx.ellipse(-4 * s, -34 * s - breathe * 0.5, 34 * s, 12 * s, 0, 0, Math.PI * 2);
+    ctx.ellipse(6 * s, -24 * s - breathe * 0.4, 28 * s, 10 * s, 0.06, 0, Math.PI * 2);
     ctx.fill();
-    // Belt of a smith's apron, the one saturated accent
+
+    // Leather apron hanging toward the cloud lip
     ctx.fillStyle = '#0f0a06';
-    ctx.fillRect(14 * s, -66 * s, 16 * s, 50 * s);
+    ctx.beginPath();
+    ctx.moveTo(-4 * s, -52 * s - breathe);
+    ctx.lineTo(20 * s, -48 * s - breathe);
+    ctx.lineTo(14 * s, -8 * s);
+    ctx.lineTo(-16 * s, -12 * s);
+    ctx.closePath();
+    ctx.fill();
     ctx.fillStyle = '#8a3f1c';
-    ctx.fillRect(15 * s, -64 * s, 14 * s, 47 * s);
+    ctx.beginPath();
+    ctx.moveTo(-2 * s, -48 * s - breathe);
+    ctx.lineTo(16 * s, -44 * s - breathe);
+    ctx.lineTo(10 * s, -10 * s);
+    ctx.lineTo(-12 * s, -14 * s);
+    ctx.closePath();
+    ctx.fill();
     ctx.fillStyle = '#b3603a';
-    ctx.fillRect(15 * s, -64 * s, 4 * s, 47 * s);
-    // Arm flung across the body
+    ctx.fillRect(-2 * s, -48 * s - breathe, 5 * s, 36 * s);
+    ctx.fillStyle = '#d9a441';
+    ctx.fillRect(-10 * s, -30 * s, 24 * s, 3.4 * s);
+
+    // Near arm from the shoulder, hanging over the stone lip as one hinged piece
+    ctx.save();
+    ctx.translate(-4 * s, -18 * s - breathe * 0.3);
+    ctx.rotate(1.05);
     ctx.fillStyle = '#12100c';
-    ctx.fillRect(-46 * s, -50 * s - breathe, 60 * s, 18 * s);
+    ctx.fillRect(-6 * s, -3 * s, 12 * s, 22 * s);
     ctx.fillStyle = '#8d7a52';
-    ctx.fillRect(-45 * s, -49 * s - breathe, 58 * s, 15 * s);
+    ctx.fillRect(-4.6 * s, -1.4 * s, 9.2 * s, 19 * s);
     ctx.fillStyle = '#a89364';
-    ctx.fillRect(-45 * s, -49 * s - breathe, 58 * s, 4 * s);
-    ctx.fillStyle = '#7a6845';
-    ctx.beginPath();
-    ctx.ellipse(-48 * s, -40 * s - breathe, 12 * s, 10 * s, 0, 0, Math.PI * 2);
-    ctx.fill();
-    // Head
+    ctx.fillRect(-4.6 * s, -1.4 * s, 3.4 * s, 19 * s);
+    ctx.translate(0, 19 * s);
+    ctx.rotate(-0.28);
     ctx.fillStyle = '#12100c';
-    ctx.beginPath();
-    ctx.ellipse(-76 * s, -50 * s, 30 * s, 26 * s, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = '#9c885c';
-    ctx.beginPath();
-    ctx.ellipse(-76 * s, -51 * s, 27 * s, 23 * s, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = '#b39a68';
-    ctx.beginPath();
-    ctx.ellipse(-82 * s, -58 * s, 15 * s, 10 * s, 0, 0, Math.PI * 2);
-    ctx.fill();
-    // Beard and hair, a matted grey mass
+    ctx.beginPath(); ctx.ellipse(0, 4 * s, 8 * s, 6 * s, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#8d7a52';
+    ctx.beginPath(); ctx.ellipse(-0.8 * s, 3.4 * s, 6.4 * s, 4.8 * s, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#a89364';
+    ctx.beginPath(); ctx.ellipse(-2.2 * s, 2 * s, 3.6 * s, 2.6 * s, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#7a6845';
+    for (let i = 0; i < 4; i++) ctx.fillRect(-5 * s + i * 2.6 * s, 7 * s, 1.8 * s, 5 * s);
+    ctx.restore();
+
+    // Head, resting on the far arm
+    mass(-58 * s, -48 * s, 22 * s, 18 * s, -0.18, '#12100c', '#9c885c', '#b39a68');
     ctx.fillStyle = '#3d3830';
-    ctx.beginPath();
-    ctx.ellipse(-64 * s, -40 * s, 22 * s, 15 * s, 0, 0, Math.PI * 2);
-    ctx.fill();
+    ctx.beginPath(); ctx.ellipse(-46 * s, -36 * s, 16 * s, 12 * s, 0.2, 0, Math.PI * 2); ctx.fill();
     ctx.fillStyle = '#6a635a';
-    ctx.beginPath();
-    ctx.ellipse(-66 * s, -42 * s, 18 * s, 11 * s, 0, 0, Math.PI * 2);
-    ctx.fill();
+    ctx.beginPath(); ctx.ellipse(-48 * s, -38 * s, 12 * s, 8 * s, 0.2, 0, Math.PI * 2); ctx.fill();
     ctx.fillStyle = '#3d3830';
-    ctx.beginPath();
-    ctx.ellipse(-92 * s, -62 * s, 18 * s, 14 * s, 0, 0, Math.PI * 2);
-    ctx.fill();
+    ctx.beginPath(); ctx.ellipse(-72 * s, -58 * s, 14 * s, 10 * s, -0.35, 0, Math.PI * 2); ctx.fill();
     ctx.fillStyle = '#6a635a';
-    ctx.beginPath();
-    ctx.ellipse(-94 * s, -64 * s, 13 * s, 9 * s, 0, 0, Math.PI * 2);
-    ctx.fill();
-    // Closed eye and open, snoring mouth
+    ctx.beginPath(); ctx.ellipse(-74 * s, -60 * s, 9 * s, 7 * s, -0.35, 0, Math.PI * 2); ctx.fill();
     ctx.fillStyle = '#3d3830';
-    ctx.fillRect(-84 * s, -54 * s, 12 * s, 2.4 * s);
+    ctx.fillRect(-66 * s, -50 * s, 12 * s, 2.4 * s);
     ctx.fillStyle = '#2a1a14';
     ctx.beginPath();
-    ctx.ellipse(-72 * s, -43 * s, 7 * s, 4 * s + breathe * 0.3, 0, 0, Math.PI * 2);
+    ctx.ellipse(-52 * s, -40 * s, 6 * s, 3.4 * s + breathe * 0.25, 0, 0, Math.PI * 2);
     ctx.fill();
-    // Snore puff
     const puff = Math.floor((animTimer || 0) / 500) % 4;
     ctx.fillStyle = `rgba(235,235,245,${0.34 - puff * 0.08})`;
     ctx.beginPath();
-    ctx.ellipse(-70 * s + puff * 7 * s, -46 * s - puff * 8 * s, (5 + puff * 3) * s, (3.4 + puff * 2) * s, 0, 0, Math.PI * 2);
+    ctx.ellipse(-50 * s + puff * 6 * s, -44 * s - puff * 7 * s, (4 + puff * 2.5) * s, (3 + puff * 1.8) * s, 0, 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
 }
@@ -844,21 +1101,61 @@ function drawDragon(ctx, x, groundY, s, animTimer, doused) {
     ctx.beginPath();
     ctx.ellipse(12 * s, -26 * s - breathe, 30 * s, 12 * s, 0, 0, Math.PI * 2);
     ctx.fill();
-    // Belly plates
-    ctx.fillStyle = belly;
-    for (let i = -26; i < 30; i += 9) {
-        ctx.fillRect(i * s, -20 * s - breathe * 0.5, 7 * s, 4.4 * s);
+    // Scale texture over the barrel, so the body is not one smooth fill
+    const scaleRnd = seededRandom(8123);
+    for (let i = 0; i < 90; i++) {
+        const a = scaleRnd() * Math.PI * 2, r = Math.sqrt(scaleRnd());
+        const sx2 = Math.cos(a) * 40 * r * s;
+        const sy2 = -35 * s - breathe + Math.sin(a) * 21 * r * s;
+        ctx.fillStyle = scaleRnd() > 0.5 ? bodyHi : bodyLo;
+        ctx.fillRect(sx2, sy2, 2.6 * s, 1.6 * s);
     }
-    // Legs and claws
-    ctx.fillStyle = '#0d0708';
-    ctx.fillRect(-34 * s, -22 * s, 16 * s, 22 * s);
-    ctx.fillRect(6 * s, -20 * s, 15 * s, 20 * s);
-    ctx.fillStyle = body;
-    ctx.fillRect(-33 * s, -21 * s, 14 * s, 20 * s);
-    ctx.fillRect(7 * s, -19 * s, 13 * s, 18 * s);
-    ctx.fillStyle = bodyHi;
-    ctx.fillRect(-33 * s, -21 * s, 5 * s, 20 * s);
-    ctx.fillRect(7 * s, -19 * s, 5 * s, 18 * s);
+    // Belly scutes: overlapping plates of uneven width, lit along the top edge
+    let bw = 0;
+    for (let i = -30; i < 32; i += bw + 1.4) {
+        bw = 6 + (i % 3 === 0 ? 3.4 : 1.6);
+        ctx.fillStyle = '#0d0708';
+        ctx.fillRect(i * s, -21 * s - breathe * 0.5, (bw + 1.4) * s, 6 * s);
+        ctx.fillStyle = belly;
+        ctx.fillRect(i * s, -20.4 * s - breathe * 0.5, bw * s, 5 * s);
+        ctx.fillStyle = doused ? '#877a60' : '#e0b862';
+        ctx.fillRect(i * s, -20.4 * s - breathe * 0.5, bw * s, 1.2 * s);
+    }
+    // Legs: haunch tapering into a shin, not a plain block
+    const leg = (lx, ly, hgt, flip) => {
+        ctx.save();
+        ctx.translate(lx * s, ly * s);
+        ctx.scale(flip, 1);
+        ctx.fillStyle = '#0d0708';
+        ctx.beginPath();
+        ctx.moveTo(-10 * s, -hgt * s);
+        ctx.quadraticCurveTo(-13 * s, -hgt * 0.36 * s, -7 * s, 0);
+        ctx.lineTo(7 * s, 0);
+        ctx.quadraticCurveTo(9 * s, -hgt * 0.4 * s, 8 * s, -hgt * s);
+        ctx.closePath();
+        ctx.fill();
+        ctx.fillStyle = body;
+        ctx.beginPath();
+        ctx.moveTo(-8.4 * s, -hgt * s);
+        ctx.quadraticCurveTo(-11 * s, -hgt * 0.36 * s, -5.6 * s, -1 * s);
+        ctx.lineTo(5.6 * s, -1 * s);
+        ctx.quadraticCurveTo(7.4 * s, -hgt * 0.4 * s, 6.6 * s, -hgt * s);
+        ctx.closePath();
+        ctx.fill();
+        ctx.fillStyle = bodyHi;
+        ctx.beginPath();
+        ctx.moveTo(-8.4 * s, -hgt * s);
+        ctx.quadraticCurveTo(-11 * s, -hgt * 0.36 * s, -5.6 * s, -1 * s);
+        ctx.lineTo(-1.6 * s, -1 * s);
+        ctx.quadraticCurveTo(-6 * s, -hgt * 0.42 * s, -3.4 * s, -hgt * s);
+        ctx.closePath();
+        ctx.fill();
+        ctx.fillStyle = bodyLo;
+        ctx.fillRect(3 * s, -hgt * 0.7 * s, 3 * s, hgt * 0.66 * s);
+        ctx.restore();
+    };
+    leg(-26, 0, 23, 1);
+    leg(14, 0, 20, -1);
     ctx.fillStyle = '#e8dcb0';
     [-33, -28, -23, 8, 13, 18].forEach((cx2) => {
         ctx.beginPath();
@@ -868,41 +1165,63 @@ function drawDragon(ctx, x, groundY, s, animTimer, doused) {
         ctx.closePath();
         ctx.fill();
     });
-    // Wing, folded on the back (drooping when cooled and exhausted)
+    // Wing folded on the back: finger bones with the membrane scalloped
+    // between them, rather than one flat triangle.
     const wingPeakY = (doused ? -68 : -92) * s - breathe;
     const wingMidY = (doused ? -44 : -60) * s - breathe;
+    const shoulder = { x: -4 * s, y: -52 * s - breathe };
+    const tips = [
+        { x: 20 * s, y: wingPeakY + 8 * s },
+        { x: 33 * s, y: wingPeakY + 2 * s },
+        { x: 43 * s, y: (wingPeakY + wingMidY) * 0.5 },
+        { x: 46 * s, y: wingMidY }
+    ];
     ctx.fillStyle = '#0d0708';
     ctx.beginPath();
-    ctx.moveTo(-4 * s, -52 * s - breathe);
-    ctx.lineTo(34 * s, wingPeakY);
-    ctx.lineTo(46 * s, wingMidY);
-    ctx.lineTo(20 * s, -46 * s - breathe);
+    ctx.moveTo(shoulder.x, shoulder.y);
+    tips.forEach((p) => ctx.lineTo(p.x, p.y));
+    ctx.lineTo(20 * s, -44 * s - breathe);
     ctx.closePath();
     ctx.fill();
     ctx.fillStyle = doused ? '#2c1414' : '#4a2020';
     ctx.beginPath();
-    ctx.moveTo(-2 * s, -52 * s - breathe);
-    ctx.lineTo(32 * s, wingPeakY + 4 * s);
-    ctx.lineTo(42 * s, wingMidY);
-    ctx.lineTo(19 * s, -47 * s - breathe);
+    ctx.moveTo(shoulder.x + 1 * s, shoulder.y + 1 * s);
+    for (let i = 0; i < tips.length; i++) {
+        const p = tips[i];
+        if (i === 0) { ctx.lineTo(p.x, p.y); continue; }
+        const q = tips[i - 1];
+        // Membrane sags between each pair of finger bones
+        ctx.quadraticCurveTo((q.x + p.x) / 2, (q.y + p.y) / 2 + 7 * s, p.x, p.y);
+    }
+    ctx.lineTo(19 * s, -45 * s - breathe);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = doused ? '#3a1c1c' : '#5e2a26';
+    ctx.beginPath();
+    ctx.moveTo(shoulder.x + 1 * s, shoulder.y + 1 * s);
+    ctx.lineTo(tips[0].x, tips[0].y);
+    ctx.lineTo(tips[1].x, tips[1].y);
     ctx.closePath();
     ctx.fill();
     ctx.strokeStyle = bodyHi;
     ctx.lineWidth = Math.max(1, 2 * s);
-    [[32, wingPeakY + 4 * s], [40, (wingPeakY + wingMidY) * 0.5], [42, wingMidY]].forEach(([wx, wy]) => {
+    tips.forEach((p) => {
         ctx.beginPath();
-        ctx.moveTo(-1 * s, -52 * s - breathe);
-        ctx.lineTo(wx * s, wy);
+        ctx.moveTo(shoulder.x, shoulder.y);
+        ctx.lineTo(p.x, p.y);
         ctx.stroke();
     });
     ctx.lineWidth = 1;
-    // Spine ridge
+    ctx.fillStyle = doused ? '#8c8266' : '#d8cca0';
+    tips.slice(0, 3).forEach((p) => ctx.fillRect(p.x - 1.4 * s, p.y - 1.4 * s, 2.8 * s, 2.8 * s));
+    // Spine ridge: alternating plate heights so it is not a comb
     ctx.fillStyle = doused ? '#9a9072' : '#e8dcb0';
-    for (let i = -30; i < 24; i += 10) {
+    for (let i = -32, k = 0; i < 26; i += 7 + (k % 2) * 3, k++) {
+        const ph = (doused ? 6 : 10) + (k % 3) * 2.5;
         ctx.beginPath();
         ctx.moveTo(i * s, -56 * s - breathe);
-        ctx.lineTo((i + 7) * s, -56 * s - breathe);
-        ctx.lineTo((i + 3.5) * s, (doused ? -62 : -66) * s - breathe);
+        ctx.lineTo((i + 6) * s, -56 * s - breathe);
+        ctx.lineTo((i + 2.6) * s, (-56 - ph) * s - breathe);
         ctx.closePath();
         ctx.fill();
     }

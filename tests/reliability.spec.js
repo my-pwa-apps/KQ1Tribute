@@ -85,4 +85,50 @@ test.describe('reliability', () => {
             .toEqual({ titleScreen: false, dead: false, won: false });
         expect(outcome.message).toMatch(/could not|unable|failed|not be saved|save failed/i);
     });
+
+    for (const route of ['parser', 'walk', 'exit', 'edge', 'dialog', 'dialog-response']) {
+        test(`a throwing ${route} action reports the fault and remains recoverable`, async ({ page }) => {
+            const result = await page.evaluate((input) => {
+                const game = window.engine;
+                game._loopRunning = false;
+                game.textWindow = null;
+                const fail = () => { throw new Error('deliberate input failure'); };
+                const hotspot = { name: 'test target', x: 300, y: 300, w: 40, h: 40, useItem: fail, walk: fail };
+                game.rooms.scullery.hotspots.push(hotspot);
+                if (input === 'parser') {
+                    game.addToInventory('pail');
+                    game.executeParserCommand('use pail on test target');
+                } else if (input === 'walk') {
+                    game.currentAction = 'walk';
+                    game.handleClick(320, 320);
+                } else if (input === 'edge') {
+                    game.playerX = 30;
+                    game.exitCooldown = 0;
+                    game.setEdgeTransition('left', fail);
+                    game.checkEdgeTransitions();
+                } else if (input === 'exit') {
+                    delete hotspot.walk;
+                    hotspot.isExit = true;
+                    hotspot.walkToX = game.playerX;
+                    hotspot.walkToY = game.playerY;
+                    hotspot.onExit = fail;
+                    game.exitCooldown = 0;
+                    game.checkExitTriggers();
+                } else {
+                    game.registerDialog({ id: 'fault', startTopic: 'main', topics: [{ id: 'main', greeting: 'Hello.', options: [{ text: 'Try.', once: true, action: fail, endDialog: true,
+                        response: input === 'dialog-response' ? 'A response.' : undefined }] }] });
+                    game.startDialog('fault');
+                    game._advanceDialog();
+                    game.selectDialogOption(0);
+                    if (input === 'dialog-response') game._advanceDialog();
+                }
+                return { message: game.message, dialog: !!game.activeDialog,
+                    chosen: game.dialogs.fault ? Object.values(game.dialogs.fault.chosenOptions) : [] };
+            }, route);
+            expect(result.message).toMatch(/fault in the game/i);
+            expect(result.message).toMatch(/\[(scullery|fault)/);
+            expect(result.dialog).toBe(false);
+            expect(result.chosen).toEqual([]);
+        });
+    }
 });

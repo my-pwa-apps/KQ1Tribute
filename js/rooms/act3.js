@@ -3,6 +3,7 @@
 // ============================================================
 
 CrownQuest.defineRooms((engine) => {
+    const RULES = CrownQuestContent.rules;
     const TREASURES = [
         { id: 'chest_of_cormac', label: 'the Chest of Cormac' },
         { id: 'shield_of_ardor', label: 'the Shield of Ardor' },
@@ -29,7 +30,7 @@ CrownQuest.defineRooms((engine) => {
             return;
         }
         e.setFlag('door_opened');
-        e.addScore(20);
+        RULES.award(e, 'door_opened');
         beginTheEnd(e);
     }
 
@@ -38,13 +39,17 @@ CrownQuest.defineRooms((engine) => {
     function beginTheEnd(e) {
         e.runSequence([
             'The third treasure goes home. All three sockets take light at once, and the door of the Amber Tower opens inward onto a stair that has been waiting a long time.',
+            'The chest remains in the stone, feeding gold light into the tower. The other two sockets open like hands. You take back the shield and mirror; their work is not finished.',
+            (eng) => { eng.addToInventory('shield_of_ardor'); eng.addToInventory('mirror_of_ianthe'); },
             (eng) => { eng.sound.doorOpen(); eng.shake(5); },
             600,
             (eng) => { eng.sound.sorcererMotif(); },
             '"Eleven years," says a voice behind you, "and you never once dusted the tapestry properly."',
             'Morvane comes up the shore path without hurrying. He is not angry. That is the part that frightens you.',
             700,
-            '"You are a very useful boy," he says. "You have opened a door I could not. Stand aside and I will make it quick, which is more than I offered your mother."',
+            '"I broke your mother\'s ship and scattered the treasures," he says. "But the tower sheltered her. Only her heir could open its ward, bringing all three freely. Not at my command. Not knowing what he was."',
+            '"So I hid you, and waited for the ward to weaken. Eleven years. Then you escaped, and did what I could not order you to do. I followed the storm across the water."',
+            '"A useful boy," he says. "Stand aside. This time the tower will not save your mother."',
             (eng) => { eng.sound.castSpell(); eng.shake(9); },
             'He raises one white hand and the air goes hard.'
         ], {
@@ -54,12 +59,24 @@ CrownQuest.defineRooms((engine) => {
                     duration: 15000,
                     draw: (ctx, w, h, progress, elapsed) => cutsceneMorvaneDuel(ctx, w, h, progress, elapsed),
                     onEnd: () => {
-                        e.addScore(30);
-                        e.playCutscene({
+                        RULES.award(e, 'duel');
+                        e.removeFromInventory('shield_of_ardor');
+                        e.setFlag('elowen_freed');
+                        e.runSequence([
+                            'The shield lies in bright pieces. Its light runs into the open doorway and joins the chest\'s gold. The ward has spent itself protecting its heir; the curse, not the kingdom, is what breaks.',
+                            'The woman comes down the stair. "Rowan," she says, and you know before she touches your face that this is the name somebody used before you were called Boy.',
+                            '"I am Elowen. Your mother." She holds you. For a while there is no kingdom, no sorcerer, and nothing you have to do.',
+                            'She tells you of the wreck: she was carried ashore beneath the tower, while Morvane took you from the rocks. The ward saved her life but sealed her inside, beyond his reach and beyond rescue.',
+                            '"Your father is Aldric. He thought us both drowned. You were six when the ship went down. You are seventeen now, and I have missed every one of those mornings."',
+                            'At the castle, Aldric rises from his sickbed to meet you both. His illness is real, but so is his joy. He names you before his council: Rowan, his son and heir.',
+                            'Weeks pass. The chest\'s gold repairs roofs and fills granaries. The mirror and the shield\'s fragments are laid in the royal treasury. Their ward is finished; the work of rebuilding belongs to people.',
+                            (eng) => { eng.removeFromInventory('mirror_of_ianthe'); eng.updateInventoryUI(); },
+                            'Aldric does not die. He lays down the burden of rule, with the council as witness. You accept it. Elowen, queen and mother, will set the crown upon your head.'
+                        ], { onEnd: () => e.playCutscene({
                             duration: 12000,
                             draw: (ctx, w, h, progress, elapsed) => cutsceneCoronation(ctx, w, h, progress, elapsed),
-                            onEnd: () => e.victory('Alderhaven has a queen again, and a king it did not expect, and a goat in the great hall that nobody has been able to remove.')
-                        });
+                            onEnd: () => e.victory('Alderhaven has its royal family back, a new king, and a goat in the great hall that nobody has been able to remove.')
+                        }) });
                     }
                 });
             }
@@ -87,6 +104,7 @@ CrownQuest.defineRooms((engine) => {
             // Elowen at the high window: visible from the first moment, so the
             // player knows what the tower is for before anything explains it.
             e.addForegroundLayer(120, (ctx, eng) => {
+                if (eng.getFlag('elowen_freed')) return;
                 // The window sits at baseY - h*0.76 in drawAmberTower; keeping
                 // this derived rather than guessed is what keeps her in it.
                 const wy = 336 - 268 * 0.76;
@@ -95,10 +113,21 @@ CrownQuest.defineRooms((engine) => {
                 ctx.rect(308, wy + 3, 24, 24);
                 ctx.clip();
                 drawVgaPerson(ctx, 320, wy + 46, 0.82, Object.assign({}, CAST_ELOWEN, {
+                    animTimer: eng.animTimer,
+                    phase: 4.1,
                     nearArm: { side: 1, up: 0.6 + Math.sin(eng.animTimer / 1400) * 0.1, lo: 1.1 },
                     farArm: { side: -1, up: -0.5, lo: 1.0 }
                 }));
                 ctx.restore();
+            });
+            e.addForegroundLayer(344, (ctx, eng) => {
+                if (!eng.getFlag('elowen_freed')) return;
+                eng.drawContactShadow(ctx, 350, 344, 1, { rx: 18, ry: 4, alpha: 0.3 });
+                drawVgaPerson(ctx, 350, 344, vgaPersonScale(eng, 344, 1), Object.assign({}, CAST_ELOWEN, {
+                    animTimer: eng.animTimer,
+                    nearArm: { side: 1, up: -0.3, lo: -0.5 },
+                    farArm: { side: -1, up: 0.1, lo: 0.3 }
+                }));
             });
         },
         draw: (ctx, w, h, eng) => {

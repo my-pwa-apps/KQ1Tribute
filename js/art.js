@@ -72,7 +72,7 @@ function drawPerspectiveSurface(ctx, sourceWidth, sourceHeight, quad, paint) {
         const topY = quad.tl.y + (quad.tr.y - quad.tl.y) * u0;
         const bottomY = quad.bl.y + (quad.br.y - quad.bl.y) * u0;
         ctx.drawImage(perspectiveSurfaceCanvas, sx, 0, 1, sourceHeight,
-            x0, topY, Math.max(1, x1 - x0 + 0.35), bottomY - topY);
+            Math.min(x0, x1), topY, Math.max(1, Math.abs(x1 - x0) + 0.35), bottomY - topY);
     }
     ctx.restore();
 }
@@ -275,6 +275,14 @@ function thatchRoof(ctx, apexX, apexY, halfW, baseY, seed) {
     ctx.fillRect(apexX - halfW - 6, baseY + 5, halfW * 2 + 12, 3);
 }
 
+/** Y of the thatch surface at a given x, from the same numbers thatchRoof was
+ *  given. Chimneys and dormers must be seated on this: a hand-placed rectangle
+ *  drifts off the slope and floats above the roof. */
+function roofSurfaceY(apexX, apexY, halfW, baseY, x) {
+    const f = Math.min(1, Math.abs(x - apexX) / halfW);
+    return apexY + (baseY - apexY) * f;
+}
+
 // ========== SIERRA PSEUDO-3D INTERIOR SHELL ==========
 
 /** Build the trapezoid edge functions for a Sierra interior. Every interior
@@ -438,129 +446,208 @@ function dustMotes(ctx, x, y, w, h, animTimer, seed) {
 
 /** Broadleaf tree. Black underdrawing first, then the lit canopy on top —
  *  without the silhouette pass the crown dissolves into the background.
- *  The crown is deliberately wide and low: a small ball on a tall stick is
- *  the single most common way procedural trees end up reading as lollipops. */
+ *  Forked trunk, visible roots, and overlapping irregular masses: a lollipop
+ *  on a stick is the single most common way these go wrong. */
 function drawTree(ctx, x, groundY, scale, seed, autumn) {
     const s = scale;
     const next = seededRandom(seed || 7);
-    const trunkH = 40 * s;
-    const crownY = groundY - trunkH - 26 * s;
-    const halfTrunk = 13 * s;
+    const trunkH = (36 + next() * 10) * s;
+    const crownY = groundY - trunkH - 22 * s;
+    const halfTrunk = (10 + next() * 5) * s;
+    const fork = (next() > 0.45 ? 1 : -1);
     const lit = autumn ? '#b47a2a' : PAL.LEAF_LIT;
     const base = autumn ? '#8c5518' : PAL.LEAF_BASE;
     const shade = autumn ? '#5d3410' : PAL.LEAF_SHADOW;
+    const deep = autumn ? '#3a2008' : PAL.LEAF_DEEP;
 
-    // Trunk and boughs, drawn before the crown so the canopy sits on them
+    // Roots gripping the ground line
+    ctx.fillStyle = '#1d1208';
+    [[-1.15, 10], [-0.4, 8], [0.55, 9], [1.2, 11]].forEach(([dx, rw]) => {
+        ctx.beginPath();
+        ctx.moveTo(x + dx * halfTrunk * 0.4, groundY - 6 * s);
+        ctx.quadraticCurveTo(x + dx * halfTrunk * 1.6, groundY - 2 * s, x + dx * halfTrunk * 2.2, groundY + 1.5 * s);
+        ctx.lineTo(x + dx * halfTrunk * 1.6, groundY + 2 * s);
+        ctx.quadraticCurveTo(x + dx * halfTrunk, groundY, x + dx * halfTrunk * 0.2, groundY - 3 * s);
+        ctx.closePath();
+        ctx.fill();
+        ctx.fillStyle = PAL.WOOD_SHADOW;
+        ctx.fillRect(x + dx * halfTrunk * 1.1, groundY - 1 * s, rw * 0.35 * s, 1.4 * s);
+        ctx.fillStyle = '#1d1208';
+    });
+
+    // Trunk, then a fork into two leaders
     ctx.fillStyle = '#1d1208';
     ctx.beginPath();
     ctx.moveTo(x - halfTrunk, groundY);
-    ctx.lineTo(x - halfTrunk * 0.52, groundY - trunkH);
-    ctx.lineTo(x + halfTrunk * 0.52, groundY - trunkH);
+    ctx.lineTo(x - halfTrunk * 0.55, groundY - trunkH * 0.62);
+    ctx.lineTo(x + halfTrunk * 0.5, groundY - trunkH * 0.62);
     ctx.lineTo(x + halfTrunk, groundY);
     ctx.closePath();
     ctx.fill();
     ctx.fillStyle = PAL.WOOD_SHADOW;
     ctx.beginPath();
-    ctx.moveTo(x - halfTrunk * 0.85, groundY);
-    ctx.lineTo(x - halfTrunk * 0.42, groundY - trunkH);
-    ctx.lineTo(x + halfTrunk * 0.42, groundY - trunkH);
-    ctx.lineTo(x + halfTrunk * 0.85, groundY);
+    ctx.moveTo(x - halfTrunk * 0.82, groundY);
+    ctx.lineTo(x - halfTrunk * 0.42, groundY - trunkH * 0.62);
+    ctx.lineTo(x + halfTrunk * 0.4, groundY - trunkH * 0.62);
+    ctx.lineTo(x + halfTrunk * 0.82, groundY);
     ctx.closePath();
     ctx.fill();
     ctx.fillStyle = PAL.WOOD_BASE;
     ctx.beginPath();
-    ctx.moveTo(x - halfTrunk * 0.85, groundY);
-    ctx.lineTo(x - halfTrunk * 0.42, groundY - trunkH);
-    ctx.lineTo(x - halfTrunk * 0.12, groundY - trunkH);
-    ctx.lineTo(x - halfTrunk * 0.4, groundY);
+    ctx.moveTo(x - halfTrunk * 0.82, groundY);
+    ctx.lineTo(x - halfTrunk * 0.42, groundY - trunkH * 0.62);
+    ctx.lineTo(x - halfTrunk * 0.08, groundY - trunkH * 0.62);
+    ctx.lineTo(x - halfTrunk * 0.38, groundY);
     ctx.closePath();
     ctx.fill();
     ctx.fillStyle = '#1d1208';
-    for (let b = 0; b < 4; b++) {
-        ctx.fillRect(x - halfTrunk * 0.7, groundY - trunkH + 6 * s + b * 8 * s, halfTrunk * 1.4, 1.4 * s);
+    for (let b = 0; b < 3; b++) {
+        ctx.fillRect(x - halfTrunk * 0.7, groundY - trunkH * 0.18 - b * 7 * s, halfTrunk * 1.3, 1.3 * s);
     }
-    ctx.strokeStyle = '#1d1208';
-    ctx.lineWidth = Math.max(1, 3.4 * s);
-    [[-1.5, 0.5], [1.5, 0.6], [-0.7, 1.1], [0.8, 1.15]].forEach(([dx, dy]) => {
+
+    const forkY = groundY - trunkH * 0.62;
+    [[fork * 0.9, 1], [fork * -0.45, 0.82]].forEach(([dir, thick], i) => {
+        ctx.strokeStyle = '#1d1208';
+        ctx.lineWidth = Math.max(2, (5.4 - i * 1.4) * s * thick);
         ctx.beginPath();
-        ctx.moveTo(x, groundY - trunkH + 5 * s);
-        ctx.quadraticCurveTo(x + dx * 12 * s, crownY + 14 * s, x + dx * 26 * s, crownY + (1 - dy) * 14 * s);
+        ctx.moveTo(x, forkY);
+        ctx.quadraticCurveTo(
+            x + dir * 14 * s,
+            forkY - trunkH * 0.28,
+            x + dir * 22 * s,
+            crownY + 10 * s
+        );
+        ctx.stroke();
+        ctx.strokeStyle = PAL.WOOD_SHADOW;
+        ctx.lineWidth = Math.max(1, (3.2 - i) * s * thick);
+        ctx.beginPath();
+        ctx.moveTo(x + (dir > 0 ? -1 : 1) * s, forkY);
+        ctx.quadraticCurveTo(
+            x + dir * 13 * s,
+            forkY - trunkH * 0.28,
+            x + dir * 20 * s,
+            crownY + 12 * s
+        );
         ctx.stroke();
     });
     ctx.lineWidth = 1;
 
-    // Silhouette: one wide, low mass rather than a ball
-    ctx.fillStyle = PAL.LEAF_DEEP;
-    const blobs = [
-        [0, 0, 40, 27], [-32, 7, 26, 19], [33, 6, 27, 20],
-        [-17, -14, 26, 18], [18, -13, 25, 17], [0, 16, 34, 16]
-    ];
-    blobs.forEach(([dx, dy, rx, ry]) => {
-        ctx.beginPath();
-        ctx.ellipse(x + dx * s, crownY + dy * s, rx * s, ry * s, 0, 0, Math.PI * 2);
-        ctx.fill();
-    });
-    // Body, then the lit crest toward the upper left, then the shaded belly
-    const paint = (list, color) => {
+    // Overlapping irregular masses — polygons, not stacked ellipses.
+    // Vertices are rolled once so the underdrawing sits under the lit shape.
+    const masses = [];
+    const nMass = 7;
+    const steps = 9;
+    for (let i = 0; i < nMass; i++) {
+        const ang = -0.9 + (i / (nMass - 1)) * 1.8 + (next() - 0.5) * 0.35;
+        const dist = (18 + next() * 22) * s;
+        const cx = x + Math.sin(ang) * dist * 1.15;
+        const cy = crownY + Math.cos(ang) * dist * 0.55 + (i % 2 ? 6 : -4) * s;
+        const rx = (16 + next() * 18) * s;
+        const ry = (11 + next() * 12) * s;
+        const rot = (next() - 0.5) * 0.6;
+        const pts = [];
+        for (let k = 0; k < steps; k++) {
+            const a = (k / steps) * Math.PI * 2;
+            const jitter = 0.72 + next() * 0.4;
+            pts.push([Math.cos(a + rot) * rx * jitter, Math.sin(a + rot) * ry * jitter]);
+        }
+        masses.push({ cx, cy, rx, ry, pts });
+    }
+    const lump = (m, ox, oy, scalePts, color) => {
         ctx.fillStyle = color;
-        list.forEach(([dx, dy, rx, ry]) => {
-            ctx.beginPath();
-            ctx.ellipse(x + dx * s, crownY + dy * s, rx * s, ry * s, 0, 0, Math.PI * 2);
-            ctx.fill();
+        ctx.beginPath();
+        m.pts.forEach(([px, py], k) => {
+            const vx = m.cx + ox + px * scalePts;
+            const vy = m.cy + oy + py * scalePts;
+            if (k === 0) ctx.moveTo(vx, vy); else ctx.lineTo(vx, vy);
         });
+        ctx.closePath();
+        ctx.fill();
     };
-    paint([[0, -1, 37, 24], [-30, 6, 23, 17], [31, 5, 24, 18], [-16, -14, 23, 16], [17, -13, 22, 15]], base);
-    paint([[-14, -16, 19, 12], [10, -15, 16, 10], [-30, -1, 14, 10], [1, -22, 13, 8]], lit);
-    paint([[6, 15, 26, 12], [-20, 15, 20, 10], [30, 12, 15, 9]], shade);
-    // Broken edge so the canopy stops reading as stacked ellipses
-    for (let i = 0; i < 60; i++) {
+    masses.forEach((m) => lump(m, 0, 0, 1.08, deep));
+    masses.forEach((m, i) => lump(m, -1 * s, -1 * s, 1, i % 3 === 0 ? shade : base));
+    masses.slice(0, 4).forEach((m) => lump(m, -m.rx * 0.18, -m.ry * 0.22, 0.58, lit));
+    masses.slice(3).forEach((m) => lump(m, m.rx * 0.08, m.ry * 0.18, 0.52, shade));
+    // Twiggy broken edge
+    for (let i = 0; i < 70; i++) {
+        const m = masses[Math.floor(next() * masses.length)];
         const a = next() * Math.PI * 2;
-        const rr = (30 + next() * 16) * s;
         ctx.fillStyle = next() > 0.55 ? lit : (next() > 0.4 ? base : shade);
-        ctx.fillRect(x + Math.cos(a) * rr, crownY + Math.sin(a) * rr * 0.66, 2.4 * s, 2.4 * s);
+        ctx.fillRect(
+            m.cx + Math.cos(a) * m.rx * (0.85 + next() * 0.35),
+            m.cy + Math.sin(a) * m.ry * (0.85 + next() * 0.35),
+            2.2 * s, 2.2 * s
+        );
     }
 }
 
 /** Dark conifer, for the deep wood and mountain ground. `tones` overrides the
  *  foliage ramp so the same cel can be used as a night silhouette. */
+/** A conifer. Every dimension is jittered from the seed, because a rank of
+ *  identical evergreens at a fixed pitch stops being a wood and becomes
+ *  wallpaper. Callers should pass a distinct seed per tree. */
 function drawPine(ctx, x, groundY, scale, seed, tones) {
-    const s = scale;
+    const next = seededRandom((seed || 0) * 2749 + 101);
+    const s = scale * (0.74 + next() * 0.58);
     const t = tones || {};
     const deep = t.deep || PAL.LEAF_DEEP;
     const base = t.base || PAL.LEAF_BASE;
     const shadow = t.shadow || PAL.LEAF_SHADOW;
     const lit = t.lit || PAL.LEAF_LIT;
-    const h = 76 * s;
+    const h = (66 + next() * 26) * s;
+    const lean = (next() - 0.5) * 5 * s;
     ctx.fillStyle = t.trunk || '#1b1206';
     ctx.fillRect(x - 3 * s, groundY - 16 * s, 6 * s, 16 * s);
-    const tiers = 6;
+    const tiers = 5 + Math.floor(next() * 3);
     for (let i = 0; i < tiers; i++) {
         const f = i / (tiers - 1);
         const y = groundY - 12 * s - f * h;
-        const hw = (26 - f * 19) * s;
+        const hw = (24 + next() * 6 - f * 18) * s;
+        const lx = x + lean * f;
         ctx.fillStyle = deep;
         ctx.beginPath();
-        ctx.moveTo(x, y - 15 * s);
-        ctx.lineTo(x + hw, y + 3 * s);
-        ctx.lineTo(x - hw, y + 3 * s);
+        ctx.moveTo(lx, y - 15 * s);
+        ctx.lineTo(lx + hw, y + 3 * s);
+        ctx.lineTo(lx - hw, y + 3 * s);
         ctx.closePath();
         ctx.fill();
         ctx.fillStyle = i % 2 ? shadow : base;
         ctx.beginPath();
-        ctx.moveTo(x, y - 13 * s);
-        ctx.lineTo(x + hw * 0.86, y + 1.5 * s);
-        ctx.lineTo(x - hw * 0.86, y + 1.5 * s);
+        ctx.moveTo(lx, y - 13 * s);
+        ctx.lineTo(lx + hw * 0.86, y + 1.5 * s);
+        ctx.lineTo(lx - hw * 0.86, y + 1.5 * s);
         ctx.closePath();
         ctx.fill();
         ctx.fillStyle = lit;
         ctx.beginPath();
-        ctx.moveTo(x - 1 * s, y - 12 * s);
-        ctx.lineTo(x - hw * 0.5, y + 0.5 * s);
-        ctx.lineTo(x - hw * 0.78, y + 0.5 * s);
+        ctx.moveTo(lx - 1 * s, y - 12 * s);
+        ctx.lineTo(lx - hw * 0.5, y + 0.5 * s);
+        ctx.lineTo(lx - hw * 0.78, y + 0.5 * s);
         ctx.closePath();
         ctx.fill();
     }
-    void seed;
+}
+
+/** A dense clump of blades with a dark root-shadow, for breaking a lawn. */
+function grassClump(ctx, x, y, s, seed) {
+    const next = seededRandom(seed || 19);
+    ctx.fillStyle = 'rgba(20,28,12,0.28)';
+    ctx.beginPath();
+    ctx.ellipse(x, y + 1 * s, 9 * s, 2.4 * s, 0, 0, Math.PI * 2);
+    ctx.fill();
+    const n = 10 + Math.floor(next() * 6);
+    for (let i = 0; i < n; i++) {
+        const gx = x + (next() - 0.5) * 14 * s;
+        const gh = (5 + next() * 9) * s;
+        const lean = (next() - 0.5) * 3 * s;
+        ctx.fillStyle = next() > 0.55 ? PAL.GRASS_LIT : (next() > 0.3 ? PAL.GRASS_BASE : PAL.GRASS_SHADOW);
+        ctx.beginPath();
+        ctx.moveTo(gx, y);
+        ctx.lineTo(gx + lean, y - gh);
+        ctx.lineTo(gx + 1.4 * s + lean * 0.3, y);
+        ctx.closePath();
+        ctx.fill();
+    }
 }
 
 /** Tufts of grass along a ground line. */
@@ -576,6 +663,66 @@ function grassFringe(ctx, x, y, w, seed, density, lit, base, shade) {
         ctx.fillRect(gx, y - gh, 1, gh);
         if (next() > 0.6) ctx.fillRect(gx + 1, y - gh * 0.6, 1, gh * 0.6);
     }
+}
+
+/** A grass plane in aerial perspective. Distant turf hazes toward the sky and
+ *  its blade pitch tightens; without that a field is a flat rectangle standing
+ *  upright behind the actors instead of running away from them. */
+function turfRecession(ctx, x, yTop, w, yBot, seed, haze) {
+    const next = seededRandom(seed || 4242);
+    const depth = Math.max(1, yBot - yTop);
+    // mixHex returns an rgb() string, so the haze has to be a separate overlay
+    // pass rather than a second mix, or the fill silently becomes invalid.
+    const hz = haze || '#9db4c6';
+    const hr = parseInt(hz.slice(1, 3), 16), hg = parseInt(hz.slice(3, 5), 16), hb = parseInt(hz.slice(5, 7), 16);
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(x, yTop, w, depth);
+    ctx.clip();
+    const rows = 9;
+    for (let i = 0; i < rows; i++) {
+        const f = i / rows;
+        const y0 = Math.floor(yTop + depth * f);
+        const y1 = Math.ceil(yTop + depth * ((i + 1) / rows)) + 1;
+        ctx.fillStyle = mixHex(PAL.GRASS_SHADOW, PAL.GRASS_LIT, Math.pow(f, 0.8));
+        ctx.fillRect(x, y0, w, y1 - y0);
+        const a = (1 - f) * (1 - f) * 0.5;
+        if (a > 0.01) {
+            ctx.fillStyle = `rgba(${hr},${hg},${hb},${a.toFixed(3)})`;
+            ctx.fillRect(x, y0, w, y1 - y0);
+        }
+    }
+    // Broad mown patches, largest and strongest nearest the viewer.
+    for (let i = 0; i < 24; i++) {
+        const f = Math.pow(next(), 0.5);
+        const px = x + next() * w, py = yTop + f * depth;
+        const pr = (8 + next() * 26) * (0.3 + f);
+        ctx.fillStyle = next() > 0.5
+            ? `rgba(122,168,88,${(0.05 + f * 0.13).toFixed(3)})`
+            : `rgba(46,86,44,${(0.05 + f * 0.11).toFixed(3)})`;
+        ctx.beginPath();
+        for (let a = 0; a <= Math.PI * 2 + 0.01; a += Math.PI / 6) {
+            const rr = pr * (0.7 + next() * 0.5);
+            const vx = px + Math.cos(a) * rr, vy = py + Math.sin(a) * rr * 0.28;
+            if (a === 0) ctx.moveTo(vx, vy); else ctx.lineTo(vx, vy);
+        }
+        ctx.closePath();
+        ctx.fill();
+    }
+    // Blades: both length and contrast fall away toward the horizon.
+    const n = Math.round(w * depth / 60);
+    for (let i = 0; i < n; i++) {
+        const f = Math.pow(next(), 0.5);
+        const by = yTop + f * depth;
+        const bx = x + next() * w;
+        const bh = 1 + f * f * 5;
+        const tone = next();
+        ctx.globalAlpha = 0.3 + f * 0.6;
+        ctx.fillStyle = tone > 0.62 ? PAL.GRASS_LIT : (tone > 0.3 ? PAL.GRASS_BASE : PAL.GRASS_SHADOW);
+        ctx.fillRect(bx, by, 1, bh);
+    }
+    ctx.globalAlpha = 1;
+    ctx.restore();
 }
 
 /** Break up a large flat expanse of turf with mown patches, clover and the
@@ -675,13 +822,35 @@ function drawToadstools(ctx, x, groundY, scale, seed) {
 
 // ========== WATER AND STONE ==========
 
-/** Sea or river band with dithered depth and a few hard specular dashes. */
+/** Sea or river band with dithered depth and a few hard specular dashes.
+ *  The dither is ramped by depth on purpose: one even checkerboard across the
+ *  whole band reads as a screen door rather than as water. */
 function waterBand(ctx, x, y, w, h, animTimer, seed) {
     const next = seededRandom(seed || 21);
     ctx.fillStyle = PAL.WATER_DEEP;
     ctx.fillRect(x, y, w, h);
-    ditherRect(ctx, x, y, w, h * 0.42, PAL.WATER_SHADOW, PAL.WATER_BASE, 2);
-    ditherRect(ctx, x, y + h * 0.42, w, h * 0.34, PAL.WATER_BASE, PAL.WATER_SHADOW, 2);
+    const rows = 8;
+    for (let i = 0; i < rows; i++) {
+        const f = i / rows;
+        const ry = y + f * h;
+        const rh = h / rows + 1;
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(x, ry, w, rh);
+        ctx.clip();
+        ctx.globalAlpha = 0.5 - f * 0.36;
+        ditherRect(ctx, x, ry, w, rh,
+            f < 0.45 ? PAL.WATER_SHADOW : PAL.WATER_BASE,
+            f < 0.45 ? PAL.WATER_BASE : PAL.WATER_DEEP,
+            2 + Math.round(f * 2));
+        ctx.restore();
+    }
+    // Nearer water breaks out of the checker into broken swell lines.
+    for (let i = 0; i < 52; i++) {
+        const f = 0.3 + next() * 0.7;
+        ctx.fillStyle = next() > 0.6 ? PAL.WATER_BASE : PAL.WATER_SHADOW;
+        ctx.fillRect(x + next() * w, y + f * h, 5 + next() * (8 + f * 24), f > 0.72 ? 2 : 1);
+    }
     // Specular dashes drift sideways; the row spacing widens toward the viewer.
     for (let i = 0; i < 70; i++) {
         const f = next();
@@ -889,60 +1058,80 @@ function drawWell(ctx, cx, groundY, scale, ropeDown, seed) {
     }
 }
 
-/** Plank-and-rope bridge over a gorge, seen from the near bank. */
-function drawRopeBridge(ctx, x0, y0, x1, y1, sag, seed) {
-    const next = seededRandom(seed || 77);
+/** The deck curve of a receding span. Exposed separately so a room can stand a
+ *  character on the planks without re-deriving the sag. `t` is 0 near, 1 far. */
+function bridgeDeckY(span, t, sag) {
+    return span.nearY + (span.farY - span.nearY) * t + Math.sin(Math.PI * t) * (sag == null ? 7 : sag);
+}
+
+/** Plank-and-rope span running away from the viewer, drawn far rungs first so
+ *  each near rung overlaps the one behind it. A bridge over a gorge has to be
+ *  seen end-on like this; drawn flat across the screen it has no drop under it. */
+function drawRecedingBridge(ctx, span, sag, seed) {
+    const next = seededRandom(seed || 4321);
     const at = (t) => ({
-        x: x0 + (x1 - x0) * t,
-        y: y0 + (y1 - y0) * t + Math.sin(Math.PI * t) * sag
+        x: span.nearX + (span.farX - span.nearX) * t,
+        hw: span.nearHalf + (span.farHalf - span.nearHalf) * t,
+        y: bridgeDeckY(span, t, sag)
     });
-    // Deck
-    for (let t = 0; t <= 1.0001; t += 0.035) {
-        const p = at(t);
-        const wdt = 26 - Math.abs(0.5 - t) * 8;
-        ctx.fillStyle = '#1c1207';
-        ctx.fillRect(p.x - wdt / 2, p.y, wdt, 7);
-        ctx.fillStyle = next() > 0.5 ? PAL.WOOD_BASE : PAL.WOOD_SHADOW;
-        ctx.fillRect(p.x - wdt / 2 + 1, p.y + 1, wdt - 2, 4);
+    const post = (px, py, ph, pw) => {
+        ctx.fillStyle = '#160f05';
+        ctx.fillRect(px - pw / 2 - 1, py - ph, pw + 2, ph + 2);
+        ctx.fillStyle = PAL.WOOD_BASE;
+        ctx.fillRect(px - pw / 2, py - ph + 1, pw, ph);
         ctx.fillStyle = PAL.WOOD_LIT;
-        ctx.fillRect(p.x - wdt / 2 + 1, p.y + 1, wdt - 2, 1);
-    }
-    // Hand ropes
-    ctx.strokeStyle = '#2a2114';
-    ctx.lineWidth = 4;
-    for (const off of [-16, 16]) {
+        ctx.fillRect(px - pw / 2, py - ph + 1, Math.max(1, pw * 0.34), ph);
+        ctx.fillStyle = PAL.WOOD_SHADOW;
+        ctx.fillRect(px + pw / 2 - Math.max(1, pw * 0.26), py - ph + 1, Math.max(1, pw * 0.26), ph);
+    };
+    const far = at(1), near = at(0);
+    post(far.x - far.hw - 3, far.y + 3, 16, 5);
+    post(far.x + far.hw + 3, far.y + 3, 16, 5);
+    ctx.strokeStyle = '#1c1409';
+    ctx.lineWidth = 3;
+    for (const side of [-1, 1]) {
         ctx.beginPath();
-        for (let t = 0; t <= 1.0001; t += 0.05) {
+        for (let t = 1; t >= -0.0001; t -= 0.05) {
             const p = at(t);
-            const rise = 20 - Math.sin(Math.PI * t) * 6;
-            if (t === 0) ctx.moveTo(p.x + off, p.y - rise);
-            else ctx.lineTo(p.x + off, p.y - rise);
+            if (t === 1) ctx.moveTo(p.x + side * p.hw, p.y + 2);
+            else ctx.lineTo(p.x + side * p.hw, p.y + 2);
         }
         ctx.stroke();
     }
-    ctx.strokeStyle = '#b9a274';
-    ctx.lineWidth = 2;
-    for (const off of [-16, 16]) {
-        ctx.beginPath();
-        for (let t = 0; t <= 1.0001; t += 0.05) {
-            const p = at(t);
-            const rise = 21 - Math.sin(Math.PI * t) * 6;
-            if (t === 0) ctx.moveTo(p.x + off, p.y - rise);
-            else ctx.lineTo(p.x + off, p.y - rise);
-        }
-        ctx.stroke();
-    }
-    // Vertical stays
-    ctx.strokeStyle = '#8d7b58';
-    ctx.lineWidth = 1;
-    for (let t = 0.06; t < 1; t += 0.12) {
+    for (let t = 1; t >= -0.0001; t -= 0.02) {
         const p = at(t);
-        const rise = 21 - Math.sin(Math.PI * t) * 6;
+        const th = 4 + (1 - t) * 5;
+        ctx.fillStyle = '#160f05';
+        ctx.fillRect(p.x - p.hw - 1.5, p.y - 1, p.hw * 2 + 3, th + 2);
+        ctx.fillStyle = next() > 0.5 ? PAL.WOOD_BASE : PAL.WOOD_SHADOW;
+        ctx.fillRect(p.x - p.hw, p.y, p.hw * 2, th);
+        ctx.fillStyle = PAL.WOOD_LIT;
+        ctx.fillRect(p.x - p.hw, p.y, p.hw * 2, 1.6);
+    }
+    for (const side of [-1, 1]) {
+        const ropeY = (t) => at(t).y - 30 + t * 17 + Math.sin(Math.PI * t) * 4;
+        const ropeX = (t) => at(t).x + side * (at(t).hw + 2);
+        ctx.strokeStyle = '#8d7b58';
+        ctx.lineWidth = 1;
+        for (let t = 0.08; t < 1; t += 0.11) {
+            ctx.beginPath();
+            ctx.moveTo(ropeX(t), ropeY(t));
+            ctx.lineTo(at(t).x + side * at(t).hw, at(t).y);
+            ctx.stroke();
+        }
+        ctx.strokeStyle = '#2a2114';
+        ctx.lineWidth = 3;
         ctx.beginPath();
-        ctx.moveTo(p.x - 16, p.y - rise); ctx.lineTo(p.x - 13, p.y);
-        ctx.moveTo(p.x + 16, p.y - rise); ctx.lineTo(p.x + 13, p.y);
+        for (let t = 1; t >= -0.0001; t -= 0.05) {
+            if (t === 1) ctx.moveTo(ropeX(t), ropeY(t)); else ctx.lineTo(ropeX(t), ropeY(t));
+        }
+        ctx.stroke();
+        ctx.strokeStyle = '#b9a274';
+        ctx.lineWidth = 1;
         ctx.stroke();
     }
+    post(near.x - near.hw - 5, near.y + 8, 38, 10);
+    post(near.x + near.hw + 5, near.y + 8, 38, 10);
 }
 
 /** The fishing skiff on the cove shingle, and later under sail. */
@@ -1211,23 +1400,53 @@ function drawShieldOfArdor(ctx, cx, cy, s, animTimer) {
     ctx.beginPath(); ctx.arc(cx - 1.5 * s, cy - 1.5 * s, 16 * s, 0, Math.PI * 2); ctx.fill();
     ctx.fillStyle = PAL.SILVER_LIT;
     ctx.beginPath(); ctx.arc(cx - 4 * s, cy - 5 * s, 9 * s, 0, Math.PI * 2); ctx.fill();
-    // Rim, boss and a sunburst device
-    ctx.strokeStyle = PAL.GOLD_BASE;
-    ctx.lineWidth = Math.max(1, 2.4 * s);
+    // Rim band with rivets. A plain bright ring plus even spokes reads as a
+    // cartwheel, so the rim is a lit-above/shadowed-below band instead.
+    ctx.strokeStyle = PAL.GOLD_SHADOW;
+    ctx.lineWidth = Math.max(1, 3 * s);
     ctx.beginPath(); ctx.arc(cx, cy, 17 * s, 0, Math.PI * 2); ctx.stroke();
+    ctx.strokeStyle = PAL.GOLD_BASE;
+    ctx.lineWidth = Math.max(1, 2 * s);
+    ctx.beginPath(); ctx.arc(cx, cy, 17 * s, Math.PI * 0.85, Math.PI * 1.95); ctx.stroke();
+    ctx.strokeStyle = PAL.GOLD_LIT;
+    ctx.lineWidth = Math.max(1, 1.2 * s);
+    ctx.beginPath(); ctx.arc(cx, cy, 17 * s, Math.PI * 1.02, Math.PI * 1.62); ctx.stroke();
     ctx.lineWidth = 1;
     ctx.fillStyle = PAL.GOLD_SHADOW;
-    for (let a = 0; a < Math.PI * 2; a += Math.PI / 6) {
+    for (let a = 0; a < Math.PI * 2; a += Math.PI / 4) {
+        ctx.beginPath();
+        ctx.arc(cx + Math.cos(a) * 17 * s, cy + Math.sin(a) * 17 * s, 1.5 * s, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    ctx.fillStyle = PAL.GOLD_LIT;
+    for (let a = 0; a < Math.PI * 2; a += Math.PI / 4) {
+        ctx.fillRect(cx + Math.cos(a) * 17 * s - 0.6 * s, cy + Math.sin(a) * 17 * s - 1.4 * s, 1.2 * s, 1.2 * s);
+    }
+    // Four short device rays, not twelve even spokes.
+    ctx.fillStyle = PAL.GOLD_SHADOW;
+    for (let a = Math.PI / 4; a < Math.PI * 2; a += Math.PI / 2) {
         ctx.save();
         ctx.translate(cx, cy);
         ctx.rotate(a);
-        ctx.fillRect(6 * s, -1.2 * s, 9 * s, 2.4 * s);
+        ctx.beginPath();
+        ctx.moveTo(6 * s, -1.6 * s);
+        ctx.lineTo(13 * s, 0);
+        ctx.lineTo(6 * s, 1.6 * s);
+        ctx.closePath();
+        ctx.fill();
         ctx.restore();
     }
+    // Domed boss: dark seat, gold dome, one specular high on the upper left.
+    ctx.fillStyle = '#0c0d12';
+    ctx.beginPath(); ctx.arc(cx, cy, 7.2 * s, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = PAL.GOLD_SHADOW;
+    ctx.beginPath(); ctx.arc(cx, cy, 6.4 * s, 0, Math.PI * 2); ctx.fill();
     ctx.fillStyle = PAL.GOLD_BASE;
-    ctx.beginPath(); ctx.arc(cx, cy, 6 * s, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(cx - 0.8 * s, cy - 0.8 * s, 5.2 * s, 0, Math.PI * 2); ctx.fill();
     ctx.fillStyle = PAL.GOLD_LIT;
-    ctx.beginPath(); ctx.arc(cx - 1.6 * s, cy - 1.6 * s, 3.2 * s, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(cx - 1.8 * s, cy - 1.8 * s, 2.8 * s, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#fffdf0';
+    ctx.fillRect(cx - 2.6 * s, cy - 3 * s, 1.6 * s, 1.6 * s);
     // The shield is warm: one travelling specular bar sells the metal.
     const sweep = ((animTimer || 0) / 24) % 80 - 40;
     ctx.save();

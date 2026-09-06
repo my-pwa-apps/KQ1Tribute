@@ -58,8 +58,8 @@ class GameEngine {
         // Classic Sierra backgrounds were authored around 320x200 and then
         // displayed with hard-edged pixels. Rooms remain convenient to author
         // at 640x400, but this buffer gives the finished scenery that same
-        // deliberate two-pixel raster without soft CSS scaling. Actors and UI
-        // are drawn afterward so faces, status text and hotspots stay legible.
+        // deliberate two-pixel raster without soft CSS scaling. Actors share
+        // that raster; UI and portraits are drawn afterward to stay legible.
         this.sceneRasterScale = 2;
         this.sceneRasterCanvas = document.createElement('canvas');
         this.sceneRasterCanvas.width = this.WIDTH / this.sceneRasterScale;
@@ -91,6 +91,7 @@ class GameEngine {
         // Game state
         this.rooms = {};
         this.items = {};
+        this.itemDefaults = {};
         // Inventory close-up and speaker portrait art, supplied by js/art.js.
         this.itemArt = {};
         this.portraitArt = {};
@@ -199,6 +200,13 @@ class GameEngine {
         // Rooms can register draw callbacks that render AFTER the player
         // based on Y-position, giving proper depth occlusion
         this.foregroundLayers = []; // { y, draw(ctx, eng) }
+        this.debugGround = false;   // F9: show the walkable band and actor ground anchors
+        this._groundMarks = [];
+
+        // Horizontal surfaces props stand on (shelf, desk, hearthstone). Declared
+        // once per room so the art, the hotspot and the F9 overlay read one line.
+        this.surfaces = {};
+        this._propBases = [];
 
         // Dominant light source for the current room. Drives the direction and
         // length of cast shadows so characters sit in the scene's lighting.
@@ -274,6 +282,7 @@ class GameEngine {
             drawTitleBackdrop: definition.drawTitleBackdrop || null,
             parserSynonyms: definition.parserSynonyms || null,
             classicRewrites: definition.classicRewrites || null,
+            flavorResponses: definition.flavorResponses || {},
             sound: definition.sound || null,
             soundFactory: definition.soundFactory || null,
             victory: {
@@ -394,6 +403,12 @@ class GameEngine {
             if (e.key === 'F2') {
                 e.preventDefault();
                 this.toggleHotspotReveal();
+                return;
+            }
+            if (e.key === 'F9') {
+                e.preventDefault();
+                this.debugGround = !this.debugGround;
+                this._groundMarks = [];
                 return;
             }
             if (e.key === 'F8') {
@@ -781,7 +796,14 @@ class GameEngine {
 
     // ---- Room Management ----
     registerRoom(room) { this.rooms[room.id] = room; }
-    registerItem(item) { this.items[item.id] = item; }
+    registerItem(item) {
+        this.items[item.id] = item;
+        this.itemDefaults[item.id] = { name: item.name, description: item.description };
+    }
+
+    resetItemMetadata() {
+        for (const [id, defaults] of Object.entries(this.itemDefaults)) Object.assign(this.items[id], defaults);
+    }
 
     startNewGame() {
         this.titleScreen = false;
@@ -798,7 +820,7 @@ class GameEngine {
         }
     }
 
-    goToRoom(roomId, px, py) {
+    goToRoom(roomId, px, py, context = {}) {
         const room = this.rooms[roomId];
         if (!room) { console.error('Room not found:', roomId); return; }
         const cameFromAnotherRoom = !!this.currentRoomId && this.currentRoomId !== roomId;
@@ -817,7 +839,7 @@ class GameEngine {
         this.playerTargetY = null;
         this.playerFacing = 'toward';
         this.pendingAction = null;
-        if (room.onEnter) room.onEnter(this);
+        if (room.onEnter) room.onEnter(this, context);
         // Doorways the player arrives on top of stay disarmed until they step clear,
         // so walking forward out of a door cannot bounce straight back through it.
         this.disarmedExits = cameFromAnotherRoom ? this.exitsWithinRearmRange(room) : [];
@@ -902,6 +924,7 @@ class GameEngine {
         // art panel while sizing, so dropping the panel onto a stale window
         // paints it over the tail of every line.
         this.showMessage(item.description, { window: true });
+        if (item.look) this.runContentHandler(`${item.id} look`, item.look, this.actionScope);
     }
 
     // ---- Score & Flags ----
@@ -1114,7 +1137,7 @@ class GameEngine {
         if (step.walk) {
             const [wx, wy] = step.walk;
             this.playerTargetX = (wx === null || wx === undefined) ? null : Math.max(30, Math.min(610, wx));
-            this.playerTargetY = (wy === null || wy === undefined) ? null : Math.max(Math.max(this.horizon, 280), Math.min(370, wy));
+            this.playerTargetY = (wy === null || wy === undefined) ? null : Math.max(this.minimumWalkY, Math.min(370, wy));
             this.playerWalking = true;
             this.pendingAction = null;
         }
@@ -1164,7 +1187,7 @@ class GameEngine {
 
     _snapPlayerTo([x, y]) {
         if (x !== null && x !== undefined) this.playerX = Math.max(30, Math.min(610, x));
-        if (y !== null && y !== undefined) this.playerY = Math.max(Math.max(this.horizon, 280), Math.min(370, y));
+        if (y !== null && y !== undefined) this.playerY = Math.max(this.minimumWalkY, Math.min(370, y));
     }
 
     _endSequence() {
@@ -1196,6 +1219,8 @@ class GameEngine {
 
     restart() {
         this.inventory = [];
+        this.restoreDialogChoices();
+        this.resetItemMetadata();
         this.score = 0;
         this.lastScoreDelta = 0;
         this.scoreFlashUntil = 0;
@@ -1268,16 +1293,18 @@ class GameEngine {
         const hotspot = this.findHotspot(x, y, room);
 
         if (this.currentAction === 'walk') {
-            if (hotspot && hotspot.isExit) {
+            if (hotspot && hotspot.walk) {
+                this.runContentHandler(`${this.currentRoomId}/${hotspot.name} walk`, hotspot.walk, this.actionScope);
+            } else if (hotspot && hotspot.isExit) {
                 this.playerTargetX = hotspot.walkToX !== undefined ? hotspot.walkToX : (hotspot.x + hotspot.w / 2);
                 this.playerTargetY = hotspot.walkToY !== undefined ? hotspot.walkToY : null;
                 this.playerWalking = true;
-                this.pendingAction = () => { if (hotspot.onExit) hotspot.onExit(this); };
-            } else if (hotspot && hotspot.walk) {
-                hotspot.walk(this);
-            } else if (y > 240) {
+                this.pendingAction = () => {
+                    if (hotspot.onExit) this.runContentHandler(`${this.currentRoomId}/${hotspot.name} exit`, hotspot.onExit, this.actionScope);
+                };
+            } else if (y > Math.min(240, this.minimumWalkY)) {
                 this.playerTargetX = Math.max(30, Math.min(610, x));
-                this.playerTargetY = Math.max(Math.max(this.horizon, 280), Math.min(370, y));
+                this.playerTargetY = Math.max(this.minimumWalkY, Math.min(370, y));
                 this.playerWalking = true;
                 this.pendingAction = null;
             } else if (hotspot) {
@@ -1311,12 +1338,15 @@ class GameEngine {
      *  listeners, where a throw is swallowed by the browser and the player just
      *  sees nothing happen; this turns that into a visible, reportable failure. */
     runContentHandler(label, fn, ...args) {
+        this.lastContentError = null;
         try {
             return fn(...args);
         } catch (err) {
-            console.error(`Crown Quest: ${label} failed`, err);
+            this.lastContentError = err;
+            console.error(`${this.game.shortTitle}: ${label} failed`, err);
             this.sound.error();
-            this.showMessage('Something in the world refuses to cooperate. That is a fault in the game, not in you.', { window: true });
+            const detail = ['localhost', '127.0.0.1', '[::1]'].includes(location.hostname) ? ` [${label}]` : '';
+            this.showMessage('Something in the world refuses to cooperate. That is a fault in the game, not in you.' + detail, { window: true });
             return undefined;
         }
     }
@@ -1368,7 +1398,7 @@ class GameEngine {
                 ],
                 use: [
                     `You fiddle with ${hsName} briefly. Nothing enchanted happens.`,
-                    `You apply your finest scullery-boy technique to ${hsName}. Nothing happens, but you look remarkably focused.`,
+                    (this.game.flavorResponses.useTechnique || 'You apply your finest technique to {object}. Nothing happens, but you look remarkably focused.').replaceAll('{object}', hsName),
                     `You push, pull, and poke at ${hsName}. It resolutely resists your enthusiasm.`
                 ],
                 talk: [
@@ -1442,7 +1472,7 @@ class GameEngine {
             return;
         }
         if (['sing', 'chant', 'hum'].includes(firstWord)) {
-            this.showMessage("You give a stirring verse of 'The Ballad of the Bramble King'. A crow leaves in protest.");
+            this.showMessage(this.game.flavorResponses.sing || 'You sing a stirring verse. Your audience remains unimpressed.');
             return;
         }
         if (['yell', 'scream', 'shout', 'holler'].includes(firstWord)) {
@@ -1466,7 +1496,7 @@ class GameEngine {
             return;
         }
         if (['scrub', 'sweep', 'mop', 'clean'].includes(firstWord) && !command.includes('with') && !command.includes('on')) {
-            this.showMessage('Years of scrubbing the sorcerer\'s floors twitch in your hands. This crisis needs something grander.');
+            this.showMessage(this.game.flavorResponses.clean || 'You consider tidying up. This crisis needs something grander.');
             return;
         }
         if (['swim', 'paddle'].includes(firstWord)) {
@@ -1523,7 +1553,7 @@ class GameEngine {
                 this.showMessage("You don't see that here.");
                 return;
             }
-            if (hotspot.useItem) hotspot.useItem(this, item.id);
+            if (hotspot.useItem) this.runContentHandler(`${this.currentRoomId}/${hotspot.name} useItem`, hotspot.useItem, this.actionScope, item.id);
             else {
                 const useItemSnarks = [
                     `You attempt to combine ${item.name} with ${hotspot.name}. The natural order offers a stern, polite refusal.`,
@@ -1673,7 +1703,7 @@ class GameEngine {
         if (!target) return 0;
         if (name === target) return 100;
         if (name.includes(target) || target.includes(name)) return 80;
-        // Match compact (no-space) typings like "spellbook" → "spell book",
+        // Match compact (no-space) typings like "notebook" to "note book",
         // "gingerbread" → "ginger bread".
         const compactName = name.replace(/\s+/g, '');
         const compactTarget = target.replace(/\s+/g, '');
@@ -1761,8 +1791,37 @@ class GameEngine {
     }
 
     /** Limit the player's baseline to a room-defined floor shape. */
-    setWalkableArea(containsPoint) {
+    setWalkableArea(containsPoint, minY = null) {
         this.walkableArea = containsPoint;
+        this.walkableMinY = minY;
+    }
+
+    get minimumWalkY() {
+        return this.walkableMinY ?? Math.max(this.horizon, 280);
+    }
+
+    /** Declare a surface props stand on. `yAt` is a number for a flat top, or a
+     *  function of x for one that slopes toward the vanishing point. */
+    addSurface(id, x0, x1, yAt) {
+        this.surfaces[id] = { x0, x1, yAt };
+    }
+
+    /** Top of a declared surface at a given x. Props MUST take their base from
+     *  this rather than a hand-written constant: a base that does not come from
+     *  the surface underneath is how a prop ends up floating above it. */
+    surfaceY(id, x) {
+        const s = Object.hasOwn(this.surfaces, id) ? this.surfaces[id] : null;
+        if (!s) return null;
+        return typeof s.yAt === 'function' ? s.yAt(x) : s.yAt;
+    }
+
+    /** Place a prop: returns the surface height at `x` and records the contact
+     *  so the F9 overlay and the grounding test can both see it. */
+    standOn(id, x) {
+        const y = this.surfaceY(id, x);
+        if (y === null) return null;
+        this._propBases.push({ surface: id, x, y });
+        return y;
     }
 
     /** Check if a position collides with any barrier (AGI CanBHere).
@@ -1810,7 +1869,7 @@ class GameEngine {
                     this.playerWalking = false;
                     this.playerTargetX = null;
                     this.playerTargetY = null;
-                    hs.onExit(this);
+                    this.runContentHandler(`${this.currentRoomId}/${hs.name} exit`, hs.onExit, this.actionScope);
                 }
                 return;
             }
@@ -1830,13 +1889,13 @@ class GameEngine {
         if (this.exitCooldown > 0) return;
         const margin = 5;
         if (this.playerX <= 30 + margin && this.edgeTransitions.left) {
-            this.edgeTransitions.left(this);
+            this.runContentHandler(`${this.currentRoomId} left edge`, this.edgeTransitions.left, this.actionScope);
         } else if (this.playerX >= 610 - margin && this.edgeTransitions.right) {
-            this.edgeTransitions.right(this);
+            this.runContentHandler(`${this.currentRoomId} right edge`, this.edgeTransitions.right, this.actionScope);
         } else if (this.playerY <= this.horizon + margin && this.edgeTransitions.top) {
-            this.edgeTransitions.top(this);
+            this.runContentHandler(`${this.currentRoomId} top edge`, this.edgeTransitions.top, this.actionScope);
         } else if (this.playerY >= 370 - margin && this.edgeTransitions.bottom) {
-            this.edgeTransitions.bottom(this);
+            this.runContentHandler(`${this.currentRoomId} bottom edge`, this.edgeTransitions.bottom, this.actionScope);
         }
     }
 
@@ -2099,6 +2158,9 @@ class GameEngine {
         this.clearForegroundLayers();
         this.clearBarriers();
         this.walkableArea = null;
+        this.walkableMinY = null;
+        this.surfaces = {};
+        this._propBases = [];
         this.clearEdgeTransitions();
         this.clearNPCs();
         this.sceneLight = null;
@@ -2167,6 +2229,20 @@ class GameEngine {
             ...dialogDef,
             chosenOptions: {}  // track which options have been chosen (AGS DFLG_HASBEENCHOSEN)
         };
+    }
+
+    restoreDialogChoices(saved = {}) {
+        for (const [id, dialog] of Object.entries(this.dialogs)) {
+            dialog.chosenOptions = {};
+            const choices = saved && Object.hasOwn(saved, id) ? saved[id] : null;
+            if (!choices || typeof choices !== 'object' || Array.isArray(choices)) continue;
+            for (const topic of dialog.topics) {
+                topic.options.forEach((option, index) => {
+                    const key = `${topic.id}_${index}`;
+                    if (Object.hasOwn(choices, key) && choices[key] === true) dialog.chosenOptions[key] = true;
+                });
+            }
+        }
     }
 
     /** Start a dialog conversation (AGS Dialog.Start). */
@@ -2253,6 +2329,7 @@ class GameEngine {
 
         // Mark as chosen (AGS DFLG_HASBEENCHOSEN)
         dlg.chosenOptions[this.activeDialog.topicId + '_' + optInfo.optIndex] = true;
+        this.activeDialog.choiceKey = this.activeDialog.topicId + '_' + optInfo.optIndex;
 
         // Show the player's line first, then NPC response
         if (opt.response) {
@@ -2264,7 +2341,7 @@ class GameEngine {
             this.showTextWindow(opt.response, { color: '#FFFFFF', duration: 0 });
         } else {
             // No response text, execute immediately
-            if (opt.action) opt.action(this);
+            if (opt.action && !this.runDialogAction(opt.action)) return;
             if (opt.endDialog) {
                 this.activeDialog = null;
                 this.textWindow = null;
@@ -2277,6 +2354,16 @@ class GameEngine {
     }
 
     /** Called when text window is dismissed during active dialog. */
+    runDialogAction(action) {
+        const dialog = this.activeDialog;
+        this.runContentHandler(`${dialog.dialogId} dialogue action`, action, this.actionScope);
+        if (!this.lastContentError) return true;
+        delete this.dialogs[dialog.dialogId].chosenOptions[dialog.choiceKey];
+        this.activeDialog = null;
+        this.clearAccessibleDialogOptions();
+        return false;
+    }
+
     _advanceDialog() {
         if (!this.activeDialog) return false;
 
@@ -2290,7 +2377,7 @@ class GameEngine {
         if (this.activeDialog.phase === 'response') {
             // Response dismissed — execute action, then next topic or back to options
             const ad = this.activeDialog;
-            if (ad.pendingAction) ad.pendingAction(this);
+            if (ad.pendingAction && !this.runDialogAction(ad.pendingAction)) return true;
 
             if (ad.pendingEnd) {
                 this.activeDialog = null;
@@ -2388,6 +2475,8 @@ class GameEngine {
             this.animTimer += dt;
         }
 
+        if (this.dom.saveModal && this.dom.saveModal.classList.contains('open')) return;
+
         // Cutscene update
         if (this.cutscene) {
             this.cutscene.elapsed += dt;
@@ -2413,17 +2502,6 @@ class GameEngine {
 
         // Decrement exit cooldown unconditionally
         if (this.exitCooldown > 0) this.exitCooldown -= dt;
-
-        // Per-room tick, for timed threats and ambient scripting. Suppressed
-        // during cutscenes, sequences and end states so a timer can never fire
-        // over the top of a death or victory screen.
-        {
-            const activeRoom = this.rooms[this.currentRoomId];
-            if (activeRoom && activeRoom.onUpdate && !this.cutscene && !this.sequence &&
-                !this.dead && !this.won && !this.titleScreen) {
-                activeRoom.onUpdate(this, dt);
-            }
-        }
 
         // Snapshot the baseline so exits and edges can be tested once per frame
         // after whichever movement branch ran below.
@@ -2453,7 +2531,7 @@ class GameEngine {
             // Move X (AGI-style: check barriers before committing)
             // AGS-inspired: scale walk speed by depth for perspective realism
             const depthSpd = this.depthScaling ? this.getDepthScale(this.playerY) : 1;
-            const spd = this.playerSpeed * depthSpd;
+            const spd = this.playerSpeed * depthSpd * dt / (1000 / 60);
             // Normalize diagonal movement to prevent ~1.41x speed boost
             const movingX = arrowLeft || arrowRight;
             const movingY = arrowUp || arrowDown;
@@ -2461,7 +2539,7 @@ class GameEngine {
             const startX = this.playerX;
             const startY = this.playerY;
             const yDir = arrowUp ? -1 : 1;
-            const minY = Math.max(this.horizon, 280);
+            const minY = this.minimumWalkY;
             const newX = movingX ? Math.max(30, Math.min(610, startX + spd * diagFactor * this.playerDir)) : startX;
             const newY = movingY ? Math.max(minY, Math.min(370, startY + spd * diagFactor * yDir)) : startY;
             if (!this.collidesBarrier(newX, newY)) {
@@ -2486,8 +2564,8 @@ class GameEngine {
             const dist = Math.sqrt(dx * dx + dy * dy);
             // AGS-inspired: scale walk speed by depth for perspective realism
             const depthSpd = this.depthScaling ? this.getDepthScale(this.playerY) : 1;
-            const spd = this.playerSpeed * depthSpd;
-            if (dist < spd + 1) {
+            const spd = this.playerSpeed * depthSpd * dt / (1000 / 60);
+            if (dist <= spd) {
                 if (this.playerTargetX !== null) this.playerX = this.playerTargetX;
                 if (this.playerTargetY !== null) this.playerY = this.playerTargetY;
                 this.playerWalking = false;
@@ -2511,7 +2589,7 @@ class GameEngine {
                 const mx = (dx / dist) * spd;
                 const my = (dy / dist) * spd;
                 const newPX = Math.max(30, Math.min(610, this.playerX + mx));
-                const minY = Math.max(this.horizon, 280);
+                const minY = this.minimumWalkY;
                 const newPY = Math.max(minY, Math.min(370, this.playerY + my));
                 // AGI-inspired: check barriers before committing move
                 if (!this.collidesBarrier(newPX, newPY)) {
@@ -2584,7 +2662,11 @@ class GameEngine {
         }
 
         const room = this.rooms[this.currentRoomId];
-        if (room && room.onUpdate) room.onUpdate(this, dt);
+        if (room && room.onUpdate && this.currentRoomId === preMoveRoom &&
+            !this.cutscene && !this.sequence && !this.textWindow && !this.activeDialog &&
+            !this.dead && !this.won && !this.titleScreen) {
+            room.onUpdate(this, dt);
+        }
 
         // AGI-inspired: update NPCs (motion, cycling, collision)
         for (const npc of this.npcs) {
@@ -2622,6 +2704,8 @@ class GameEngine {
     render() {
         const ctx = this.ctx;
         ctx.clearRect(0, 0, this.WIDTH, this.HEIGHT);
+        // Prop contacts are re-recorded by each frame's draw calls.
+        this._propBases = [];
 
         // Apply screen shake offset
         const shaking = this.screenShake > 0;
@@ -2703,7 +2787,6 @@ class GameEngine {
     /** Draw the room art and every Y-sorted actor / foreground layer in it. */
     drawScene(ctx, room) {
         if (room && room.draw) room.draw(ctx, this.WIDTH, this.HEIGHT, this);
-        this.applyClassicSceneRaster(ctx);
 
         // === AGI-INSPIRED: Y-SORTED RENDERING (OBJLIST priority system) ===
         // Collect all drawable entities with Y-positions, sort back-to-front
@@ -2750,6 +2833,7 @@ class GameEngine {
             }
             else d.ref.draw(ctx, this);
         }
+        this.applyClassicSceneRaster(ctx);
     }
 
     /** Resolve room artwork through a hard-edged 320x200 raster. This is not a
@@ -2800,6 +2884,67 @@ class GameEngine {
 
         if (this.dead) this.drawDeathOverlay(ctx);
         if (this.won) this.drawWinOverlay(ctx);
+        if (this.debugGround) this.drawGroundDebug(ctx);
+    }
+
+    /** Authoring aid (F9): the walkable band, plus a tick at every ground point
+     *  an actor claimed this frame. Anything drawn above its own tick is
+     *  floating, which is otherwise only visible by staring at a screenshot. */
+    drawGroundDebug(ctx) {
+        if (this.walkableArea) {
+            ctx.fillStyle = 'rgba(0,200,255,0.10)';
+            for (let y = 180; y < this.HEIGHT; y += 4) {
+                let runStart = null;
+                for (let x = 0; x <= this.WIDTH; x += 4) {
+                    const ok = x < this.WIDTH && this.walkableArea(x, y);
+                    if (ok && runStart === null) runStart = x;
+                    else if (!ok && runStart !== null) {
+                        ctx.fillRect(runStart, y, x - runStart, 2);
+                        runStart = null;
+                    }
+                }
+            }
+        }
+        for (const b of this.barriers) {
+            ctx.strokeStyle = 'rgba(255,80,80,0.7)';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(b.x + 0.5, b.y + 0.5, b.w, b.h);
+        }
+        // Declared surfaces, and where each prop claims to touch them
+        ctx.font = '9px "Courier New"';
+        for (const [id, s] of Object.entries(this.surfaces)) {
+            ctx.strokeStyle = '#4dd2ff';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            for (let x = s.x0; x <= s.x1; x += 4) {
+                const y = (typeof s.yAt === 'function' ? s.yAt(x) : s.yAt) + 0.5;
+                if (x === s.x0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+            ctx.fillStyle = '#4dd2ff';
+            ctx.fillText(id, s.x0 + 2, (typeof s.yAt === 'function' ? s.yAt(s.x0) : s.yAt) - 3);
+        }
+        for (const p of this._propBases) {
+            ctx.fillStyle = '#ff8a3d';
+            ctx.fillRect(p.x - 4, p.y - 1, 9, 3);
+        }
+        for (const m of this._groundMarks) {
+            ctx.strokeStyle = '#ffe14d';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(m.x - 16, m.y + 0.5);
+            ctx.lineTo(m.x + 16, m.y + 0.5);
+            ctx.moveTo(m.x + 0.5, m.y - 5);
+            ctx.lineTo(m.x + 0.5, m.y + 5);
+            ctx.stroke();
+            ctx.fillStyle = '#ffe14d';
+            ctx.font = '9px "Courier New"';
+            ctx.fillText(`${Math.round(m.y)}`, m.x + 19, m.y + 3);
+        }
+        ctx.fillStyle = '#ffe14d';
+        ctx.font = '11px "Courier New"';
+        ctx.fillText('F9 ground debug', 8, this.HEIGHT - 8);
+        this._groundMarks = [];
     }
 
     /** Sparkle burst when an item is picked up (steady, unaffected by shake). */
@@ -3098,6 +3243,9 @@ class GameEngine {
         const ry = (o.ry != null ? o.ry : 1.6) * scale;
         const alpha = o.alpha != null ? o.alpha : 0.28;
         if (rx <= 0 || ry <= 0) return;
+        // F9 ground overlay reads these: a shadow is an actor's claim about where
+        // it touches the floor, so it is the right thing to audit.
+        if (this.debugGround) this._groundMarks.push({ x: cx, y: groundY });
         const light = o.light !== undefined ? o.light : this.sceneLight;
         ctx.save();
         ctx.fillStyle = `rgba(0,0,0,${alpha})`;
@@ -3276,8 +3424,12 @@ class GameEngine {
     /** Front-facing ego cel. Shared by the in-room sprite and every cutscene
      *  mini-animation so the character can never drift between them.
      *  o: { leftLeg, rightLeg, leftBoot, rightBoot, idleFootTap, idleHeadOfs,
-     *      shrugPhase, as, armAngle } — all optional. */
-    drawEgoFront(ctx, x, y, s, o) {
+    *      shrugPhase, as, armAngle, drawLegs, drawArms } — all optional. */
+    drawEgoFront(ctx0, x, y, s, o) {
+        // The remap belongs to the cel, not to the caller: cutscenes call this
+        // directly, and without it Rowan turns up to his own coronation in the
+        // greyscale under-painting instead of his forest tunic.
+        const ctx = this._suitCtx(ctx0);
         o = o || {};
         const leftLeg = o.leftLeg || 0, rightLeg = o.rightLeg || 0;
         const leftBoot = o.leftBoot == null ? leftLeg : o.leftBoot;
@@ -3292,48 +3444,52 @@ class GameEngine {
         const P = PAL.PLAYER;
         // SCI/VGA-era proportions (King's Quest V-VI era): a ~5.5-head figure
         // with a small head, long legs and three tones per material.
-        // Hose — thigh tapers into calf, dark seam between them
-        ctx.fillStyle = P.hose;
-        ctx.fillRect(x - 3.6 * s, y - 3 * s, 3.2 * s, 12 * s + leftLeg);
-        ctx.fillRect(x + 0.4 * s, y - 3 * s, 3.2 * s, 12 * s + rightLeg);
-        ctx.fillStyle = P.hoseHi;
-        ctx.fillRect(x - 3.2 * s, y - 2 * s, 1 * s, 10 * s + leftLeg);
-        ctx.fillRect(x + 0.8 * s, y - 2 * s, 1 * s, 10 * s + rightLeg);
-        ctx.fillStyle = P.hoseLo;
-        ctx.fillRect(x - 0.6 * s, y - 3 * s, 1 * s, 12 * s);
-        // Cross-gartering: two leather thongs wound over each shin.
-        ctx.fillStyle = P.pouchStrap;
-        ctx.fillRect(x - 3.6 * s, y + 2.6 * s + leftLeg, 3.2 * s, 0.6 * s);
-        ctx.fillRect(x + 0.4 * s, y + 2.6 * s + rightLeg, 3.2 * s, 0.6 * s);
-        // Tall travelling boots, cuffed at the calf
-        const boot = (bx, bo, tap) => {
-            ctx.fillStyle = P.bootDeep;
-            ctx.fillRect(bx - 0.2 * s, y + 4.6 * s + bo, 4.3 * s, 7.4 * s);
-            ctx.fillStyle = P.boot;
-            ctx.fillRect(bx, y + 5 * s + bo, 3.9 * s, 7 * s);
-            ctx.fillStyle = P.bootHi;
-            ctx.fillRect(bx + 0.3 * s, y + 5.2 * s + bo, 1.1 * s, 6.2 * s);
-            ctx.fillStyle = P.bootDeep;
-            ctx.fillRect(bx, y + 5 * s + bo, 3.9 * s, 0.9 * s);
-            ctx.fillStyle = P.bootHi;
-            ctx.fillRect(bx + 0.3 * s, y + 5.1 * s + bo, 3.3 * s, 0.4 * s);
-            if (tap) return;
-            ctx.fillStyle = P.bootDeep;
-            ctx.fillRect(bx - 0.3 * s, y + 11 * s + bo, 4.4 * s, 1 * s);
-        };
-        boot(x - 4.1 * s, leftBoot, false);
-        // Right boot — heel fixed, toe rotates up for the impatient foot tap
-        {
-            const heelX = x + 0.2 * s;
-            const toeRise = idleFootTap > 0 ? idleFootTap : (rightBoot - rightLeg);
-            boot(heelX, rightLeg, true);
-            ctx.save();
-            ctx.transform(1, 0, -toeRise / (2 * s), 1, heelX + 2 * s, y + 9 * s + rightLeg);
-            ctx.fillStyle = P.bootDeep;
-            ctx.fillRect(-0.3 * s, 2 * s, 2.3 * s, 1 * s);
-            ctx.restore();
-            ctx.fillStyle = P.bootDeep;
-            ctx.fillRect(heelX - 0.3 * s, y + 11 * s + rightLeg, 2.3 * s, 1 * s);
+        if (o.drawLegs) {
+            o.drawLegs(ctx, x, y, s);
+        } else {
+            // Hose — thigh tapers into calf, dark seam between them
+            ctx.fillStyle = P.hose;
+            ctx.fillRect(x - 3.6 * s, y - 3 * s, 3.2 * s, 12 * s + leftLeg);
+            ctx.fillRect(x + 0.4 * s, y - 3 * s, 3.2 * s, 12 * s + rightLeg);
+            ctx.fillStyle = P.hoseHi;
+            ctx.fillRect(x - 3.2 * s, y - 2 * s, 1 * s, 10 * s + leftLeg);
+            ctx.fillRect(x + 0.8 * s, y - 2 * s, 1 * s, 10 * s + rightLeg);
+            ctx.fillStyle = P.hoseLo;
+            ctx.fillRect(x - 0.6 * s, y - 3 * s, 1 * s, 12 * s);
+            // Cross-gartering: two leather thongs wound over each shin.
+            ctx.fillStyle = P.pouchStrap;
+            ctx.fillRect(x - 3.6 * s, y + 2.6 * s + leftLeg, 3.2 * s, 0.6 * s);
+            ctx.fillRect(x + 0.4 * s, y + 2.6 * s + rightLeg, 3.2 * s, 0.6 * s);
+            // Tall travelling boots, cuffed at the calf
+            const boot = (bx, bo, tap) => {
+                ctx.fillStyle = P.bootDeep;
+                ctx.fillRect(bx - 0.2 * s, y + 4.6 * s + bo, 4.3 * s, 7.4 * s);
+                ctx.fillStyle = P.boot;
+                ctx.fillRect(bx, y + 5 * s + bo, 3.9 * s, 7 * s);
+                ctx.fillStyle = P.bootHi;
+                ctx.fillRect(bx + 0.3 * s, y + 5.2 * s + bo, 1.1 * s, 6.2 * s);
+                ctx.fillStyle = P.bootDeep;
+                ctx.fillRect(bx, y + 5 * s + bo, 3.9 * s, 0.9 * s);
+                ctx.fillStyle = P.bootHi;
+                ctx.fillRect(bx + 0.3 * s, y + 5.1 * s + bo, 3.3 * s, 0.4 * s);
+                if (tap) return;
+                ctx.fillStyle = P.bootDeep;
+                ctx.fillRect(bx - 0.3 * s, y + 11 * s + bo, 4.4 * s, 1 * s);
+            };
+            boot(x - 4.1 * s, leftBoot, false);
+            // Right boot — heel fixed, toe rotates up for the impatient foot tap
+            {
+                const heelX = x + 0.2 * s;
+                const toeRise = idleFootTap > 0 ? idleFootTap : (rightBoot - rightLeg);
+                boot(heelX, rightLeg, true);
+                ctx.save();
+                ctx.transform(1, 0, -toeRise / (2 * s), 1, heelX + 2 * s, y + 9 * s + rightLeg);
+                ctx.fillStyle = P.bootDeep;
+                ctx.fillRect(-0.3 * s, 2 * s, 2.3 * s, 1 * s);
+                ctx.restore();
+                ctx.fillStyle = P.bootDeep;
+                ctx.fillRect(heelX - 0.3 * s, y + 11 * s + rightLeg, 2.3 * s, 1 * s);
+            }
         }
         // Tunic — reaches below the belt as a short skirt, which is what makes
         // the silhouette read as fantasy rather than uniform.
@@ -3396,7 +3552,9 @@ class GameEngine {
         ctx.fillRect(x + 2.6 * s, y - 13.6 * s, 0.5 * s, 0.6 * s);
         // Arms. During his signature shrug they unfold in stepped cels,
         // ending in bare, palms-up hands.
-        if (shrugPhase > 0.35) {
+        if (o.drawArms) {
+            o.drawArms(ctx, x, y, s);
+        } else if (shrugPhase > 0.35) {
             ctx.fillStyle = '#DDDDDD';
             ctx.fillRect(x - 5.8 * s, y - 14.6 * s, 1.8 * s, 5 * s);
             ctx.fillRect(x + 4 * s, y - 14.2 * s, 1.8 * s, 5 * s);
@@ -3880,23 +4038,28 @@ class GameEngine {
     }
 
     // ---- Overlays ----
-    drawDeathOverlay(ctx) {        ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    drawDeathOverlay(ctx) {
+        ctx.fillStyle = 'rgba(0,0,0,0.5)';
         ctx.fillRect(0, 0, this.WIDTH, this.HEIGHT);
 
-        // Sierra-style bordered death box (EGA red/blue)
+        // Sierra death panel. Saturated red on saturated blue sits at the same
+        // luminance and vibrates, so the headline is bone white over a deep
+        // ground and the red is kept for the border only.
         const bx = 100, by = 110, bw = 440, bh = 170;
-        ctx.fillStyle = '#0000AA';
+        ctx.fillStyle = '#1a1030';
         ctx.fillRect(bx, by, bw, bh);
-        ctx.strokeStyle = '#FF5555';
+        ctx.strokeStyle = '#8a1f1f';
         ctx.lineWidth = 2;
         ctx.strokeRect(bx + 2, by + 2, bw - 4, bh - 4);
-        ctx.strokeStyle = '#5555FF';
+        ctx.strokeStyle = '#6a5a8a';
         ctx.lineWidth = 1;
         ctx.strokeRect(bx + 6, by + 6, bw - 12, bh - 12);
 
         ctx.textAlign = 'center';
         ctx.font = 'bold 32px "Courier New"';
-        ctx.fillStyle = '#FF5555';
+        ctx.fillStyle = '#2a0d0d';
+        ctx.fillText('YOU DIED', this.WIDTH / 2 + 2, by + 52);
+        ctx.fillStyle = '#f2e6e6';
         ctx.fillText('YOU DIED', this.WIDTH / 2, by + 50);
 
         // Wrap the death message
@@ -3928,7 +4091,7 @@ class GameEngine {
 
         // Sierra-style bordered victory box (EGA blue/yellow)
         const bx = 80, by = 60, bw = 480, bh = 280;
-        ctx.fillStyle = '#0000AA';
+        ctx.fillStyle = '#101a3c';
         ctx.fillRect(bx, by, bw, bh);
         ctx.strokeStyle = '#FFFF55';
         ctx.lineWidth = 2;
@@ -3937,13 +4100,19 @@ class GameEngine {
         ctx.lineWidth = 1;
         ctx.strokeRect(bx + 6, by + 6, bw - 12, bh - 12);
 
-        // Star decorations in corners
-        ctx.fillStyle = '#FFFF55';
-        ctx.font = '16px "Courier New"';
-        ctx.fillText('\u2605', bx + 14, by + 24);
-        ctx.fillText('\u2605', bx + bw - 26, by + 24);
-        ctx.fillText('\u2605', bx + 14, by + bh - 12);
-        ctx.fillText('\u2605', bx + bw - 26, by + bh - 12);
+        // A scatter of stars rather than four identical corner marks, which
+        // read as a printed certificate.
+        let starSeed = 6161;
+        const starRnd = () => { starSeed = (starSeed * 16807) % 2147483647; return (starSeed & 0xFFFF) / 0xFFFF; };
+        for (let i = 0; i < 18; i++) {
+            const edge = i % 2 === 0;
+            const sx = bx + 16 + starRnd() * (bw - 34);
+            const sy = edge ? by + 16 + starRnd() * 10 : by + bh - 8 - starRnd() * 10;
+            const sz = 9 + starRnd() * 8;
+            ctx.fillStyle = starRnd() > 0.5 ? '#FFFF55' : '#c9b83a';
+            ctx.font = `${sz.toFixed(0)}px "Courier New"`;
+            ctx.fillText('\u2605', sx, sy);
+        }
 
         ctx.textAlign = 'center';
         ctx.font = 'bold 30px "Courier New"';
@@ -4002,16 +4171,26 @@ class GameEngine {
             inventory: [...this.inventory],
             score: this.score,
             flags: JSON.parse(JSON.stringify(this.flags)),
+            dialogueChoices: Object.fromEntries(
+                Object.entries(this.dialogs).map(([id, dialog]) => [id, { ...dialog.chosenOptions }])
+            ),
             itemNames: Object.fromEntries(
                 Object.entries(this.items).map(([k, v]) => [k, { name: v.name, description: v.description }])
             )
         };
     }
 
+    saveUnavailableReason() {
+        if (this.titleScreen) return 'Start the game before saving.';
+        if (this.dead) return 'You can\'t save when you\'re dead!';
+        if (this.won) return 'Your adventure is already complete. Start a new game to save.';
+        if (this.cutscene || this.sequence || this.activeDialog) return 'Finish this scene or conversation before saving. Your previous saves are unchanged.';
+        return null;
+    }
+
     saveGame(slot) {
-        if (this.titleScreen) { this.showMessage('Start the game before saving.'); return; }
-        if (this.dead) { this.showMessage('You can\'t save when you\'re dead!'); return; }
-        if (this.won) { this.showMessage('Your adventure is already complete. Start a new game to save.'); return; }
+        const unavailable = this.saveUnavailableReason();
+        if (unavailable) { this.showMessage(unavailable); return; }
         try {
             const data = this.getSaveData();
             const ok = this.safeStorageSet(this.getSaveKey(slot), JSON.stringify(data));
@@ -4059,6 +4238,7 @@ class GameEngine {
             this.inventory = data.inventory.filter(x => typeof x === 'string' && Object.hasOwn(this.items, x));
             this.score = Math.max(0, Math.min(this.maxScore, Math.floor(data.score)));
             this.flags = safeFlags;
+            this.restoreDialogChoices(data.dialogueChoices);
             this.dead = false;
             this.won = false;
             this.titleScreen = false;
@@ -4075,6 +4255,7 @@ class GameEngine {
             this.playerFacing = ['toward', 'away', 'left', 'right'].includes(data.playerFacing)
                 ? data.playerFacing : 'toward';
             this.screenShake = 0;
+            this.resetItemMetadata();
             // Restore modified item names/descriptions
             if (data.itemNames) {
                 for (const [id, info] of Object.entries(data.itemNames)) {
@@ -4089,7 +4270,9 @@ class GameEngine {
             }
             this.setAction('walk');
             this.updateInventoryUI();
-            this.goToRoom(data.currentRoomId, playerX, playerY);
+            this.goToRoom(data.currentRoomId, playerX, playerY, { restoring: true });
+            this.playerY = Math.max(this.minimumWalkY, Math.min(370, data.playerY));
+            this.disarmedExits = this.exitsWithinRearmRange(this.rooms[this.currentRoomId]);
             // goToRoom resets orientation, so the saved facing is applied after it.
             this.playerDir = data.playerDir === -1 ? -1 : 1;
             this.playerFacing = ['toward', 'away', 'left', 'right'].includes(data.playerFacing)
@@ -4124,9 +4307,8 @@ class GameEngine {
         // Refuse at the entry point rather than after a slot is chosen, so the
         // player is never walked into a modal that cannot do anything.
         if (mode === 'save') {
-            if (this.titleScreen) { this.showMessage('Start the game before saving.'); return; }
-            if (this.dead) { this.showMessage('You can\'t save when you\'re dead!'); return; }
-            if (this.won) { this.showMessage('Your adventure is already complete. Start a new game to save.'); return; }
+            const unavailable = this.saveUnavailableReason();
+            if (unavailable) { this.showMessage(unavailable); return; }
         }
         const modal = this.dom.saveModal;
         this.dom.modalTitle.textContent = mode === 'save' ? 'Save Game' : 'Load Game';
@@ -4244,7 +4426,7 @@ class GameEngine {
     reportCrash(err) {
         this._loopRunning = false;
         this.lastError = err;
-        console.error('Crown Quest: stopped in room', this.currentRoomId, err);
+        console.error(`${this.game.shortTitle}: stopped in room`, this.currentRoomId, err);
         const message = `The game hit an unexpected error in "${this.currentRoomId || 'startup'}".`;
         this.announce(message + ' Your saved games are intact. Reload the page to continue.');
         try {

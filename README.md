@@ -107,9 +107,38 @@ The engine itself is game-agnostic: item icons, speaker portraits, room scents,
 parser synonyms, classic-mode rewrites and the title backdrop are all supplied
 by the content layer rather than hard-coded.
 
+### Content boundary contract
+
+- `game.flavorResponses` owns story-specific fallback replies (`sing`, `clean`,
+    `useTechnique`); the latter accepts the `{object}` placeholder. Neutral engine
+    defaults work without any game-specific configuration.
+- Registered items may provide `look(engine)` for examination side effects.
+    Inventory clicks and parser examination share this guarded handler.
+- `room.onEnter(engine, { restoring })` reconstructs room geometry and audio on
+    every entry. Fresh-visit puzzle resets must be skipped when `restoring` is true.
+- Inventory labels/descriptions reset from registration defaults on restart and
+    before saved metadata is restored. Dialogue choices are saved per slot and
+    cleared on restart; older saves without choices use an empty history.
+- Save UI and `saveGame` share one eligibility check. Cutscenes, sequences and
+    active conversations cannot be saved because their callbacks are not data.
+- Progression uses `CrownQuestContent.rules.award(engine, event)` and its single
+    250-point ledger. Award history and treasure custody persist independently of
+    inventory possession. New flags remain part of the ordinary save state.
+
+Architecture tests reject registered room/item/portrait IDs in engine string
+literals and verify content-provided replies. The built-in hero cel still lives
+in the engine; extracting the rendering systems and the existing bootstrap
+progression wrappers remains structural backlog work, not a claim of a fully
+skin-independent renderer.
+
 ---
 
 ## Development
+
+Release status and independent playtest instructions are tracked in
+[RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md). The automated suite includes
+touch-only routes, complete item/portrait sheets and offline audio signal checks;
+physical-device testing, blind playtesting and listening still require sign-off.
 
 ```bash
 npm install
@@ -125,8 +154,13 @@ npm run check            # everything
 literal flag name. A flag that is read but never written, or written but never
 read, fails the build — a misspelt flag is otherwise invisible at runtime.
 
-`tests/full-game.spec.js` plays the game from the scullery to the coronation and
-asserts the final score equals the `maxScore` the status bar advertises.
+[tests/full-game.spec.js](tests/full-game.spec.js) checks both the displayed score
+and the raw 250-point award total before clamping. The automatic finale grants
+10 points, while the original puzzle rewards are unchanged. All scored actions
+are required, so victory has one attainable rank rather than unused lower tiers.
+[tests/player-journey.spec.js](tests/player-journey.spec.js) completes the adventure
+through real keyboard/parser inputs, without teleporting, injecting progression
+state, or skipping sequences. State and reliability regressions run in CI too.
 
 Bump `VERSION` in `serviceworker.js` on every code change.
 

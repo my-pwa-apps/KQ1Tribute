@@ -1,6 +1,6 @@
 // Crown Quest: A Fantasy Adventure - Service Worker
 // BUMP VERSION on every code change to invalidate the cache.
-const VERSION = 'v1.0.7';
+const VERSION = 'v1.3.1';
 const CACHE_NAME = `crownquest-${VERSION}`;
 
 const ASSETS = [

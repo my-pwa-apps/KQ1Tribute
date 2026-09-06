@@ -1,4 +1,6 @@
 const { test, expect } = require('@playwright/test');
+const fs = require('fs');
+const path = require('path');
 
 // The game has no bundler, so its module boundaries are enforced by load order
 // and a registry rather than by imports. These tests assert the contract holds
@@ -11,6 +13,32 @@ const ROOM_IDS = [
 ];
 
 test.describe('module architecture', () => {
+    test('engine code does not embed registered content IDs or story-specific fallback replies', async ({ page }) => {
+        await page.goto('/');
+        const ids = await page.evaluate(() => [...new Set([
+            ...Object.keys(window.engine.rooms), ...Object.keys(window.engine.items), ...Object.keys(window.engine.portraitArt)
+        ])]);
+        const source = fs.readFileSync(path.join(__dirname, '../js/engine.js'), 'utf8');
+        const literals = [...source.matchAll(/(['"])([^'"\n]+)\1/g)].map(match => match[2]);
+        expect(ids.filter(id => literals.includes(id))).toEqual([]);
+        expect(source).not.toMatch(/scullery-boy|Bramble King|sorcerer\\'s floors/);
+        await page.keyboard.press('c');
+        const replies = await page.evaluate(() => {
+            const game = window.engine;
+            game.skipCutscene();
+            game.executeParserCommand('sing');
+            const song = game.message;
+            game.executeParserCommand('clean');
+            const cleaning = game.message;
+            game.game.flavorResponses = {};
+            game.executeParserCommand('sing');
+            return { song, cleaning, generic: game.message };
+        });
+        expect(replies.song).toContain('Bramble King');
+        expect(replies.cleaning).toContain("sorcerer's floors");
+        expect(replies.generic).not.toContain('Bramble King');
+    });
+
     test.beforeEach(async ({ page }) => {
         await page.goto('/');
         await page.evaluate(() => localStorage.clear());
@@ -27,13 +55,119 @@ test.describe('module architecture', () => {
         expect(result.roomIds).toEqual(ROOM_IDS);
     });
 
+    test('every room confines the ego to a walkable floor', async ({ page }) => {
+        // A room with no walkable area lets the ego stroll through walls and off
+        // the screen edge. Three interiors shipped without one, which is how the
+        // scullery teleported you upstairs for walking into a blank wall.
+        const bad = await page.evaluate(() => {
+            const e = window.engine;
+            e._loopRunning = false;
+            const out = [];
+            for (const id of Object.keys(e.rooms)) {
+                e.goToRoom(id, 320, 336);
+                if (typeof e.walkableArea !== 'function') { out.push(`${id}: no walkable area`); continue; }
+                // The floor must be bounded: nothing walkable in the far corners.
+                const leaks = [[4, 8], [636, 8], [4, 396], [636, 396]]
+                    .filter(([x, y]) => e.walkableArea(x, y));
+                if (leaks.length) out.push(`${id}: walkable at ${JSON.stringify(leaks)}`);
+            }
+            return out;
+        });
+        expect(bad).toEqual([]);
+    });
+
+    test('every edge transition is backed by a drawn exit', async ({ page }) => {
+        // Walking off a screen edge is fair in an exterior, where the path
+        // visibly continues. Inside a room it has to correspond to a door the
+        // player can actually see, or they get teleported out of a blank wall.
+        const bad = await page.evaluate(() => {
+            const e = window.engine;
+            e._loopRunning = false;
+            const out = [];
+            for (const id of Object.keys(e.rooms)) {
+                e.goToRoom(id, 320, 336);
+                const edges = Object.entries(e.edgeTransitions).filter(([, fn]) => typeof fn === 'function');
+                if (!edges.length) continue;
+                const exits = (e.rooms[id].hotspots || []).filter((hs) => hs.isExit);
+                for (const [edge] of edges) {
+                    const near = exits.some((hs) => {
+                        const cx = hs.walkToX !== undefined ? hs.walkToX : hs.x + hs.w / 2;
+                        if (edge === 'left') return cx < 190;
+                        if (edge === 'right') return cx > 450;
+                        return true;
+                    });
+                    if (!near) out.push(`${id}: ${edge} edge has no exit hotspot near it`);
+                }
+            }
+            return out;
+        });
+        expect(bad).toEqual([]);
+    });
+
+    test('every prop contact lands on the surface it claims', async ({ page }) => {
+        await page.keyboard.press('e');
+        await page.evaluate(() => { if (window.engine.cutscene) window.engine.skipCutscene(); });
+        // Props that stand on furniture must take their base from the surface
+        // registry, not a hand-written constant. A chimney, a shelf of pans, a
+        // pail and a desk candle have all floated here by ignoring the thing
+        // underneath them, and none of it failed a test.
+        const bad = await page.evaluate(() => {
+            const e = window.engine;
+            e._loopRunning = false;
+            const out = [];
+            for (const id of Object.keys(e.rooms)) {
+                e.goToRoom(id, 320, 336);
+                e.roomTransition = 0;
+                e.textWindow = null;
+                e.render();
+                for (const p of e._propBases) {
+                    const s = e.surfaces[p.surface];
+                    if (!s) { out.push(`${id}: prop on undeclared surface '${p.surface}'`); continue; }
+                    if (p.x < s.x0 || p.x > s.x1) {
+                        out.push(`${id}: prop at x=${p.x} is off the ends of '${p.surface}'`);
+                    }
+                    const expected = typeof s.yAt === 'function' ? s.yAt(p.x) : s.yAt;
+                    if (Math.abs(p.y - expected) > 0.5) {
+                        out.push(`${id}: '${p.surface}' prop base ${p.y} != surface ${expected}`);
+                    }
+                }
+            }
+            return out;
+        });
+        expect(bad).toEqual([]);
+    });
+
+    test('rooms that declare surfaces actually stand props on them', async ({ page }) => {
+        await page.keyboard.press('e');
+        await page.evaluate(() => { if (window.engine.cutscene) window.engine.skipCutscene(); });
+        // A surface nobody stands on is a surface that has silently stopped
+        // being used, which puts its props back on hand-written constants.
+        const unused = await page.evaluate(() => {
+            const e = window.engine;
+            e._loopRunning = false;
+            const out = [];
+            for (const id of Object.keys(e.rooms)) {
+                e.goToRoom(id, 320, 336);
+                e.roomTransition = 0;
+                e.textWindow = null;
+                e.render();
+                const used = new Set(e._propBases.map((p) => p.surface));
+                for (const name of Object.keys(e.surfaces)) {
+                    if (!used.has(name)) out.push(`${id}: surface '${name}' has no props on it`);
+                }
+            }
+            return out;
+        });
+        expect(unused).toEqual([]);
+    });
+
     test('the shared art modules are loaded before any room needs them', async ({ page }) => {
         const missing = await page.evaluate(() => [
             // js/art.js
             'ditherRect', 'skyBands', 'starField', 'stoneWall', 'woodPlanks',
             'thatchRoof', 'perspectiveFrame', 'interiorShell', 'flame',
             'wallTorch', 'drawTree', 'drawPine', 'drawBush', 'waterBand',
-            'rockFace', 'drawCastle', 'drawWell', 'drawRopeBridge', 'drawSkiff',
+            'rockFace', 'drawCastle', 'drawWell', 'drawRecedingBridge', 'drawSkiff',
             'drawAmberTower', 'drawChestOfCormac', 'drawShieldOfArdor',
             'drawMirrorOfIanthe',
             // js/actors.js

@@ -55,6 +55,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // ========== ITEMS ==========
     CONTENT.items.forEach((item) => engine.registerItem({ ...item }));
+    engine.items.spellbook.look = (e) => RULES.readTheSpell(e);
 
     // ========== ART REGISTRIES ==========
     // The engine stays game-agnostic; the pictures live in the content layer.
@@ -79,6 +80,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 {
                     text: 'Where is Morvane?',
                     response: '"Out. Down the crag, on business he does not discuss with birds." A pause. "He will be back before the tide turns, and he counts the stairs on his way up. He has always counted them."',
+                    condition: (e) => !e.getFlag('morvane_passed'),
+                    once: true
+                },
+                {
+                    text: 'Where is Morvane now?',
+                    response: '"In the locked observatory above us, with his eye to the glass. He will stay there until dusk." Corvus lowers his voice. "He thinks you are scrubbing. Let him keep thinking it. These lower rooms are clear."',
+                    condition: (e) => e.getFlag('morvane_passed'),
                     once: true
                 },
                 {
@@ -94,17 +102,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 {
                     text: 'May I have that feather?',
                     response: '"Take it. I have a great many and you have nothing at all." He looks away, pointedly. "Some spells want a feather of a black bird. I am told this is a coincidence."',
-                    condition: (e) => !e.hasItem('raven_feather'),
+                    condition: (e) => !e.hasItem('raven_feather') && !e.getFlag('feather_taken') && !e.getFlag('circle_feather'),
                     once: true
                 },
                 {
                     text: 'What is Alderhaven?',
-                    response: '"A kingdom across the water with a sick king, no heir, and three treasures it has mislaid." He preens. "One in a well, one above the cloud, one under a dragon. I mention it in passing."',
+                    response: '"A kingdom across the water with a sick king, an heir believed drowned, and three treasures it has mislaid." He preens. "One in a well, one above the cloud, one under a dragon. I mention it in passing."',
                     once: true
                 },
                 {
                     text: 'Why help me now?',
-                    response: '"Because today he left the house, and you went up the stair, and in eleven years you have never done either." He turns his back. "Go on. I am asleep."',
+                    response: '"Because today you finally came up the stair. I cannot carry a boy across the sea. I can offer directions." He turns his back. "Go on. I am asleep."',
                     endDialog: true
                 }
             ]
@@ -117,7 +125,7 @@ document.addEventListener('DOMContentLoaded', () => {
         startTopic: 'greeting',
         topics: [{
             id: 'greeting',
-            text: '"Well," says the peddler, looking you up and down. "You are not from here, you have no shoes worth the name, and you are carrying a book you cannot read. Hattie."',
+            text: '"Well," says the peddler, looking you up and down. "Sea salt on your boots and the look of someone who has missed breakfast. Hattie."',
             options: [
                 {
                     text: 'I came off the crag.',
@@ -126,7 +134,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 },
                 {
                     text: 'What is wrong with this kingdom?',
-                    response: '"King Aldric is dying, there is no heir, and the three treasures of Alderhaven went missing the same winter the queen\'s ship went down." She spits, neatly. "Realm holds together on treasures, boy. Pull them out and it comes apart like wet bread."',
+                    response: '"King Aldric is gravely ill. Queen Elowen and their six-year-old son were lost at sea eleven winters ago. The treasures vanished that same winter." She knots a length of twine. "No royal gold for hungry villages, no royal family to lead us. A realm comes apart like wet bread."',
                     once: true
                 },
                 {
@@ -147,7 +155,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 },
                 {
                     text: 'Tell me about the gnome.',
-                    response: '"Mendharbe? No, that is not it. Nobody has his name. He offers it as a bargain and nobody has ever won it." She grins. "He wrote it down once, in the wood, backwards, out of sheer vanity. Been up there weathering for thirty years."',
+                    response: '"Nobody has his name. He offers it as a bargain and nobody has ever won it." She grins. "He wrote it down once, in the wood, backwards, out of sheer vanity. Been up there weathering for thirty years."',
                     once: true
                 },
                 {
@@ -157,7 +165,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 },
                 {
                     text: 'What is the tower on the headland?',
-                    response: 'Her hands stop. "We do not talk about the tower." She turns back to the cart. "There is a woman in it. There has been a woman in it for eleven years, and nobody in Alderhaven can get up that path far enough to see her twice."',
+                    response: 'Her hands stop. "A woman behind a ward. Nobody can see her face clearly or hear her voice. Eleven years." She lowers her voice. "The old tale says the tower shelters royal blood: the chest sustains, the shield guards, the mirror turns malice back. Only the sheltered one\'s heir can bring them together and freely open it. We thought that heir drowned."',
                     once: true
                 },
                 {
@@ -215,7 +223,7 @@ document.addEventListener('DOMContentLoaded', () => {
         topics: [
             {
                 id: 'greeting',
-                text: '"Company!" says the gnome, delighted, not standing up. "Down my well, in my dark, on my chest. Do you know, in thirty years, exactly nobody has managed the last part."',
+                text: '"Company!" says the gnome, delighted, not standing up. "Thirty years I have offered prizes for my name. Eleven years ago this chest washed into the old watercourse. Best prize yet. Least comfortable."',
                 options: [
                     {
                         text: 'That chest belongs to Alderhaven.',
@@ -224,7 +232,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     },
                     {
                         text: 'What will it take?',
-                        response: '"My name. Say my name and the chest is yours and I shall go somewhere with a view." He taps his pipe. "Three guesses. It has always been three guesses, and it has always been three wrong ones."',
+                        response: '"My name. Say my name and the chest is yours. Then I can start planning a move somewhere with a view." He taps his pipe. "Guess all you like. Everyone starts with the same wrong one."',
                         once: true
                     },
                     {
@@ -241,7 +249,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     },
                     {
                         text: 'Why sit down here at all?',
-                        response: '"Because up there they would take it off me in an afternoon, and down here I have a fire, a pipe, and a joke that has run for three decades." He shrugs. "You do not get all three very often."',
+                        response: '"I have lived here thirty years. Kept the chest for eleven. Up there they would take it off me in an afternoon." He shrugs. "Down here I have a fire, a pipe, and a very long-running joke."',
                         once: true
                     },
                     {
@@ -257,6 +265,15 @@ document.addEventListener('DOMContentLoaded', () => {
                         endDialog: true
                     }
                 ]
+            },
+            {
+                id: 'after_bargain',
+                text: 'Mendharbe stands beside the empty patch where the chest used to be. "I am choosing a hill with a view. Thirty years of belongings take some packing. You go on."',
+                options: [{
+                    text: 'Goodbye, Mendharbe.',
+                    response: '"Goodbye, boy. A promise kept is a fine thing to build on." He begins sorting his wish-coins.',
+                    endDialog: true
+                }]
             }
         ]
     });
@@ -302,27 +319,26 @@ document.addEventListener('DOMContentLoaded', () => {
     // Lives here rather than in the room because it is a progression rule the
     // room only triggers; keeping it beside the dialog keeps the beat readable.
     const originalGoTo = engine.goToRoom.bind(engine);
-    engine.goToRoom = function (roomId, px, py) {
-        originalGoTo(roomId, px, py);
+    engine.goToRoom = function (roomId, px, py, context = {}) {
+        originalGoTo(roomId, px, py, context);
+        if (context.restoring) return;
         if (roomId !== 'troll_bridge' || !this.getFlag('goat_follows') || this.getFlag('troll_routed')) return;
-        this.setFlag('troll_routed');
-        this.addScore(15);
         this.runSequence([
             'Grumbold sees the goat. The goat sees Grumbold.',
             600,
-            (e) => { e.sound.footstep(); },
             'What happens next takes about a second and a half and will be described in this village for a hundred years.',
+            (e) => { e.bridgeEncounter = { startedAt: e.animTimer }; e.sound.footstep(); },
+            1100,
             (e) => { e.sound.explosion(); e.shake(9); },
-            500,
-            'The goat hits him amidships at a flat run with its head down and four hundred years of accumulated bridge-related grievance behind it.',
-            700,
-            'Grumbold goes off the bridge in a long, dignified arc, complaining the entire way, and lands in the river with a sound like a dropped wardrobe.',
+            1000,
             (e) => { e.sound.splash(); },
-            600,
+            1100,
             (e) => {
-                e.setWalkableArea((x, y) => y > 292 && y < 372 && x > 20 && x < 620);
-                e.setEdgeTransition('right', (eng) => eng.goToRoom('cloud_realm', 90, 344));
+                e.bridgeEncounter = null;
+                e.setFlag('troll_routed');
+                RULES.award(e, 'troll_routed');
             },
+            'Grumbold lands in the river with a sound like a dropped wardrobe. From below comes a lengthy complaint about the toll regulations.',
             'The goat returns to your side and resumes chewing. It does not appear to consider this remarkable.'
         ], { skippable: true });
     };

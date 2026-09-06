@@ -76,6 +76,15 @@ test.describe('full walkthrough', () => {
 
     test('the game can be completed and every point is reachable', async ({ page }) => {
         await boot(page);
+        await page.evaluate(() => {
+            const game = window.engine;
+            const addScore = game.addScore.bind(game);
+            game.rawAwardTotal = 0;
+            game.addScore = points => {
+                game.rawAwardTotal += points;
+                addScore(points);
+            };
+        });
 
         // ---- ACT I: the scullery ----
         await act(page, 'scullery', 'the black bread', 'get');
@@ -148,12 +157,21 @@ test.describe('full walkthrough', () => {
         await act(page, 'amber_tower', 'the sockets', 'useItem', 'chest_of_cormac');
         await act(page, 'amber_tower', 'the sockets', 'useItem', 'shield_of_ardor');
         await act(page, 'amber_tower', 'the sockets', 'useItem', 'mirror_of_ianthe');
-        await page.waitForFunction(() => window.engine.won, null, { timeout: 15000 });
+        await page.evaluate(() => {
+            const game = window.engine;
+            for (let beat = 0; beat < 100 && !game.won; beat++) {
+                if (game.textWindow) game.dismissTextWindow();
+                game.update(1000);
+            }
+        });
 
         const final = await state(page);
         expect(final.won).toBe(true);
         expect(final.dead).toBe(false);
         expect(final.score).toBe(MAX_SCORE);
+        expect(await page.evaluate(() => window.engine.rawAwardTotal)).toBe(MAX_SCORE);
+        expect(await page.evaluate(() => Object.keys(window.CrownQuestContent.rules.awards)
+            .filter(event => !window.CrownQuestContent.rules.wasAwarded(window.engine, event)))).toEqual([]);
     });
 
     test('maxScore matches the published contract', async ({ page }) => {

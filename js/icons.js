@@ -46,61 +46,137 @@ function portraitBust(ctx, cx, cy, o, face) {
     ctx.scale(hh, hh);
     // Neck and skull
     ctx.fillStyle = o.skinLo;
-    ctx.fillRect(-5, -6, 10, 7);
+    ctx.fillRect(-5, -8, 10, 9);
     ctx.fillStyle = o.edge;
-    ctx.fillRect(-13, -33, 26, 29);
+    ctx.beginPath();
+    ctx.moveTo(-9, -34);
+    ctx.lineTo(9, -34);
+    ctx.lineTo(13, -30);
+    ctx.lineTo(13, -11);
+    ctx.lineTo(9, -5);
+    ctx.lineTo(5, -2);
+    ctx.lineTo(-5, -2);
+    ctx.lineTo(-9, -5);
+    ctx.lineTo(-13, -11);
+    ctx.lineTo(-13, -30);
+    ctx.closePath();
+    ctx.fill();
     ctx.fillStyle = o.skin;
-    ctx.fillRect(-11, -31, 22, 26);
-    ctx.fillStyle = o.skinHi;
-    ctx.fillRect(-9, -29, 9, 11);
+    ctx.beginPath();
+    ctx.moveTo(-8, -32);
+    ctx.lineTo(8, -32);
+    ctx.lineTo(11, -29);
+    ctx.lineTo(11, -11);
+    ctx.lineTo(7, -6);
+    ctx.lineTo(4, -4);
+    ctx.lineTo(-4, -4);
+    ctx.lineTo(-7, -6);
+    ctx.lineTo(-11, -11);
+    ctx.lineTo(-11, -29);
+    ctx.closePath();
+    ctx.fill();
+    // Ears and broad planes keep the tiny face dimensional without smoothing it.
     ctx.fillStyle = o.skinLo;
-    ctx.fillRect(7, -29, 4, 22);
-    ctx.fillRect(-11, -9, 22, 4);
+    ctx.fillRect(-13, -23, 3, 9);
+    ctx.fillRect(10, -23, 3, 9);
+    ctx.fillStyle = o.skinHi;
+    ctx.fillRect(-9, -29, 7, 12);
+    ctx.fillRect(-7, -16, 4, 3);
+    ctx.fillStyle = o.skinLo;
+    ctx.fillRect(7, -28, 4, 15);
+    ctx.fillRect(5, -11, 5, 4);
+    ctx.fillRect(-7, -7, 14, 2);
     // Brows
     ctx.fillStyle = o.hairLo;
-    ctx.fillRect(-9, -23, 7, 2);
-    ctx.fillRect(2, -23, 7, 2);
+    ctx.fillRect(-9, -23, 6, 2);
+    ctx.fillRect(3, -23, 6, 2);
     // Eyes
     if (blink) {
         ctx.fillStyle = o.hairLo;
-        ctx.fillRect(-9, -19, 7, 2);
-        ctx.fillRect(2, -19, 7, 2);
+        ctx.fillRect(-9, -19, 6, 1);
+        ctx.fillRect(3, -19, 6, 1);
+        ctx.fillStyle = o.skinLo;
+        ctx.fillRect(-8, -18, 5, 1);
+        ctx.fillRect(3, -18, 5, 1);
     } else {
         ctx.fillStyle = '#F2F0E2';
-        ctx.fillRect(-9, -20, 7, 5);
-        ctx.fillRect(2, -20, 7, 5);
+        ctx.fillRect(-9, -20, 6, 3);
+        ctx.fillRect(3, -20, 6, 3);
         ctx.fillStyle = o.eye;
-        ctx.fillRect(-7, -20, 4, 5);
-        ctx.fillRect(4, -20, 4, 5);
+        ctx.fillRect(-7, -20, 3, 3);
+        ctx.fillRect(4, -20, 3, 3);
         ctx.fillStyle = '#120e0a';
-        ctx.fillRect(-6, -19, 2, 3);
-        ctx.fillRect(5, -19, 2, 3);
+        ctx.fillRect(-6, -19, 2, 2);
+        ctx.fillRect(5, -19, 2, 2);
         ctx.fillStyle = '#FFFFFF';
         ctx.fillRect(-7, -20, 1, 1);
         ctx.fillRect(4, -20, 1, 1);
+        ctx.fillStyle = o.hairLo;
+        ctx.fillRect(-9, -21, 6, 1);
+        ctx.fillRect(3, -21, 6, 1);
     }
     // Nose
     ctx.fillStyle = o.skinLo;
-    ctx.fillRect(-2, -14, 4, 6);
+    ctx.fillRect(0, -18, 2, 7);
+    ctx.fillRect(-1, -12, 5, 2);
+    ctx.fillRect(-2, -11, 2, 1);
+    ctx.fillStyle = o.skinHi;
+    ctx.fillRect(-1, -17, 1, 5);
     // Mouth
     ctx.fillStyle = talking ? '#3a1a14' : o.mouth;
     if (talking) {
-        ctx.fillRect(-5, -7, 10, 5);
+        ctx.fillRect(-4, -8, 8, 4);
         ctx.fillStyle = '#f0e4cc';
-        ctx.fillRect(-4, -7, 8, 2);
+        ctx.fillRect(-3, -8, 6, 1);
+        ctx.fillStyle = o.mouth;
+        ctx.fillRect(-3, -4, 6, 1);
     } else {
-        ctx.fillRect(-6, -6, 12, 2);
+        ctx.fillRect(-4, -8, 8, 1);
+        ctx.fillRect(-3, -7, 6, 1);
+        ctx.fillStyle = o.skinHi;
+        ctx.fillRect(-2, -6, 4, 1);
     }
     // Beard
     if (o.beard) {
+        const beardTip = 2 + o.beard * 2;
         ctx.fillStyle = o.hairLo;
-        ctx.fillRect(-13, -9, 26, 8 + o.beard * 2);
+        ctx.beginPath();
+        ctx.moveTo(-12, -12);
+        ctx.lineTo(12, -12);
+        ctx.lineTo(11, -1);
+        ctx.lineTo(7, 6);
+        ctx.lineTo(3, beardTip - 2);
+        ctx.lineTo(0, beardTip);
+        ctx.lineTo(-3, beardTip - 2);
+        ctx.lineTo(-7, 6);
+        ctx.lineTo(-11, -1);
+        ctx.closePath();
+        ctx.fill();
         ctx.fillStyle = o.hair;
-        ctx.fillRect(-11, -8, 22, 6 + o.beard * 2);
+        ctx.beginPath();
+        ctx.moveTo(-10, -11);
+        ctx.lineTo(10, -11);
+        ctx.lineTo(9, -1);
+        ctx.lineTo(5, 6);
+        ctx.lineTo(2, beardTip - 2);
+        ctx.lineTo(0, beardTip - 1);
+        ctx.lineTo(-2, beardTip - 2);
+        ctx.lineTo(-5, 6);
+        ctx.lineTo(-9, -1);
+        ctx.closePath();
+        ctx.fill();
         ctx.fillStyle = o.hairHi;
-        ctx.fillRect(-9, -7, 6, 4 + o.beard * 2);
+        ctx.fillRect(-8, -9, 4, 10);
+        ctx.fillRect(-5, 1, 3, 7);
+        ctx.fillRect(-2, 8, 2, Math.max(2, beardTip - 10));
+        ctx.fillStyle = o.hairLo;
+        ctx.fillRect(1, 0, 2, beardTip - 5);
         ctx.fillStyle = talking ? '#3a1a14' : o.mouth;
-        ctx.fillRect(-5, -7, 10, talking ? 5 : 2);
+        ctx.fillRect(-3, -7, 6, talking ? 3 : 1);
+        if (talking) {
+            ctx.fillStyle = '#f0e4cc';
+            ctx.fillRect(-2, -7, 4, 1);
+        }
     }
     // Hair
     ctx.fillStyle = o.hair;
@@ -210,8 +286,7 @@ const PORTRAIT_ART = {
         ctx.fillStyle = '#1a1c26';
         ctx.fillRect(cx - 28, cy - 28, 56, 56);
         ctx.save();
-        ctx.translate(cx + 52, cy + 30);
-        ctx.scale(0.62, 0.62);
+        ctx.translate(cx + 58, cy + 48);
         drawSleepingGiant(ctx, 0, 0, 1, face ? face.t : 0);
         ctx.restore();
     }

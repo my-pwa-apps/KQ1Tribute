@@ -20,15 +20,16 @@
         startRoom: 'scullery',
         startX: 300,
         startY: 322,
+        flavorResponses: {
+            sing: "You give a stirring verse of 'The Ballad of the Bramble King'. A crow leaves in protest.",
+            clean: 'Years of scrubbing the sorcerer\'s floors twitch in your hands. This crisis needs something grander.',
+            useTechnique: 'You apply your finest scullery-boy technique to {object}. Nothing happens, but you look remarkably focused.'
+        },
         victory: {
             headline: 'LONG LIVE THE KING!',
             subhead: 'Alderhaven is whole again.',
             ranks: [
-                { min: 0.95, title: 'Rowan the Unbroken, First of His Name', flavor: 'The ballads will be insufferable. You have earned every verse.' },
-                { min: 0.80, title: 'Rowan the Bold', flavor: 'Three treasures, one sorcerer, and not a single wasted step.' },
-                { min: 0.60, title: 'Rowan the Fortunate', flavor: 'The realm is saved. Some of it was even on purpose.' },
-                { min: 0.35, title: 'Rowan the Stubborn', flavor: 'You did it the hard way, and the hard way remembers you.' },
-                { min: 0, title: 'Rowan, Formerly of the Scullery', flavor: 'A crown sits oddly on a head that spent years under a cupboard.' }
+                { min: 0, title: 'Rowan the Unbroken, First of His Name', flavor: 'The ballads will be insufferable. You have earned every verse.' }
             ],
             closingLines: [
                 'From the sorcerer\'s scullery to the throne of Alderhaven...',
@@ -54,6 +55,31 @@
     // Shared progression rules. Dialog trees and room hotspots both reach these
     // transactions, so they must have exactly one implementation.
     rules: {
+        readTheSpell(e) {
+            if (!e.hasItem('spellbook')) { e.showMessage('You have nothing to read.'); return; }
+            e.setFlag('read_spell');
+            e.showMessage('You open the book. Most of it will not let your eyes rest on it at all. One page will: STORM IN A THIMBLE. Take a feather of a black bird and a pinch of salt from the sea. Lay them in a circle of chalk and say over them the word that follows. Keep the storm close, and spend it once.', { window: true });
+        },
+        awards: {
+            sea_salt: 3, bread: 2, pail: 2, brass_key: 5, stair_revealed: 5,
+            raven_feather: 3, spellbook: 10, thimble: 20, morvane_passed: 10,
+            sailed: 15, rope_tied: 5, goat_follows: 5, hare_freed: 10,
+            ring_of_mist: 10, chest_of_cormac: 25, troll_routed: 15,
+            shield_of_ardor: 25, dragon_doused: 25, mirror_of_ianthe: 25,
+            door_opened: 20, duel: 10
+        },
+        wasAwarded(game, event) {
+            return game.getFlag(`award_${event}`) === true;
+        },
+        award(game, event) {
+            if (!Object.hasOwn(this.awards, event)) throw new Error(`Unknown score event: ${event}`);
+            if (this.wasAwarded(game, event)) return;
+            game.setFlag(`award_${event}`);
+            game.addScore(this.awards[event]);
+        },
+        treasureTaken(game, item) {
+            return game.hasItem(item) || this.wasAwarded(game, item) || game.getFlag(`socket_${item}`);
+        },
         /** Fill or empty the pail, keeping the item text honest about its state. */
         setPailWater(e, filled) {
             e.setFlag('pail_full', filled);
@@ -68,7 +94,7 @@
             if (e.getFlag('goat_follows')) return;
             e.removeFromInventory('bread');
             e.setFlag('goat_follows');
-            e.addScore(5);
+            this.award(e, 'goat_follows');
             e.updateInventoryUI();
         },
         /** Fennow's gift, reachable from both the snare hotspot and his dialog. */
@@ -76,7 +102,7 @@
             if (e.getFlag('has_ring')) return;
             e.setFlag('has_ring');
             e.addToInventory('ring_of_mist');
-            e.addScore(10);
+            this.award(e, 'ring_of_mist');
             e.sound.magicChime();
             e.updateInventoryUI();
         },
@@ -85,7 +111,7 @@
             if (e.getFlag('gnome_named')) return;
             e.setFlag('gnome_named');
             e.addToInventory('chest_of_cormac');
-            e.addScore(25);
+            this.award(e, 'chest_of_cormac');
             e.sound.scoreUp();
             e.updateInventoryUI();
         }

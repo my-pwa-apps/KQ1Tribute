@@ -12,6 +12,7 @@ CrownQuest.defineRooms((engine) => {
     function followingGoat(e, gx, groundY, scale) {
         if (!e.getFlag('goat_follows')) return;
         e.addForegroundLayer(groundY, (ctx, eng) => {
+            if (eng.currentRoomId === 'troll_bridge' && eng.sequence && eng.bridgeEncounter) return;
             eng.drawContactShadow(ctx, gx, groundY, 1, { rx: 30 * scale, ry: 6 * scale, alpha: 0.26 });
             drawGoat(ctx, gx, groundY, scale, eng.playerX > gx ? 1 : -1, false, eng.animTimer);
         });
@@ -39,6 +40,20 @@ CrownQuest.defineRooms((engine) => {
         }
     }
 
+    // The gorge runs across the screen and the span runs away from the viewer,
+    // so the far wall faces the camera. The art and the walkable area are both
+    // built from these numbers, which is what stops them drifting apart.
+    const FAR_LIP = 206, NEAR_LIP = 330;
+    const SPAN = { nearX: 332, nearY: 348, nearHalf: 28, farX: 322, farY: 206, farHalf: 8 };
+    const spanX = (t) => SPAN.nearX + (SPAN.farX - SPAN.nearX) * t;
+    const spanHalf = (t) => SPAN.nearHalf + (SPAN.farHalf - SPAN.nearHalf) * t;
+
+    function bridgeCrossing(e) {
+        return e.playerY > 204
+            ? [{ walk: [null, 354] }, { walk: [332, 354] }, { walk: [322, 196] }]
+            : [{ walk: [null, 196] }, { walk: [322, 196] }, { walk: [332, 354] }];
+    }
+
     // ================= ROOM 5: THE HARBOUR ROAD =================
     engine.registerRoom({
         id: 'harbour_road',
@@ -54,7 +69,7 @@ CrownQuest.defineRooms((engine) => {
             e.setDepthScaling(250, 372, 0.6, 1.08);
             e.setWalkableArea((px, py) => py > 244 && py < 372 && px > 20 && px < 620);
             e.addBarrier(58, 268, 96, 40);
-            e.setEdgeTransition('right', (eng) => eng.goToRoom('village_green', 60, 336));
+            e.setEdgeTransition('right', (eng) => eng.goToRoom('village_green', 60, 354));
             e.setEdgeTransition('left', (eng) => {
                 if (!eng.getFlag('has_all_three')) {
                     eng.showMessage('The shore path west runs out toward the headland and the tower nobody in Alderhaven will name. You have nothing yet that would open anything there.', { window: true });
@@ -102,14 +117,8 @@ CrownQuest.defineRooms((engine) => {
             }
 
             // ---- The road ----
-            ctx.fillStyle = PAL.GRASS_SHADOW;
-            ctx.beginPath();
-            ctx.moveTo(0, 250); ctx.lineTo(640, 256); ctx.lineTo(640, h); ctx.lineTo(0, h);
-            ctx.closePath(); ctx.fill();
-            ctx.fillStyle = PAL.GRASS_BASE;
-            ctx.fillRect(0, 256, w, 46);
-            ctx.fillStyle = PAL.GRASS_LIT;
-            blendSeam(ctx, 0, 258, w, PAL.GRASS_BASE, PAL.GRASS_LIT);
+            turfRecession(ctx, 0, 248, w, h + 4, 5252, '#a9bccb');
+            blendSeam(ctx, 0, 252, w, '#7d7563', PAL.GRASS_SHADOW);
             ctx.fillStyle = '#8a7c5e';
             ctx.beginPath();
             ctx.moveTo(-20, 372); ctx.lineTo(190, 372); ctx.lineTo(560, 268); ctx.lineTo(470, 264);
@@ -123,7 +132,43 @@ CrownQuest.defineRooms((engine) => {
             ctx.moveTo(70, 372); ctx.lineTo(96, 372); ctx.lineTo(516, 269); ctx.lineTo(506, 268);
             ctx.closePath(); ctx.fill();
             grassFringe(ctx, 0, 300, 640, 3838, 70);
-            turfTexture(ctx, 0, 250, w, h - 250, 5252, 'rgba(120,164,88,0.15)', 'rgba(44,80,40,0.14)');
+            // Wheel ruts, a puddle, and clumps so the lawn is not a sandwich
+            ctx.fillStyle = '#6a5c42';
+            ctx.beginPath();
+            ctx.moveTo(80, 370); ctx.lineTo(108, 370); ctx.lineTo(528, 272); ctx.lineTo(512, 270);
+            ctx.closePath(); ctx.fill();
+            ctx.fillStyle = '#5a4e38';
+            ctx.beginPath();
+            ctx.moveTo(128, 370); ctx.lineTo(150, 370); ctx.lineTo(548, 273); ctx.lineTo(536, 271);
+            ctx.closePath(); ctx.fill();
+            ctx.fillStyle = '#3a4a3c';
+            ctx.beginPath();
+            ctx.ellipse(176, 352, 22, 6, 0.1, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#6a8894';
+            ctx.beginPath();
+            ctx.ellipse(176, 351, 16, 4, 0.1, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = 'rgba(220,236,240,0.35)';
+            ctx.fillRect(168, 349, 8, 1);
+            [[210, 318, 1.1, 41], [390, 292, 0.85, 42], [470, 308, 1.0, 43], [88, 336, 1.2, 44], [560, 348, 0.9, 45]]
+                .forEach(([cx, cy, cs, sd]) => grassClump(ctx, cx, cy, cs, sd));
+            // Occupied midground: a leaning post and a sawn stump
+            ctx.fillStyle = '#1a1206';
+            ctx.fillRect(304, 286, 8, 36);
+            ctx.fillStyle = PAL.WOOD_SHADOW;
+            ctx.fillRect(305, 287, 6, 34);
+            ctx.fillStyle = PAL.WOOD_LIT;
+            ctx.fillRect(305, 287, 2, 34);
+            ctx.fillStyle = '#1a1206';
+            ctx.beginPath(); ctx.ellipse(418, 302, 16, 7, 0, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = PAL.WOOD_BASE;
+            ctx.beginPath(); ctx.ellipse(418, 300, 14, 6, 0, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = PAL.WOOD_LIT;
+            ctx.beginPath(); ctx.ellipse(416, 298, 8, 3.4, 0, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = '#3a2a14';
+            ctx.beginPath(); ctx.ellipse(418, 300, 5, 2, 0, 0, Math.PI * 2); ctx.fill();
+            eng.drawContactShadow(ctx, 418, 306, 1, { rx: 16, ry: 4, alpha: 0.22 });
 
             // ---- The skiff, drawn up where you left it ----
             eng.drawContactShadow(ctx, 108, 268, 1, { rx: 52, ry: 7, alpha: 0.24 });
@@ -139,28 +184,37 @@ CrownQuest.defineRooms((engine) => {
             });
 
             // ---- Waymarker stone ----
+            eng.drawContactShadow(ctx, 252, 302, 1, { rx: 24, ry: 5, alpha: 0.26 });
+            ctx.save();
+            ctx.translate(252, 300);
+            ctx.rotate(-0.06);
+            ctx.translate(-252, -300);
             ctx.fillStyle = '#1a1815';
             ctx.beginPath();
-            ctx.moveTo(232, 300); ctx.lineTo(238, 246); ctx.lineTo(262, 242); ctx.lineTo(270, 300);
+            ctx.moveTo(232, 300); ctx.lineTo(236, 254); ctx.quadraticCurveTo(250, 240, 264, 252);
+            ctx.lineTo(270, 300);
             ctx.closePath(); ctx.fill();
             ctx.fillStyle = '#8d8778';
             ctx.beginPath();
-            ctx.moveTo(236, 298); ctx.lineTo(241, 249); ctx.lineTo(259, 246); ctx.lineTo(266, 298);
+            ctx.moveTo(236, 298); ctx.lineTo(239, 256); ctx.quadraticCurveTo(250, 244, 261, 255);
+            ctx.lineTo(266, 298);
             ctx.closePath(); ctx.fill();
             ctx.fillStyle = '#a9a394';
             ctx.beginPath();
-            ctx.moveTo(236, 298); ctx.lineTo(241, 249); ctx.lineTo(249, 248); ctx.lineTo(247, 298);
+            ctx.moveTo(236, 298); ctx.lineTo(239, 256); ctx.quadraticCurveTo(245, 247, 250, 246);
+            ctx.lineTo(248, 298);
             ctx.closePath(); ctx.fill();
             ctx.fillStyle = '#5c574b';
             ctx.beginPath();
-            ctx.moveTo(258, 296); ctx.lineTo(259, 246); ctx.lineTo(266, 298);
+            ctx.moveTo(258, 296); ctx.lineTo(259, 250); ctx.lineTo(266, 298);
             ctx.closePath(); ctx.fill();
             ctx.fillStyle = '#4a453b';
-            ctx.fillRect(242, 262, 16, 2);
-            ctx.fillRect(242, 268, 12, 2);
-            ctx.fillRect(242, 276, 15, 2);
+            ctx.fillRect(242, 264, 15, 2);
+            ctx.fillRect(242, 270, 11, 2);
+            ctx.fillRect(242, 278, 14, 2);
             ctx.fillStyle = '#5f7a3c';
             for (let i = 0; i < 12; i++) ctx.fillRect(234 + (i % 4) * 9, 284 + (i % 3) * 5, 3, 2);
+            ctx.restore();
 
             // ---- Headland and the tower, west ----
             ctx.fillStyle = '#4e5a68';
@@ -183,7 +237,7 @@ CrownQuest.defineRooms((engine) => {
             },
             {
                 name: 'the waymarker', x: 230, y: 240, w: 44, h: 62, walkToX: 288,
-                description: 'A leaning waymarker with three lines cut into it. The letters are worn to dents, and you could not read them if they were fresh.'
+                description: 'A leaning waymarker with three lines cut into it. You know ordinary letters from flour sacks, but these are worn past reading.'
             },
             {
                 name: 'the sea', x: 0, y: 158, w: 640, h: 56,
@@ -210,9 +264,9 @@ CrownQuest.defineRooms((engine) => {
                 }
             },
             {
-                name: 'the road inland', x: 598, y: 260, w: 42, h: 112, isExit: true, walkToX: 600,
+                name: 'the road inland', x: 598, y: 260, w: 42, h: 112, isExit: true, walkToX: 600, walkToY: 354,
                 description: 'The road runs inland toward the village.',
-                onExit: (e) => e.goToRoom('village_green', 60, 336)
+                onExit: (e) => e.goToRoom('village_green', 60, 354)
             }
         ]
     });
@@ -224,7 +278,7 @@ CrownQuest.defineRooms((engine) => {
         description: 'A green with a well on it, a cottage, a peddler\'s cart, and one extremely committed goat.',
         smell: 'Woodsmoke, bread, and goat. Mostly goat.',
         hint: (e) => {
-            if (!e.hasItem('rope')) return 'Hattie the peddler has a coil of rope on her cart. Talk to her.';
+            if (!e.hasItem('rope') && !e.getFlag('rope_tied')) return 'Hattie the peddler has a coil of rope on her cart. Talk to her.';
             if (!e.getFlag('rope_tied')) return 'Tie the rope to the well\'s windlass, then climb down.';
             if (!e.getFlag('goat_follows') && e.hasItem('bread')) return 'The goat is tethered by a frayed rope and is extremely interested in that crust.';
             return 'The wood lies east. The well goes down. The road back to the shore is west.';
@@ -235,8 +289,8 @@ CrownQuest.defineRooms((engine) => {
             e.setWalkableArea((px, py) => py > 250 && py < 372 && px > 20 && px < 620);
             e.addBarrier(252, 296, 140, 48);
             e.addBarrier(24, 268, 150, 52);
-            e.setEdgeTransition('left', (eng) => eng.goToRoom('harbour_road', 580, 336));
-            e.setEdgeTransition('right', (eng) => eng.goToRoom('dark_wood', 60, 340));
+            e.setEdgeTransition('left', (eng) => eng.goToRoom('harbour_road', 580, 354));
+            e.setEdgeTransition('right', (eng) => eng.goToRoom('dark_wood', 60, 354));
 
             if (!e.getFlag('goat_follows')) {
                 e.addForegroundLayer(346, (ctx, eng2) => {
@@ -255,10 +309,13 @@ CrownQuest.defineRooms((engine) => {
             } else {
                 followingGoat(e, 200, 356, 1.2);
             }
-            // Hattie stands beside her cart, y-sorted so Rowan can pass in front.
-            e.addForegroundLayer(324, (ctx, eng2) => {
-                eng2.drawContactShadow(ctx, 96, 324, 1, { rx: 21, ry: 5, alpha: 0.26 });
-                drawVgaPerson(ctx, 96, 324, vgaPersonScale(eng2, 324, 0.96), Object.assign({}, CAST_HATTIE, {
+            // Hattie stands in the open in front of her cart. Her feet are below
+            // the wheels' ground line, so she correctly occludes them.
+            e.addForegroundLayer(352, (ctx, eng2) => {
+                eng2.drawContactShadow(ctx, 120, 352, 1, { rx: 21, ry: 5, alpha: 0.26 });
+                drawVgaPerson(ctx, 120, 352, vgaPersonScale(eng2, 352, 0.96), Object.assign({}, CAST_HATTIE, {
+                    animTimer: eng2.animTimer,
+                    phase: 1.7,
                     nearArm: { side: 1, up: 0.28, lo: 0.44 },
                     farArm: { side: -1, up: -0.16, lo: 0.4 }
                 }));
@@ -277,31 +334,67 @@ CrownQuest.defineRooms((engine) => {
             ctx.fillRect(0, 130, w, 82);
             ctx.fillStyle = PAL.LEAF_DEEP;
             ctx.fillRect(0, 200, w, 12);
-            ctx.fillStyle = PAL.LEAF_SHADOW;
+            // Hedgerow crowns, jittered in size and height so the treeline is
+            // not one row of identical lumps.
+            const hedge = seededRandom(2468);
             for (let i = 0; i < 40; i++) {
+                const hx = i * 17 + (hedge() - 0.5) * 12;
+                const hr = 10 + hedge() * 8;
+                const hy = 200 + (hedge() - 0.5) * 7;
+                ctx.fillStyle = PAL.LEAF_DEEP;
                 ctx.beginPath();
-                ctx.ellipse(i * 17, 200, 13, 8, 0, 0, Math.PI * 2);
+                ctx.ellipse(hx, hy + 2, hr, hr * 0.66, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillStyle = hedge() > 0.5 ? PAL.LEAF_SHADOW : PAL.LEAF_BASE;
+                ctx.beginPath();
+                ctx.ellipse(hx, hy, hr * 0.88, hr * 0.58, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillStyle = PAL.LEAF_LIT;
+                ctx.beginPath();
+                ctx.ellipse(hx - hr * 0.3, hy - hr * 0.24, hr * 0.42, hr * 0.26, 0, 0, Math.PI * 2);
                 ctx.fill();
             }
 
             // ---- Green ----
-            ctx.fillStyle = PAL.GRASS_SHADOW;
-            ctx.fillRect(0, 196, w, 60);
-            ctx.fillStyle = PAL.GRASS_BASE;
-            ctx.fillRect(0, 244, w, 60);
-            blendSeam(ctx, 0, 244, w, PAL.GRASS_SHADOW, PAL.GRASS_BASE);
-            ctx.fillStyle = PAL.GRASS_LIT;
-            ctx.fillRect(0, 300, w, h - 300);
-            blendSeam(ctx, 0, 300, w, PAL.GRASS_BASE, PAL.GRASS_LIT);
+            turfRecession(ctx, 0, 196, w, h + 4, 4242, '#a4bccd');
             grassFringe(ctx, 0, 262, w, 5151, 80);
             grassFringe(ctx, 0, 316, w, 6161, 110);
-            turfTexture(ctx, 0, 212, w, h - 212, 4242, 'rgba(126,172,92,0.17)', 'rgba(44,84,42,0.15)', '#e8e0a0');
-            // A trodden path curving from the road to the well
+            // A trodden path curving from the road to the well, with ruts
             ctx.fillStyle = '#8a7c5e';
             ctx.beginPath();
             ctx.moveTo(0, 348); ctx.lineTo(60, 340); ctx.lineTo(280, 306); ctx.lineTo(276, 298);
             ctx.lineTo(60, 330); ctx.lineTo(0, 336);
             ctx.closePath(); ctx.fill();
+            ctx.fillStyle = '#6f6247';
+            ctx.beginPath();
+            ctx.moveTo(8, 344); ctx.lineTo(24, 342); ctx.lineTo(268, 304); ctx.lineTo(258, 302);
+            ctx.closePath(); ctx.fill();
+            ctx.fillStyle = '#7a6c50';
+            ctx.beginPath();
+            ctx.moveTo(30, 350); ctx.lineTo(46, 348); ctx.lineTo(274, 310); ctx.lineTo(266, 308);
+            ctx.closePath(); ctx.fill();
+            ctx.fillStyle = '#9c8e6c';
+            for (let i = 0; i < 18; i++) ctx.fillRect(20 + i * 14, 338 - i * 2.1, 3, 1);
+            [[70, 318, 1.15, 61], [200, 328, 1.0, 62], [400, 312, 1.2, 63], [520, 334, 0.95, 64], [610, 308, 0.85, 65], [250, 360, 1.3, 66]]
+                .forEach(([cx, cy, cs, sd]) => grassClump(ctx, cx, cy, cs, sd));
+            // Fence post and a watering trough so the midground is occupied
+            ctx.fillStyle = '#1a1206';
+            ctx.fillRect(600, 268, 9, 42);
+            ctx.fillStyle = PAL.WOOD_SHADOW;
+            ctx.fillRect(601, 269, 7, 40);
+            ctx.fillStyle = PAL.WOOD_LIT;
+            ctx.fillRect(601, 269, 2, 40);
+            ctx.fillStyle = '#1a1206';
+            ctx.fillRect(586, 278, 36, 5);
+            ctx.fillStyle = '#1a1206';
+            ctx.fillRect(372, 328, 48, 14);
+            ctx.fillStyle = PAL.WOOD_BASE;
+            ctx.fillRect(374, 330, 44, 10);
+            ctx.fillStyle = '#4a6a78';
+            ctx.fillRect(376, 332, 40, 5);
+            ctx.fillStyle = 'rgba(220,236,240,0.28)';
+            ctx.fillRect(378, 332, 12, 1);
+            eng.drawContactShadow(ctx, 396, 344, 1, { rx: 26, ry: 4, alpha: 0.18 });
 
             // ---- Cottage on the left ----
             ctx.fillStyle = '#151109';
@@ -324,11 +417,26 @@ CrownQuest.defineRooms((engine) => {
             ctx.fillRect(142, 204, 2, 20);
             ctx.fillRect(40, 213, 22, 2);
             ctx.fillRect(132, 213, 22, 2);
-            // Chimney and smoke
+            // Chimney and smoke. The stack is sunk to the thatch surface at its
+            // downhill edge, so it cannot float off the slope.
+            const chimBase = roofSurfaceY(98, 128, 92, 182, 160) + 6;
+            ctx.fillStyle = '#3a352c';
+            ctx.fillRect(138, 106, 24, chimBase - 106);
             ctx.fillStyle = '#5a5346';
-            ctx.fillRect(140, 108, 20, 32);
+            ctx.fillRect(140, 108, 20, chimBase - 110);
             ctx.fillStyle = '#847b68';
-            ctx.fillRect(140, 108, 7, 32);
+            ctx.fillRect(140, 108, 7, chimBase - 110);
+            ctx.fillStyle = '#2a251e';
+            ctx.fillRect(138, 106, 24, 4);
+            // Thatch packed up against the stack where it passes through
+            ctx.fillStyle = '#3a2c12';
+            ctx.beginPath();
+            ctx.moveTo(134, roofSurfaceY(98, 128, 92, 182, 134) + 2);
+            ctx.lineTo(166, chimBase - 2);
+            ctx.lineTo(166, chimBase + 4);
+            ctx.lineTo(134, roofSurfaceY(98, 128, 92, 182, 134) + 8);
+            ctx.closePath();
+            ctx.fill();
             for (let i = 0; i < 5; i++) {
                 const p = (eng.animTimer / 700 + i * 1.3) % 6;
                 ctx.fillStyle = `rgba(210,210,214,${0.26 - p * 0.04})`;
@@ -438,6 +546,8 @@ CrownQuest.defineRooms((engine) => {
             // ---- Background villager, going about her day ----
             eng.drawContactShadow(ctx, 566, 288, 1, { rx: 13, ry: 3, alpha: 0.2 });
             drawVgaPerson(ctx, 566, 288, vgaPersonScale(eng, 288, 0.94), Object.assign({}, CAST_VILLAGER, {
+                animTimer: eng.animTimer,
+                phase: 0.4,
                 nearArm: { side: 1, up: 0.1 + Math.sin(eng.animTimer / 900) * 0.16, lo: 0.3 },
                 farArm: { side: -1, up: -0.1, lo: 0.36 }
             }));
@@ -467,14 +577,14 @@ CrownQuest.defineRooms((engine) => {
                     if (e.getFlag('rope_tied')) { e.showMessage('The rope is already tied on.'); return; }
                     e.removeFromInventory('rope');
                     e.setFlag('rope_tied');
-                    e.addScore(5);
+                    RULES.award(e, 'rope_tied');
                     e.updateInventoryUI();
                     e.sound.metalScrape();
                     e.showMessage('You make the rope fast to the windlass with a knot Hattie showed you twice and you got right on the third go. It hangs down into the dark and stops swinging.');
                 }
             },
             {
-                name: 'Hattie', x: 72, y: 256, w: 52, h: 72, walkToX: 148,
+                name: 'Hattie', x: 98, y: 298, w: 46, h: 58, walkToX: 210,
                 description: 'A broad, weather-beaten peddler with a cart, an opinion about everything, and both hands permanently on her hips.',
                 talk: (e) => e.startDialog('hattie'),
                 get: (e) => e.showMessage('Hattie looks at you the way she would look at a pickpocket, which is fair.')
@@ -516,14 +626,14 @@ CrownQuest.defineRooms((engine) => {
                 talk: (e) => e.showMessage('"Morning," she says, and keeps walking. In eleven years nobody has said that to you.')
             },
             {
-                name: 'the road west', x: 0, y: 302, w: 40, h: 70, isExit: true, walkToX: 40,
+                name: 'the road west', x: 0, y: 302, w: 40, h: 70, isExit: true, walkToX: 40, walkToY: 354,
                 description: 'The road back down to the harbour and the shore.',
-                onExit: (e) => e.goToRoom('harbour_road', 580, 336)
+                onExit: (e) => e.goToRoom('harbour_road', 580, 354)
             },
             {
-                name: 'the wood', x: 600, y: 302, w: 40, h: 70, isExit: true, walkToX: 600,
+                name: 'the wood', x: 600, y: 302, w: 40, h: 70, isExit: true, walkToX: 600, walkToY: 354,
                 description: 'A track east, into trees that stand closer together than trees ought to.',
-                onExit: (e) => e.goToRoom('dark_wood', 60, 340)
+                onExit: (e) => e.goToRoom('dark_wood', 60, 354)
             }
         ]
     });
@@ -554,6 +664,8 @@ CrownQuest.defineRooms((engine) => {
                 drawVgaPerson(ctx, 468, eng.getFlag('gnome_named') ? 344 : 312,
                     vgaPersonScale(eng, 344, 0.62),
                     Object.assign({}, CAST_GNOME, {
+                        animTimer: eng.animTimer,
+                        phase: 3.5,
                         nearArm: { side: 1, up: 0.5, lo: 0.9 },
                         farArm: { side: -1, up: -0.2, lo: 0.5 }
                     }));
@@ -646,9 +758,12 @@ CrownQuest.defineRooms((engine) => {
         },
         hotspots: [
             {
-                name: 'Mendharbe', x: 440, y: 260, w: 60, h: 90, walkToX: 400,
-                description: 'A gnome the height of a milking stool, with a beard he is sitting on and a pipe he has not lit. He is sitting on a small gold-bound chest and smiling at you.',
-                talk: (e) => e.startDialog('gnome'),
+                get name() { return engine.getFlag('gnome_named') ? 'Mendharbe' : 'the gnome'; },
+                x: 440, y: 260, w: 60, h: 90, walkToX: 400,
+                get description() { return engine.getFlag('gnome_named')
+                    ? 'Mendharbe stands beside his hearth, sorting coins for the move he is finally considering. The chest is no longer his seat.'
+                    : 'A gnome the height of a milking stool, with a beard he is sitting on and a pipe he has not lit. He is sitting on a small gold-bound chest and smiling at you.'; },
+                talk: (e) => e.startDialog('gnome', e.getFlag('gnome_named') ? 'after_bargain' : 'greeting'),
                 get: (e) => e.showMessage('He watches your hand come toward him with enormous, unhurried interest. You take the hand back.')
             },
             {
@@ -710,8 +825,8 @@ CrownQuest.defineRooms((engine) => {
             e.setDepthScaling(268, 372, 0.66, 1.08);
             e.setWalkableArea((px, py) => py > 262 && py < 372 && px > 20 && px < 620);
             e.addBarrier(180, 300, 76, 48);
-            e.setEdgeTransition('left', (eng) => eng.goToRoom('village_green', 580, 340));
-            e.setEdgeTransition('right', (eng) => eng.goToRoom('troll_bridge', 60, 336));
+            e.setEdgeTransition('left', (eng) => eng.goToRoom('village_green', 580, 354));
+            e.setEdgeTransition('right', (eng) => eng.goToRoom('troll_bridge', 60, 354));
             followingGoat(e, 150, 358, 1.15);
 
             // Foreground trunks: the single strongest depth cue in a wood.
@@ -731,12 +846,13 @@ CrownQuest.defineRooms((engine) => {
                 ctx.fillStyle = '#33261a';
                 ctx.fillRect(606, 0, 10, 400);
             });
-            if (e.getFlag('has_ring')) return;
             // Fennow only shows himself after the hare is loose.
             e.addForegroundLayer(322, (ctx, eng) => {
                 if (!eng.getFlag('hare_freed')) return;
                 eng.drawContactShadow(ctx, 452, 322, 1, { rx: 17, ry: 4, alpha: 0.24 });
                 drawVgaPerson(ctx, 452, 322, vgaPersonScale(eng, 322, 0.92), Object.assign({}, CAST_FENNOW, {
+                    animTimer: eng.animTimer,
+                    phase: 2.9,
                     nearArm: { side: 1, up: 0.2, lo: 0.6 },
                     farArm: { side: -1, up: -0.24, lo: 0.44 }
                 }));
@@ -916,7 +1032,9 @@ CrownQuest.defineRooms((engine) => {
         hotspots: [
             {
                 name: 'the great oak', x: 168, y: 200, w: 106, h: 148,
-                description: 'An oak with a trunk like a wall, and something pale nailed to it at head height.'
+                get description() { return engine.hasItem('parchment')
+                    ? 'An oak with a trunk like a wall. A small nail hole marks where you found the parchment.'
+                    : 'An oak with a trunk like a wall, and something pale nailed to it at head height.'; }
             },
             {
                 name: 'the parchment', x: 192, y: 282, w: 46, h: 42, walkToX: 272,
@@ -925,11 +1043,9 @@ CrownQuest.defineRooms((engine) => {
                     if (e.hasItem('parchment')) { e.showMessage('You have it already. It still says EBRAHDNEM, and it still refuses to mean anything.'); return; }
                     e.sound.pickup();
                     e.addToInventory('parchment');
-                    e.showMessage('You work the nail out. The parchment is weathered nearly blank, but one word survives, written backwards in a spidery hand: EBRAHDNEM. Somebody wanted this remembered and did not want it read.');
+                    e.showMessage('You work the nail out. You learned ordinary letters from flour sacks; slowly, you make these out: EBRAHDNEM. Written backwards, in a spidery hand. Somebody wanted this remembered and did not want it read.');
                 },
-                get: (e) => {
-                    e.showMessage('You take it down. See what it says first.');
-                },
+                get: (e) => e.rooms.dark_wood.hotspots.find(hotspot => hotspot.name === 'the parchment').look(e),
                 get hidden() { return engine.hasItem('parchment'); }
             },
             {
@@ -938,7 +1054,7 @@ CrownQuest.defineRooms((engine) => {
                 get: (e) => {
                     if (e.getFlag('hare_freed')) { e.showMessage('It is loose. It has not gone far.'); return; }
                     e.setFlag('hare_freed');
-                    e.addScore(10);
+                    RULES.award(e, 'hare_freed');
                     e.sound.pickup();
                     e.showMessage('You work the wire loose. The hare does not bolt. It sits, and looks at you, and washes its ear, and from somewhere behind you a voice says, quite pleasantly, "That snare cost somebody a day."');
                 },
@@ -951,10 +1067,12 @@ CrownQuest.defineRooms((engine) => {
             },
             {
                 name: 'Fennow', x: 434, y: 268, w: 40, h: 58, walkToX: 410,
-                description: 'A slight figure in green who was certainly not standing there a moment ago, and whose ears come to a definite point.',
+                get description() { return engine.getFlag('has_ring')
+                    ? 'Fennow waits beneath the oak, turning a leaf between his fingers. He seems in no hurry to leave you to your mistakes.'
+                    : 'A slight figure in green who was certainly not standing there a moment ago, and whose ears come to a definite point.'; },
                 talk: (e) => e.startDialog('fennow'),
                 get: (e) => e.showMessage('He steps out of the way without appearing to move.'),
-                get hidden() { return !engine.getFlag('hare_freed') || engine.getFlag('has_ring'); }
+                get hidden() { return !engine.getFlag('hare_freed'); }
             },
             {
                 name: 'the toadstools', x: 272, y: 350, w: 60, h: 26,
@@ -962,19 +1080,25 @@ CrownQuest.defineRooms((engine) => {
                 get: (e) => e.showMessage('You have eaten some strange things in Morvane\'s scullery. You draw the line here.')
             },
             {
-                name: 'the cave mouth', x: 72, y: 154, w: 100, h: 108, isExit: true, walkToX: 132,
+                name: 'the cave mouth', x: 72, y: 154, w: 100, h: 108, isExit: true, walkToX: 132, walkToY: 300,
                 description: 'A black opening in the rock, taller than the trees around it. Warm air comes out of it, which in a wood this cold is deeply wrong.',
+                walk: (e) => e.runSequence([
+                    { walk: [null, 354] },
+                    { walk: [132, 354] },
+                    { walk: [132, 300] },
+                    (game) => game.goToRoom('dragon_cave', 560, 340)
+                ]),
                 onExit: (e) => e.goToRoom('dragon_cave', 560, 340)
             },
             {
-                name: 'the track west', x: 0, y: 300, w: 40, h: 72, isExit: true, walkToX: 44,
+                name: 'the track west', x: 0, y: 300, w: 40, h: 72, isExit: true, walkToX: 44, walkToY: 354,
                 description: 'The track back to the village green.',
-                onExit: (e) => e.goToRoom('village_green', 580, 340)
+                onExit: (e) => e.goToRoom('village_green', 580, 354)
             },
             {
-                name: 'the track east', x: 600, y: 300, w: 40, h: 72, isExit: true, walkToX: 596,
+                name: 'the track east', x: 600, y: 300, w: 40, h: 72, isExit: true, walkToX: 596, walkToY: 354,
                 description: 'The track east, toward the sound of water.',
-                onExit: (e) => e.goToRoom('troll_bridge', 60, 336)
+                onExit: (e) => e.goToRoom('troll_bridge', 60, 354)
             }
         ]
     });
@@ -983,105 +1107,171 @@ CrownQuest.defineRooms((engine) => {
     engine.registerRoom({
         id: 'troll_bridge',
         name: 'The Bridge',
-        description: 'A rope bridge over a gorge, and something standing in the middle of it that is not going to move.',
-        smell: 'River spray, wet rope, and a troll. Chiefly a troll.',
+        get description() { return engine.getFlag('troll_routed')
+            ? 'A rope bridge over a gorge, now clear. On the far bank a beanstalk climbs into the cloud; from the river comes a distant complaint.'
+            : 'A rope bridge over a gorge, and something standing in the middle of it that is not going to move.'; },
+        get smell() { return engine.getFlag('troll_routed') ? 'River spray and wet rope. A considerable improvement.' : 'River spray, wet rope, and a troll. Chiefly a troll.'; },
         hint: (e) => {
             if (!e.getFlag('troll_routed')) return 'You cannot buy him off and you cannot fight him. But the goat on the village green has horns and no sense of proportion.';
             return 'The beanstalk on the far bank goes up into the cloud.';
         },
         onEnter: (e) => {
             e.sound.startAmbient('wind');
-            e.setDepthScaling(272, 372, 0.68, 1.08);
-            e.setWalkableArea((px, py) => py > 292 && py < 372 && px > 20 && px < 300);
-            e.setEdgeTransition('left', (eng) => eng.goToRoom('dark_wood', 580, 340));
-            if (e.getFlag('troll_routed')) {
-                e.setWalkableArea((px, py) => py > 292 && py < 372 && px > 20 && px < 620);
-                e.setEdgeTransition('right', (eng) => eng.goToRoom('cloud_realm', 90, 344));
-            }
-            followingGoat(e, 120, 360, 1.15);
+            e.setDepthScaling(190, 392, 0.45, 1.1);
+            // Two separate banks. The only join is the span, so the walkable
+            // area is built from the same numbers the deck is drawn from.
+            e.setWalkableArea((px, py) => {
+                if (py > 334 && py < 392 && px > 20 && px < 620) return true;
+                if (!e.getFlag('troll_routed')) return false;
+                if (py > 186 && py < 204 && px > 30 && px < 610) return true;
+                if (py >= 204 && py <= 344) {
+                    const t = (SPAN.nearY - py) / (SPAN.nearY - SPAN.farY);
+                    return Math.abs(px - spanX(t)) < spanHalf(t) + 3;
+                }
+                return false;
+            }, 188);
+            e.setEdgeTransition('left', (eng) => {
+                if (eng.playerY > 334) eng.goToRoom('dark_wood', 580, 354);
+            });
+            followingGoat(e, 120, 366, 1.1);
         },
         draw: (ctx, w, h, eng) => {
-            alderhavenSky(ctx, w, 130, eng, 313);
-            distantRange(ctx, 140, w, 56, 2121, '#8a9db4', 0.9);
-            distantRange(ctx, 150, w, 40, 5252, '#75899f', 0.75);
-            // Wooded far side of the gorge
-            ctx.fillStyle = PAL.LEAF_DEEP;
-            ctx.fillRect(0, 150, w, 40);
-            for (let i = 0; i < 14; i++) drawPine(ctx, 20 + i * 48, 196, 0.4, i);
+            alderhavenSky(ctx, w, 116, eng, 313);
+            distantRange(ctx, 126, w, 52, 2121, '#8a9db4', 0.9);
+            distantRange(ctx, 138, w, 36, 5252, '#75899f', 0.75);
 
-            // ---- The gorge ----
-            ctx.fillStyle = '#131a1e';
-            ctx.fillRect(0, 186, w, h - 186);
-            rockFace(ctx, 0, 186, w, 160, 3636, '#5d6a72', '#3f4a52', '#232b31');
-            // Far-side and near-side cliff tops
-            ctx.fillStyle = '#2d3a22';
-            ctx.beginPath();
-            ctx.moveTo(0, 196); ctx.lineTo(180, 190); ctx.lineTo(300, 204); ctx.lineTo(640, 194);
-            ctx.lineTo(640, 214); ctx.lineTo(0, 220);
-            ctx.closePath(); ctx.fill();
-            // The river far below, catching the sky
+            // ---- Far bank: hazed woodland above turf that runs to the far lip ----
+            ctx.fillStyle = '#6f8768';
+            ctx.fillRect(0, 152, w, 30);
+            for (let i = 0; i < 17; i++) {
+                drawPine(ctx, 6 + i * 40 + (i % 3) * 11, 180 + (i % 4) * 4, 0.3, 900 + i * 37,
+                    { deep: '#33482f', base: '#4a6540', shadow: '#3b5335', lit: '#5d7a4c' });
+            }
+            turfRecession(ctx, 0, 182, w, FAR_LIP + 4, 6363, '#9db4c6');
+
+            // ---- The gorge, running across the screen ----
+            // The far wall faces the camera, which is the whole reason this
+            // reads as a hole instead of a dark shape lying on the grass.
+            ctx.fillStyle = '#05070a';
+            ctx.fillRect(0, FAR_LIP, w, NEAR_LIP - FAR_LIP + 4);
+            rockFace(ctx, -4, FAR_LIP, w + 8, 74, 4747, '#8b98a6', '#5b6773', '#2b333c');
+            // Light falls off down the face, and the base is in full shadow.
+            for (let i = 0; i < 12; i++) {
+                ctx.fillStyle = `rgba(6,9,13,${(0.05 + i * 0.07).toFixed(3)})`;
+                ctx.fillRect(0, FAR_LIP + 10 + i * 5, w, 6);
+            }
+            ctx.fillStyle = '#05070a';
+            ctx.fillRect(0, FAR_LIP + 72, w, NEAR_LIP - FAR_LIP);
+            // Buttresses breaking the face, so it is not one flat sheet
+            [70, 196, 402, 548].forEach((bx, i) => {
+                ctx.fillStyle = 'rgba(9,12,17,0.5)';
+                ctx.beginPath();
+                ctx.moveTo(bx - 26, FAR_LIP); ctx.lineTo(bx + 26, FAR_LIP);
+                ctx.lineTo(bx + 14 + i, FAR_LIP + 76); ctx.lineTo(bx - 18, FAR_LIP + 76);
+                ctx.closePath(); ctx.fill();
+                ctx.fillStyle = 'rgba(150,166,182,0.16)';
+                ctx.fillRect(bx - 26, FAR_LIP + 2, 4, 58);
+            });
+            // The river, a long way down and mostly in shadow
             ctx.save();
             ctx.beginPath();
-            ctx.rect(0, 250, w, 60);
+            ctx.rect(0, FAR_LIP + 76, w, 16);
             ctx.clip();
-            waterBand(ctx, 0, 258, w, 46, eng.animTimer, 999);
-            ctx.fillStyle = 'rgba(20,26,32,0.42)';
-            ctx.fillRect(0, 250, w, 60);
+            waterBand(ctx, 0, FAR_LIP + 74, w, 20, eng.animTimer, 999);
+            ctx.fillStyle = 'rgba(8,12,18,0.72)';
+            ctx.fillRect(0, FAR_LIP + 74, w, 20);
             ctx.restore();
-            ctx.fillStyle = '#f0f4f6';
-            for (let i = 0; i < 30; i++) {
-                const fx = (i * 37 + Math.sin(eng.animTimer / 500 + i) * 4) % w;
-                ctx.fillRect(fx, 264 + (i % 5) * 7, 4, 1);
+            ctx.fillStyle = '#9fb4c2';
+            for (let i = 0; i < 24; i++) {
+                const fx = (i * 29 + Math.sin(eng.animTimer / 520 + i) * 3) % w;
+                ctx.fillRect(fx, FAR_LIP + 79 + (i % 4) * 3, 3, 1);
+            }
+            ctx.fillStyle = 'rgba(5,7,10,0.88)';
+            ctx.fillRect(0, FAR_LIP + 92, w, NEAR_LIP - FAR_LIP - 88);
+
+            // ---- Far lip: turf overhanging the drop ----
+            const lipJitter = seededRandom(8181);
+            for (let x = 0; x < w; x += 2) {
+                const y = FAR_LIP + Math.round(Math.sin(x / 47) * 2 + Math.sin(x / 17.3) * 1.6 + (lipJitter() - 0.5) * 3);
+                ctx.fillStyle = '#4a3a24';
+                ctx.fillRect(x, y, 2, 5);
+                ctx.fillStyle = '#14100a';
+                ctx.fillRect(x, y + 4, 2, 3);
+                ctx.fillStyle = PAL.GRASS_SHADOW;
+                ctx.fillRect(x, y - 3, 2, 3);
+                if (lipJitter() > 0.4) {
+                    ctx.fillStyle = PAL.GRASS_LIT;
+                    ctx.fillRect(x, y - 3, 2, 1);
+                }
             }
 
-            // ---- Near and far banks ----
-            ctx.fillStyle = '#1b2413';
-            ctx.beginPath();
-            ctx.moveTo(0, 300); ctx.lineTo(300, 296); ctx.lineTo(300, h); ctx.lineTo(0, h);
-            ctx.closePath(); ctx.fill();
-            ctx.fillStyle = PAL.GRASS_BASE;
-            ctx.beginPath();
-            ctx.moveTo(0, 304); ctx.lineTo(298, 300); ctx.lineTo(298, h); ctx.lineTo(0, h);
-            ctx.closePath(); ctx.fill();
-            ctx.fillStyle = PAL.GRASS_LIT;
-            ctx.fillRect(0, 340, 296, h - 340);
-            blendSeam(ctx, 0, 340, 296, PAL.GRASS_BASE, PAL.GRASS_LIT);
-            ctx.fillStyle = '#1b2413';
-            ctx.beginPath();
-            ctx.moveTo(340, 296); ctx.lineTo(640, 302); ctx.lineTo(640, h); ctx.lineTo(340, h);
-            ctx.closePath(); ctx.fill();
-            ctx.fillStyle = PAL.GRASS_BASE;
-            ctx.beginPath();
-            ctx.moveTo(344, 300); ctx.lineTo(640, 306); ctx.lineTo(640, h); ctx.lineTo(344, h);
-            ctx.closePath(); ctx.fill();
-            ctx.fillStyle = PAL.GRASS_LIT;
-            ctx.fillRect(344, 344, w - 344, h - 344);
-            grassFringe(ctx, 0, 312, 296, 1414, 70);
-            grassFringe(ctx, 344, 316, 296, 2525, 70);
-            turfTexture(ctx, 0, 300, 300, h - 300, 6363, 'rgba(120,164,88,0.15)', 'rgba(44,80,40,0.14)');
-            turfTexture(ctx, 344, 302, w - 344, h - 302, 7474, 'rgba(120,164,88,0.15)', 'rgba(44,80,40,0.14)');
+            // ---- The span, running away from the viewer ----
+            drawRecedingBridge(ctx, SPAN, 10, 4321);
 
-            // ---- The bridge ----
-            ctx.fillStyle = '#1a1206';
-            ctx.fillRect(276, 286, 20, 60);
-            ctx.fillRect(346, 288, 20, 60);
-            ctx.fillStyle = PAL.WOOD_BASE;
-            ctx.fillRect(278, 288, 15, 56);
-            ctx.fillRect(348, 290, 15, 56);
-            ctx.fillStyle = PAL.WOOD_LIT;
-            ctx.fillRect(278, 288, 5, 56);
-            ctx.fillRect(348, 290, 5, 56);
-            drawRopeBridge(ctx, 288, 300, 356, 302, 16, 4321);
+            // ---- Near lip: overhanging turf, then the near bank ----
+            turfRecession(ctx, 0, NEAR_LIP - 2, w, h + 4, 7474, '#a8bccc');
+            const nearJitter = seededRandom(9292);
+            for (let x = 0; x < w; x += 2) {
+                const y = NEAR_LIP + Math.round(Math.sin(x / 39 + 1.4) * 3 + Math.sin(x / 13.7) * 2 + (nearJitter() - 0.5) * 4);
+                ctx.fillStyle = '#0d0b07';
+                ctx.fillRect(x, y - 8, 2, 8);
+                ctx.fillStyle = '#4a3a24';
+                ctx.fillRect(x, y - 4, 2, 4);
+                ctx.fillStyle = PAL.GRASS_SHADOW;
+                ctx.fillRect(x, y - 8, 2, 4);
+                if (nearJitter() > 0.35) {
+                    ctx.fillStyle = PAL.GRASS_LIT;
+                    ctx.fillRect(x, y - 8, 2, 2);
+                }
+            }
+            for (let i = 0; i < 16; i++) {
+                grassClump(ctx, 12 + i * 41, NEAR_LIP + 3 + (i % 3), 0.55, 310 + i);
+            }
 
             // ---- The troll, or the space where he was ----
-            if (!eng.getFlag('troll_routed')) {
-                eng.drawContactShadow(ctx, 322, 322, 1, { rx: 54, ry: 8, alpha: 0.3 });
-                drawTroll(ctx, 322, 322, 1.2, eng.animTimer, false);
+            if (eng.sequence && eng.bridgeEncounter) {
+                const elapsed = Math.max(0, eng.animTimer - eng.bridgeEncounter.startedAt);
+                const charge = Math.min(1, elapsed / 1100);
+                const fall = Math.max(0, Math.min(1, (elapsed - 1100) / 1000));
+                const retreat = Math.max(0, Math.min(1, (elapsed - 2100) / 1100));
+                const hitX = spanX(0.36);
+                const hitY = bridgeDeckY(SPAN, 0.36, 10);
+                if (fall < 1) {
+                    ctx.save();
+                    ctx.beginPath();
+                    ctx.rect(0, 0, w, NEAR_LIP - 8);
+                    ctx.clip();
+                    ctx.translate(hitX + fall * 115, hitY - Math.sin(fall * Math.PI) * 95 + fall * (FAR_LIP + 83 - hitY));
+                    ctx.rotate(fall * 2.4);
+                    drawTroll(ctx, 0, 0, 0.8 * (1 - fall * 0.6), eng.animTimer, true);
+                    ctx.restore();
+                }
+                const travel = charge * (1 - retreat);
+                const approach = Math.min(1, travel / 0.65);
+                const deck = Math.max(0, (travel - 0.65) / 0.35);
+                const goatX = 120 + (332 - 120) * approach + (hitX - 332) * deck;
+                const goatY = 366 - approach * 12 + (hitY + 18 - 354) * deck;
+                const goatScale = 1.1 - deck * 0.3;
+                eng.drawContactShadow(ctx, goatX, goatY, 1, { rx: 22 * goatScale, ry: 4, alpha: 0.26 });
+                drawGoat(ctx, goatX, goatY, goatScale, retreat > 0 ? 1 : -1, true, eng.animTimer);
+                if (elapsed >= 2100 && elapsed < 2700) {
+                    const splash = (elapsed - 2100) / 600;
+                    ctx.fillStyle = '#c8e4ec';
+                    for (let drop = 0; drop < 9; drop++) {
+                        const offset = drop - 4;
+                        ctx.fillRect(hitX + 115 + offset * (3 + splash * 6), FAR_LIP + 83 - Math.sin(splash * Math.PI) * (24 - Math.abs(offset) * 3), 3, 3);
+                    }
+                }
+            } else if (!eng.getFlag('troll_routed')) {
+                const tt = 0.36;
+                const ty = bridgeDeckY(SPAN, tt, 10);
+                eng.drawContactShadow(ctx, spanX(tt), ty, 1, { rx: 26, ry: 4, alpha: 0.36 });
+                drawTroll(ctx, spanX(tt), ty, 0.8, eng.animTimer, false);
             } else {
-                // His club, dropped where he stopped standing.
+                // His club, dropped on the near bank where he stopped standing.
                 ctx.fillStyle = '#1a1206';
                 ctx.save();
-                ctx.translate(300, 336);
+                ctx.translate(196, 358);
                 ctx.rotate(0.4);
                 ctx.fillRect(-26, -5, 52, 10);
                 ctx.fillStyle = PAL.WOOD_SHADOW;
@@ -1099,44 +1289,44 @@ CrownQuest.defineRooms((engine) => {
             if (eng.getFlag('troll_routed')) {
                 ctx.fillStyle = '#16240f';
                 ctx.beginPath();
-                ctx.moveTo(506, 344);
-                ctx.quadraticCurveTo(534, 200, 508, 0);
+                ctx.moveTo(506, 202);
+                ctx.quadraticCurveTo(534, 120, 508, 0);
                 ctx.lineTo(548, 0);
-                ctx.quadraticCurveTo(568, 200, 546, 344);
+                ctx.quadraticCurveTo(568, 120, 546, 202);
                 ctx.closePath(); ctx.fill();
                 ctx.fillStyle = '#2f6b2c';
                 ctx.beginPath();
-                ctx.moveTo(512, 344);
-                ctx.quadraticCurveTo(538, 200, 512, 0);
+                ctx.moveTo(512, 202);
+                ctx.quadraticCurveTo(538, 120, 512, 0);
                 ctx.lineTo(544, 0);
-                ctx.quadraticCurveTo(564, 200, 542, 344);
+                ctx.quadraticCurveTo(564, 120, 542, 202);
                 ctx.closePath(); ctx.fill();
                 ctx.fillStyle = '#47913c';
                 ctx.beginPath();
-                ctx.moveTo(514, 344);
-                ctx.quadraticCurveTo(538, 200, 514, 0);
+                ctx.moveTo(514, 202);
+                ctx.quadraticCurveTo(538, 120, 514, 0);
                 ctx.lineTo(524, 0);
-                ctx.quadraticCurveTo(548, 200, 526, 344);
+                ctx.quadraticCurveTo(548, 120, 526, 202);
                 ctx.closePath(); ctx.fill();
                 // Leaves and coiling tendrils
-                for (let i = 0; i < 12; i++) {
-                    const ly = 20 + i * 28;
+                for (let i = 0; i < 9; i++) {
+                    const ly = 14 + i * 21;
                     const lx = 512 + Math.sin(i * 0.8) * 22 + 16;
                     const side = i % 2 ? 1 : -1;
                     ctx.fillStyle = '#16240f';
                     ctx.beginPath();
-                    ctx.ellipse(lx + side * 26, ly, 26, 11, side * 0.3, 0, Math.PI * 2);
+                    ctx.ellipse(lx + side * 24, ly, 24, 10, side * 0.3, 0, Math.PI * 2);
                     ctx.fill();
                     ctx.fillStyle = i % 3 ? PAL.LEAF_BASE : PAL.LEAF_LIT;
                     ctx.beginPath();
-                    ctx.ellipse(lx + side * 26, ly - 1, 23, 9, side * 0.3, 0, Math.PI * 2);
+                    ctx.ellipse(lx + side * 24, ly - 1, 21, 8, side * 0.3, 0, Math.PI * 2);
                     ctx.fill();
                     ctx.fillStyle = PAL.LEAF_SHADOW;
-                    ctx.fillRect(lx + side * 12, ly - 1, side * 26, 1.4);
+                    ctx.fillRect(lx + side * 11, ly - 1, side * 24, 1.4);
                 }
                 ctx.fillStyle = '#e8eef2';
                 ctx.beginPath();
-                ctx.ellipse(528, 12, 70, 18, 0, 0, Math.PI * 2);
+                ctx.ellipse(528, 10, 66, 16, 0, 0, Math.PI * 2);
                 ctx.fill();
             }
 
@@ -1144,8 +1334,28 @@ CrownQuest.defineRooms((engine) => {
             eng.vignette(ctx, 0.3, '18,24,28');
         },
         hotspots: [
+            // The gorge is listed first on purpose: hotspots resolve last-to-first,
+            // so the bridge and Grumbold win any click inside the cut.
             {
-                name: 'Grumbold', x: 286, y: 250, w: 72, h: 76, walkToX: 262,
+                name: 'the gorge', x: 0, y: 206, w: 640, h: 124,
+                description: 'A long way down, and then a river with opinions about rocks.'
+            },
+            {
+                name: 'the bridge', x: 288, y: 204, w: 96, h: 150, walkToX: 332,
+                get description() { return engine.getFlag('troll_routed')
+                    ? 'Planks and rope over a very long drop. Without Grumbold it sags rather less. The way across is clear.'
+                    : 'Planks and rope over a very long drop. It sags in the middle, mostly under Grumbold.'; },
+                walk: (e) => {
+                    if (e.getFlag('troll_routed')) { e.runSequence(bridgeCrossing(e)); return; }
+                    e.die('You step onto the bridge. Grumbold picks you up by the back of your tunic with the air of a man doing a job he has done nine hundred times, and drops you into the gorge. The last thing you hear is the river, and it is not sympathetic.');
+                },
+                use: (e) => {
+                    if (e.getFlag('troll_routed')) { e.runSequence(bridgeCrossing(e)); return; }
+                    e.showMessage('There is a troll standing on it.');
+                }
+            },
+            {
+                name: 'Grumbold', x: 300, y: 258, w: 56, h: 56, walkToX: 332,
                 description: 'A troll the shape of a boulder that has learned to resent things. He is standing in the exact middle of the bridge, which is clearly the whole of his career.',
                 talk: (e) => e.startDialog('troll'),
                 get: (e) => e.showMessage('You would need a bigger everything.'),
@@ -1157,31 +1367,20 @@ CrownQuest.defineRooms((engine) => {
                 get hidden() { return engine.getFlag('troll_routed'); }
             },
             {
-                name: 'the bridge', x: 276, y: 286, w: 96, h: 60, walkToX: 262,
-                description: 'Planks and rope over a very long drop. It sags in the middle, mostly under Grumbold.',
-                walk: (e) => {
-                    if (e.getFlag('troll_routed')) { e.showMessage('The bridge is yours. It still sways more than you would like.'); return; }
-                    e.die('You step onto the bridge. Grumbold picks you up by the back of your tunic with the air of a man doing a job he has done nine hundred times, and drops you into the gorge. The last thing you hear is the river, and it is not sympathetic.');
-                },
-                use: (e) => {
-                    if (e.getFlag('troll_routed')) { e.showMessage('Nothing left to do here but cross it.'); return; }
-                    e.showMessage('There is a troll standing on it.');
-                }
-            },
-            {
-                name: 'the gorge', x: 0, y: 240, w: 640, h: 56,
-                description: 'A long way down, and then a river with opinions about rocks.'
-            },
-            {
-                name: 'the beanstalk', x: 496, y: 0, w: 76, h: 348, isExit: true, walkToX: 500,
+                name: 'the beanstalk', x: 496, y: 0, w: 76, h: 206, isExit: true, walkToX: 500, walkToY: 196,
                 description: 'A beanstalk as thick as a cottage, going up through the cloud layer and not coming back down.',
+                walk: (e) => e.runSequence([
+                    ...(e.playerY > 204 ? bridgeCrossing(e) : []),
+                    { walk: [500, 196] },
+                    (game) => game.goToRoom('cloud_realm', 90, 344)
+                ]),
                 onExit: (e) => e.goToRoom('cloud_realm', 90, 344),
                 get hidden() { return !engine.getFlag('troll_routed'); }
             },
             {
-                name: 'the track west', x: 0, y: 300, w: 40, h: 72, isExit: true, walkToX: 44,
+                name: 'the track west', x: 0, y: 300, w: 40, h: 72, isExit: true, walkToX: 44, walkToY: 354,
                 description: 'The track back into the wood.',
-                onExit: (e) => e.goToRoom('dark_wood', 580, 340)
+                onExit: (e) => e.goToRoom('dark_wood', 580, 354)
             }
         ]
     });
@@ -1208,17 +1407,34 @@ CrownQuest.defineRooms((engine) => {
             if (!e.getFlag('ring_worn')) return 'Put the ring on before you go a step further. Then take the shield.';
             return 'The beanstalk goes back down.';
         },
-        onEnter: (e) => {
+        onEnter: (e, { restoring = false } = {}) => {
             e.sound.startAmbient('wind');
             e.setDepthScaling(280, 372, 0.72, 1.06);
             e.setWalkableArea((px, py) => py > 290 && py < 372 && px > 40 && px < 600);
             // Wearing the ring is a per-visit state: it wears off when he leaves.
-            e.setFlag('ring_worn', false);
-            if (e.hasItem('ring_of_mist')) {
+            if (!restoring) e.setFlag('ring_worn', false);
+            if (!restoring && e.hasItem('ring_of_mist')) {
                 e.showMessage('The giant fills the hall. Fennow\'s ring is in your pocket and your pocket is not where it does any good.', { window: true });
             }
-            e.addForegroundLayer(348, (ctx, eng) => {
-                drawSleepingGiant(ctx, 356, 348, 1.1, eng.animTimer);
+            // Near column drawn after the giant so he tucks behind a pillar
+            e.addForegroundLayer(360, (ctx) => {
+                const px = 470, ph = 176;
+                ctx.fillStyle = '#2f3540';
+                ctx.fillRect(px - 22, 250 - ph, 44, ph);
+                ctx.fillStyle = '#79828f';
+                ctx.fillRect(px - 19, 250 - ph, 38, ph);
+                ctx.fillStyle = '#98a2b0';
+                ctx.fillRect(px - 19, 250 - ph, 12, ph);
+                ctx.fillStyle = '#4c5462';
+                ctx.fillRect(px + 8, 250 - ph, 11, ph);
+                ctx.fillStyle = '#5f6875';
+                for (let f = -14; f < 16; f += 7) ctx.fillRect(px + f, 250 - ph, 1.6, ph);
+                ctx.fillStyle = '#2f3540';
+                ctx.fillRect(px - 27, 250 - ph - 12, 54, 13);
+                ctx.fillRect(px - 26, 244, 52, 12);
+                ctx.fillStyle = '#98a2b0';
+                ctx.fillRect(px - 27, 250 - ph - 12, 54, 4);
+                ctx.fillRect(px - 26, 244, 52, 4);
             });
         },
         onUpdate: (e) => {
@@ -1275,9 +1491,19 @@ CrownQuest.defineRooms((engine) => {
             }
 
             // ---- The roofless hall ----
+            // Stone floor band the giant is actually lying on, not hovering over
+            ctx.fillStyle = '#2a3038';
+            ctx.fillRect(48, 238, 544, 28);
+            ctx.fillStyle = '#5c6472';
+            ctx.fillRect(52, 240, 536, 22);
+            stoneWall(ctx, 52, 240, 536, 22, 1919, '#8b95a4', '#6b7482', '#474f5c', '#353c47');
+            ctx.fillStyle = '#98a2b0';
+            ctx.fillRect(52, 240, 536, 3);
+            ctx.fillStyle = 'rgba(20,24,30,0.28)';
+            ctx.fillRect(52, 256, 536, 6);
+
             ctx.fillStyle = '#6b7482';
-            [70, 206, 470, 596].forEach((px, i) => {
-                const ph = 190 - Math.abs(i - 1.5) * 14;
+            [[70, 169], [206, 183], [596, 169]].forEach(([px, ph]) => {
                 ctx.fillStyle = '#2f3540';
                 ctx.fillRect(px - 22, 250 - ph, 44, ph);
                 ctx.fillStyle = '#79828f';
@@ -1303,7 +1529,7 @@ CrownQuest.defineRooms((engine) => {
             ctx.fillStyle = '#5c6472';
             ctx.fillRect(236, 100, 208, 142);
             stoneWall(ctx, 236, 100, 208, 142, 1818, '#8b95a4', '#6b7482', '#474f5c', '#353c47');
-            if (!eng.hasItem('shield_of_ardor')) {
+            if (!RULES.treasureTaken(eng, 'shield_of_ardor')) {
                 ctx.fillStyle = '#2b2f36';
                 ctx.fillRect(334, 128, 6, 14);
                 drawShieldOfArdor(ctx, 340, 168, 1.5, eng.animTimer);
@@ -1314,24 +1540,28 @@ CrownQuest.defineRooms((engine) => {
                 ctx.fillStyle = 'rgba(0,0,0,0.2)';
                 ctx.beginPath(); ctx.arc(340, 168, 27, 0, Math.PI * 2); ctx.fill();
             }
-            // A drinking horn and a mutton bone, giant-sized
+            // A drinking horn on the hall floor, not floating through the walkway
             ctx.fillStyle = '#1d1a14';
             ctx.beginPath();
-            ctx.moveTo(112, 300); ctx.quadraticCurveTo(180, 268, 208, 296);
-            ctx.quadraticCurveTo(176, 302, 112, 314);
+            ctx.moveTo(292, 248); ctx.quadraticCurveTo(318, 236, 338, 250);
+            ctx.quadraticCurveTo(318, 254, 292, 256);
             ctx.closePath(); ctx.fill();
             ctx.fillStyle = '#8a7a52';
             ctx.beginPath();
-            ctx.moveTo(116, 302); ctx.quadraticCurveTo(180, 272, 204, 296);
-            ctx.quadraticCurveTo(176, 300, 116, 311);
+            ctx.moveTo(294, 249); ctx.quadraticCurveTo(318, 238, 334, 250);
+            ctx.quadraticCurveTo(318, 252, 294, 254);
             ctx.closePath(); ctx.fill();
             ctx.fillStyle = '#b0a074';
             ctx.beginPath();
-            ctx.moveTo(116, 302); ctx.quadraticCurveTo(174, 276, 196, 293);
-            ctx.quadraticCurveTo(170, 294, 116, 306);
+            ctx.moveTo(294, 249); ctx.quadraticCurveTo(314, 240, 328, 249);
+            ctx.quadraticCurveTo(314, 250, 294, 252);
             ctx.closePath(); ctx.fill();
             ctx.fillStyle = PAL.GOLD_SHADOW;
-            ctx.fillRect(112, 296, 10, 20);
+            ctx.fillRect(290, 246, 6, 12);
+
+            // Giant asleep on the hall floor, tucked behind the near column
+            eng.drawContactShadow(ctx, 400, 266, 1, { rx: 96, ry: 8, alpha: 0.22 });
+            drawSleepingGiant(ctx, 400, 266, 0.88, eng.animTimer);
 
             // ---- The ring's effect, if worn ----
             if (eng.getFlag('ring_worn')) {
@@ -1347,7 +1577,7 @@ CrownQuest.defineRooms((engine) => {
         },
         hotspots: [
             {
-                name: 'the giant', x: 200, y: 240, w: 320, h: 110, walkToX: 200,
+                name: 'the giant', x: 300, y: 196, w: 230, h: 80, walkToX: 200,
                 description: 'A sleeping giant the length of a barn, in a leather apron, snoring in a slow way that moves the cloud.',
                 talk: (e) => e.showMessage('You say nothing at all, very carefully.'),
                 get: (e) => e.showMessage('No.'),
@@ -1365,17 +1595,18 @@ CrownQuest.defineRooms((engine) => {
                     e.showMessage('That does nothing for the shield, or for your chances.');
                 },
                 get: (e) => {
+                    if (RULES.treasureTaken(e, 'shield_of_ardor')) return;
                     if (!e.getFlag('ring_worn')) {
                         e.die('You cross the hall in the open. The giant\'s hand comes down on you like a shutter in a gale, and he never does wake up, which somehow makes it worse.');
                         return;
                     }
                     e.addToInventory('shield_of_ardor');
-                    e.addScore(25);
+                    RULES.award(e, 'shield_of_ardor');
                     e.sound.scoreUp();
                     e.updateInventoryUI();
                     e.showMessage('You lift the shield off its peg. It is warm, and it is far lighter than it has any business being, and the giant snores on through the whole business without ever knowing you were in the room.');
                 },
-                get hidden() { return engine.hasItem('shield_of_ardor'); }
+                get hidden() { return RULES.treasureTaken(engine, 'shield_of_ardor'); }
             },
             {
                 name: 'the ring of mist', x: 40, y: 250, w: 160, h: 120, walkToX: 110,
@@ -1405,7 +1636,7 @@ CrownQuest.defineRooms((engine) => {
             {
                 name: 'the beanstalk', x: 40, y: 300, w: 60, h: 72, isExit: true, walkToX: 76,
                 description: 'The top of the beanstalk, curling over the cloud edge. Going down is going to be worse than coming up.',
-                onExit: (e) => e.goToRoom('troll_bridge', 500, 344)
+                onExit: (e) => e.goToRoom('troll_bridge', 500, 196)
             }
         ]
     });
@@ -1584,7 +1815,7 @@ CrownQuest.defineRooms((engine) => {
             ctx.beginPath(); ctx.ellipse(532, 330, 14, 10, 0, Math.PI, 0); ctx.fill();
             ctx.fillStyle = PAL.SILVER_LIT;
             ctx.beginPath(); ctx.ellipse(528, 327, 6, 4, 0, Math.PI, 0); ctx.fill();
-            if (!eng.hasItem('mirror_of_ianthe')) {
+            if (!RULES.treasureTaken(eng, 'mirror_of_ianthe')) {
                 drawMirrorOfIanthe(ctx, 480, 314, 0.95, eng.animTimer);
                 if (doused) eng.lightPool(ctx, 480, 314, 74, '190,220,255', 0.2);
             }
@@ -1604,14 +1835,62 @@ CrownQuest.defineRooms((engine) => {
                 ctx.fill();
             };
             mouth(0, '#0a0d08');
-            mouth(6, '#2f4a28');
-            mouth(12, '#6f8a5c');
-            mouth(20, '#a8c48a');
+            mouth(5, '#1a2416');
+            // Seen from inside a dark cave, an opening is blown-out daylight, not
+            // a saturated green shape: pale and desaturated, with the only dark
+            // things being tree silhouettes against it.
+            ctx.save();
+            ctx.beginPath();
+            ctx.moveTo(570, 372);
+            ctx.lineTo(575, 308); ctx.lineTo(586, 276); ctx.lineTo(598, 260);
+            ctx.lineTo(612, 274); ctx.lineTo(621, 308); ctx.lineTo(624, 372);
+            ctx.closePath();
+            ctx.clip();
+            skyBands(ctx, 560, 254, 80, 60, ['#f4f8ee', '#e6eddc', '#d2e0bc']);
+            ctx.fillStyle = '#c2d3a6';
+            ctx.fillRect(560, 314, 80, 62);
+            blendSeam(ctx, 560, 316, 80, '#d2e0bc', '#c2d3a6');
+            // Trees outside, in silhouette against the glare
+            const outside = seededRandom(3141);
+            [578, 592, 609].forEach((tx, i) => {
+                ctx.fillStyle = 'rgba(26,36,20,0.82)';
+                ctx.fillRect(tx, 258, 3 + i, 118);
+                for (let k = 0; k < 5; k++) {
+                    const by = 268 + k * 17 + outside() * 8;
+                    const br = 7 + outside() * 8;
+                    ctx.beginPath();
+                    ctx.ellipse(tx + (k % 2 ? br * 0.5 : -br * 0.5), by, br, br * 0.5, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            });
+            ctx.fillStyle = 'rgba(22,30,16,0.7)';
+            ctx.fillRect(560, 352, 80, 24);
+            // Glare bloom at the centre of the opening
+            ctx.fillStyle = 'rgba(255,255,246,0.4)';
+            ctx.beginPath();
+            ctx.ellipse(598, 300, 26, 42, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+            // Ragged rock rim, thick and near-black, so the hole is cut in stone
+            const teeth = seededRandom(2718);
+            for (let i = 0; i < 11; i++) {
+                const t = i / 10;
+                const px = i % 2 ? 570 + t * 6 + teeth() * 4 : 626 - t * 8 - teeth() * 4;
+                const py = 264 + t * 104 + teeth() * 6;
+                const pr = 3 + teeth() * 5;
+                ctx.fillStyle = '#0a0d08';
+                ctx.beginPath();
+                ctx.moveTo(px, py - pr);
+                ctx.lineTo(px + (i % 2 ? pr * 1.8 : -pr * 1.8), py);
+                ctx.lineTo(px, py + pr);
+                ctx.closePath();
+                ctx.fill();
+            }
             // Daylight spilling back onto the cave floor
             lightShaft(ctx, 596, 268, 40, 574, 372, 92, 0.16, 'rgba(200,240,170,1)');
 
             if (doused) {
-                dustMotes(ctx, w, h, eng.animTimer, 24, 'rgba(215,225,235,0.22)');
+                dustMotes(ctx, 524, 252, 116, 120, eng.animTimer, 2424);
             }
 
             eng.vignette(ctx, doused ? 0.6 : 0.42, doused ? '6,6,12' : '40,8,4');
@@ -1642,7 +1921,7 @@ CrownQuest.defineRooms((engine) => {
                     if (e.getFlag('dragon_doused')) { e.showMessage('The fire is already out.'); return; }
                     e.setFlag('dragon_doused');
                     RULES.setPailWater(e, false);
-                    e.addScore(25);
+                    RULES.award(e, 'dragon_doused');
                     e.runSequence([
                         'You throw the whole pail from as far back as you can and still hit anything.',
                         (eng) => { eng.sound.splash(); eng.shake(7); },
@@ -1665,17 +1944,18 @@ CrownQuest.defineRooms((engine) => {
                 name: 'the Mirror of Ianthe', x: 456, y: 288, w: 50, h: 56, walkToX: 470,
                 description: 'A hand mirror in a gold frame, lying on a drift of coins as though it had been dropped there. The third treasure of Alderhaven.',
                 get: (e) => {
+                    if (RULES.treasureTaken(e, 'mirror_of_ianthe')) return;
                     if (!e.getFlag('dragon_doused')) {
                         e.die('You go for the mirror. You get four steps. The dragon does not even need to stand up.');
                         return;
                     }
                     e.addToInventory('mirror_of_ianthe');
-                    e.addScore(25);
+                    RULES.award(e, 'mirror_of_ianthe');
                     e.sound.scoreUp();
                     e.updateInventoryUI();
                     e.showMessage('You lift the mirror out of the coins. In the glass you see yourself a heartbeat later than you move, and behind your shoulder, for just that heartbeat, a tower the colour of old honey.');
                 },
-                get hidden() { return engine.hasItem('mirror_of_ianthe'); }
+                get hidden() { return RULES.treasureTaken(engine, 'mirror_of_ianthe'); }
             },
             {
                 name: 'the way out', x: 566, y: 222, w: 62, h: 150, isExit: true, walkToX: 578,

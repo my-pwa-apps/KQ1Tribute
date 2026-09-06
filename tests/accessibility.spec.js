@@ -43,9 +43,10 @@ test.describe('accessibility conformance', () => {
         test.skip(testInfo.project.name !== 'chromium');
         await startGame(page);
         await page.evaluate(() => {
-            window.engine.addToInventory('keycard');
-            window.engine.addToInventory('mop_handle');
+            window.engine.addToInventory('brass_key');
+            window.engine.addToInventory('pail');
         });
+        await expect(page.locator('#inventory-items button')).toHaveCount(2);
         const violations = await scan(page);
         expect(describeViolations(violations)).toBe('');
     });
