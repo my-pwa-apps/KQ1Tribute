@@ -1,9 +1,20 @@
 // Crown Quest: A Fantasy Adventure - Service Worker
 // BUMP VERSION on every code change to invalidate the cache.
-const VERSION = 'v1.3.1';
+const VERSION = 'v1.3.16';
 const CACHE_NAME = `crownquest-${VERSION}`;
 
 const ASSETS = [
+    './icons/title-trial.png',
+    './icons/intro-house-trial.png',
+    './icons/intro-morvane-trial.png',
+    './icons/intro-opendoor-trial.png',
+    './icons/crag-trial.png',
+    './icons/bread-trial.png',
+    './icons/pail-trial.png',
+    './icons/crock-trial.png',
+    './icons/candle-trial.png',
+    './icons/ledger-trial.png',
+    './icons/spellbook-trial.png',
     './',
     './index.html',
     './manifest.json',
@@ -25,6 +36,10 @@ const ASSETS = [
     './js/content.js',
     './js/register-sw.js',
     './icons/crown-192.svg',
+    './icons/scullery-trial.png',
+    './icons/study-trial.png',
+    './icons/hidden-room-trial.png',
+    './icons/rowan-atlas-trial.png',
     './icons/crown-512.svg',
     './icons/crown-maskable-512.svg',
     './fonts/vt323-latin-400-normal.woff2'

@@ -13,6 +13,37 @@
 // the ratio in one constant is what stops NPCs drifting out of scale with Rowan.
 const VGA_PERSON_TO_EGO = 37.8 / 35.4;
 
+function createRowanSpriteTrial() {
+    const atlas = new Image();
+    let ready = false;
+    const draw = (ctx, engineRef) => {
+        if (!ready) return false;
+        const scale = engineRef.playerSpriteScale(Math.round(engineRef.playerY));
+        const ratio = 37.8 * scale * 1.5 / 100;
+        const walking = engineRef.playerWalking;
+        const left = engineRef.playerFacing === 'left';
+        const phase = (engineRef.playerFrame + Math.min(engineRef.playerFrameTimer / 110, 0.999)) / 6;
+        const frame = walking ? Math.floor(phase * 8) % 8
+            : engineRef.playerFacing === 'toward' ? 0
+                : engineRef.playerFacing === 'away' ? 2 : left ? 3 : 1;
+        const row = !walking ? 0 : engineRef.playerFacing === 'toward' ? 3
+            : engineRef.playerFacing === 'away' ? 4 : left ? 2 : 1;
+        ctx.save();
+        ctx.imageSmoothingEnabled = false;
+        ctx.translate(Math.round(engineRef.playerX), Math.round(engineRef.playerY) + 12 * scale);
+        ctx.drawImage(atlas, frame * 96, row * 128, 96, 128,
+            -48 * ratio, -116 * ratio, 96 * ratio, 128 * ratio);
+        ctx.restore();
+        return true;
+    };
+    draw.ready = new Promise(resolve => {
+        atlas.onload = () => { ready = true; resolve(true); };
+        atlas.onerror = () => resolve(false);
+        atlas.src = 'icons/rowan-atlas-trial.png';
+    });
+    return draw;
+}
+
 /** Sprite scale that puts a drawVgaPerson figure at the same on-screen height
  *  as the ego standing on the same ground line. `heightFactor` adjusts for
  *  characters who are genuinely shorter or taller (a gnome, a giant). */

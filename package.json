@@ -9,7 +9,7 @@
         "check:sw": "node tools/check_sw_version.js",
         "check:static": "npm run lint && node -c js/engine.js && node -c js/palette.js && node -c js/content.js && node -c js/registry.js && node -c js/art.js && node -c js/actors.js && node -c js/icons.js && node -c js/cutscenes.js && node -c js/game.js && node -c js/rooms/act1.js && node -c js/rooms/act2.js && node -c js/rooms/act3.js && node -c js/sound.js && node -c js/register-sw.js && node -c serviceworker.js && node -c tools/serve.js && node tools/validate_content.js && node tools/find_dead_art.js",
         "test:e2e": "playwright test",
-        "test:functional": "playwright test tests/game.spec.js tests/full-game.spec.js tests/player-journey.spec.js tests/architecture.spec.js tests/accessibility.spec.js tests/draw-integrity.spec.js tests/navigation.spec.js tests/state-regressions.spec.js tests/reliability.spec.js tests/touch.spec.js tests/audio.spec.js",
+        "test:functional": "playwright test tests/game.spec.js tests/full-game.spec.js tests/player-journey.spec.js tests/architecture.spec.js tests/accessibility.spec.js tests/draw-integrity.spec.js tests/navigation.spec.js tests/state-regressions.spec.js tests/reliability.spec.js tests/touch.spec.js tests/audio.spec.js tests/painted-scenery.spec.js tests/painted-actors.spec.js tests/painted-props.spec.js tests/prop-collision.spec.js tests/painted-story.spec.js",
         "test:perf": "playwright test tests/performance.spec.js --project=chromium",
         "test:visual": "playwright test tests/visual.spec.js",
         "test:visual:update": "playwright test tests/visual.spec.js --update-snapshots",

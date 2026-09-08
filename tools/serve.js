@@ -25,7 +25,7 @@ const mimeTypes = {
     '.woff2': 'font/woff2'
 };
 
-http.createServer((request, response) => {
+const server = http.createServer((request, response) => {
     let requestUrl;
     let pathname;
     try {
@@ -37,6 +37,10 @@ http.createServer((request, response) => {
         return;
     }
     const relativePath = pathname === '/' ? 'index.html' : pathname.replace(/^\/+/, '');
+    if (relativePath.split(/[\\/]/).some(segment => segment.startsWith('.'))) {
+        response.writeHead(403).end('Forbidden');
+        return;
+    }
     const filePath = path.resolve(root, relativePath);
     if (!filePath.startsWith(root + path.sep)) {
         response.writeHead(403).end('Forbidden');
@@ -47,6 +51,10 @@ http.createServer((request, response) => {
         // check and a link inside the repo can still point outside it.
         if (realError || !(realPath === root || realPath.startsWith(root + path.sep))) {
             response.writeHead(realError && realError.code === 'ENOENT' ? 404 : 403).end('Not found');
+            return;
+        }
+        if (path.relative(root, realPath).split(path.sep).some(segment => segment.startsWith('.'))) {
+            response.writeHead(403).end('Forbidden');
             return;
         }
         fs.readFile(realPath, (error, data) => {
@@ -66,5 +74,5 @@ http.createServer((request, response) => {
     if (delay) setTimeout(sendFile, delay);
     else sendFile();
 }).listen(port, '127.0.0.1', () => {
-    console.log(`Crown Quest development server: http://127.0.0.1:${port}`);
+    console.log(`Crown Quest development server: http://127.0.0.1:${server.address().port}`);
 });

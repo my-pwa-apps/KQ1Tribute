@@ -10,3 +10,8 @@ playwright-report/
 test-results/
 *.tmp
 *.bak
+.env
+.env.*
+.dev.vars
+.dev.vars.*
+art-drafts/

@@ -9,6 +9,36 @@
 
 /* eslint-disable no-unused-vars -- consumed by js/game.js and the room modules */
 
+const PAINTED_STORY_IMAGES = Object.create(null);
+if (new URLSearchParams(window.location.search).get('scenery') === 'painted') {
+    for (const [id, file] of Object.entries({
+        title: 'title-trial.png', house: 'intro-house-trial.png', morvane: 'intro-morvane-trial.png',
+        opendoor: 'intro-opendoor-trial.png'
+    })) {
+        const image = new Image();
+        image.onload = () => {
+            const raster = document.createElement('canvas');
+            raster.width = 320;
+            raster.height = 200;
+            const ctx = raster.getContext('2d');
+            ctx.imageSmoothingEnabled = false;
+            ctx.drawImage(image, 0, 0, raster.width, raster.height);
+            PAINTED_STORY_IMAGES[id] = raster;
+        };
+        image.src = `icons/${file}`;
+    }
+}
+
+function drawPaintedStoryFrame(ctx, id, w, h) {
+    const image = PAINTED_STORY_IMAGES[id];
+    if (!image) return false;
+    ctx.save();
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(image, 0, 0, w, h);
+    ctx.restore();
+    return true;
+}
+
 /** Letterboxed caption bar used by every cutscene, so they all read as one film. */
 function cutsceneCaption(ctx, w, h, text, alpha) {
     if (!text) return;
@@ -39,6 +69,7 @@ function beat(progress, from, to) {
 
 /** Alderhaven at dusk, seen from the water: the whole game in one frame. */
 function drawTitleBackdrop(ctx, w, h, eng, t) {
+    if (drawPaintedStoryFrame(ctx, 'title', w, h)) return;
     skyBands(ctx, 0, 0, w, 210, ['#141a3c', '#2f2a5e', '#6a3f6a', '#b8635a', '#e09a5e']);
     starField(ctx, w, 110, 1717, 70, 1);
     // Moon, banded rather than gradient-shaded
@@ -728,8 +759,10 @@ function cutsceneOpening(ctx, w, h, progress, elapsed) {
     ctx.fillRect(0, 0, w, h);
     const phase = Math.min(3, Math.floor(progress * 4));
     const local = (progress * 4) % 1;
+    const panel = ['house', null, 'morvane', 'opendoor'][phase];
+    const painted = panel && drawPaintedStoryFrame(ctx, panel, w, h);
 
-    if (phase === 0) {
+    if (phase === 0 && !painted) {
         // The crag from the sea, at night, with one lit window
         skyBands(ctx, 0, 0, w, 258, ['#080a1a', '#12183a', '#1e2a52', '#2f3f68']);
         starField(ctx, w, 150, 909, 90, 1);
@@ -832,7 +865,7 @@ function cutsceneOpening(ctx, w, h, progress, elapsed) {
         }
         if (window.engine) drawScrubbingRowan(ctx, window.engine, bx, elapsed);
         window.engine && window.engine.vignette(ctx, 0.6, '6,5,10');
-    } else if (phase === 2) {
+    } else if (phase === 2 && !painted) {
         // Morvane's silhouette in a doorway, seen from the floor
         ctx.fillStyle = '#141018';
         ctx.fillRect(0, 0, w, h);
@@ -858,7 +891,7 @@ function cutsceneOpening(ctx, w, h, progress, elapsed) {
             farArm: { side: -1, up: -0.15, lo: 0.3 }
         }));
         ctx.restore();
-    } else {
+    } else if (phase === 3 && !painted) {
         // Eleven years later: the same floor, bigger hands, and the door closing
         ctx.fillStyle = '#1a1610';
         ctx.fillRect(0, 0, w, h);

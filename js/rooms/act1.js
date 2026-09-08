@@ -16,6 +16,194 @@ CrownQuest.defineRooms((engine) => {
     const RACK_F = [0.3, 0.46];
     const DESK_TOP = 262;
 
+    let paintedScullery = false;
+    const sculleryImage = new Image();
+    let paintedStudy = false;
+    const studyImage = new Image();
+    let paintedHiddenRoom = false;
+    const hiddenRoomImage = new Image();
+    let paintedCrag = false;
+    const cragImage = new Image();
+    function drawCragBoulder(ctx, e) {
+        ctx.drawImage(e.staticLayer('crag_path|painted-boulder', (mask) => {
+            mask.beginPath();
+            const points = [[380, 280], [388, 229], [407, 192], [442, 182], [479, 190],
+                [516, 208], [551, 218], [583, 228], [606, 264], [614, 300],
+                [581, 314], [521, 320], [491, 326], [441, 326], [409, 312], [372, 302]];
+            mask.moveTo(...points[0]);
+            for (const point of points.slice(1)) mask.lineTo(...point);
+            mask.closePath();
+            mask.clip();
+            mask.imageSmoothingEnabled = false;
+            mask.drawImage(cragImage, 0, 0, 640, 400);
+        }), 0, 0);
+    }
+    function configurePaintedCrag(e) {
+        e.clearBarriers();
+        e.setWalkableArea((px, py) => py > 164 && py < 372 && px > 24 && px < 616 &&
+            (py >= 258 || px < 170 + Math.max(0, py - 170) * 1.5), 165);
+        e.setDepthScaling(165, 372, 0.48, 1.1);
+        e.addBarrier(390, 238, 222, 70);
+        e.addForegroundLayer(304, drawCragBoulder);
+        const layout = {
+            'the boulder': { x: 382, y: 182, w: 232, h: 144, walkToX: 366, walkToY: 292 },
+            'the house': { x: 12, y: 10, w: 171, h: 156, walkToX: 135, walkToY: 178 },
+            'the sea': { x: 285, y: 140, w: 96, h: 110 },
+            'the distant castle': { x: 515, y: 78, w: 70, h: 34 },
+            'the skiff': { x: 550, y: 326, w: 80, h: 46, walkToX: 590, walkToY: 346 },
+            'the gorse': { x: 20, y: 274, w: 74, h: 64 },
+            'the path back to the house': { x: 42, y: 172, w: 112, h: 78, walkToX: 135, walkToY: 178 }
+        };
+        for (const hotspot of e.rooms.crag_path.hotspots) {
+            if (Object.hasOwn(layout, hotspot.name)) Object.assign(hotspot, layout[hotspot.name]);
+        }
+    }
+    function drawPaintedCragEncounter(ctx, w, h, progress, elapsed) {
+        ctx.drawImage(cragImage, 0, 0, w, h);
+        const approach = Math.max(0, Math.min(1, (progress - 0.04) / 0.48));
+        const climb = Math.max(0, Math.min(1, (progress - 0.52) / 0.38));
+        const groundX = 620 - approach * 300 - climb * 185;
+        const groundY = 346 - climb * 168;
+        if (progress < 0.92) {
+            const scale = vgaPersonScale(engine, groundY, 1.5);
+            const stride = Math.sin(elapsed / 260) * 0.3;
+            engine.drawContactShadow(ctx, groundX, groundY, scale);
+            drawVgaPerson(ctx, groundX, groundY, scale, Object.assign({}, CAST_MORVANE, {
+                animTimer: elapsed,
+                nearArm: { side: 1, up: 0.4 + stride, lo: 0.2 },
+                farArm: { side: -1, up: -0.3 - stride, lo: 0.3 }
+            }));
+            if (groundY < 304) drawCragBoulder(ctx, engine);
+        }
+        engine.applyClassicSceneRaster(ctx);
+        cutsceneCaption(ctx, w, h, progress < 0.3
+            ? 'Something is coming up the path.'
+            : progress < 0.62
+                ? 'Morvane climbs past, close enough to touch, and does not look aside once.'
+                : 'The door of the house opens, and closes, and you can breathe again.', 1);
+    }
+    function configureSculleryPail(e) {
+        e.addBarrier(236, 276, 28, 30, eng => !eng.hasItem('pail'));
+        e.addForegroundLayer(286, (ctx, eng) => {
+            if (eng.hasItem('pail')) return;
+            const groundY = 306, scale = 1.55;
+            eng.drawContactShadow(ctx, 250, groundY, 1, { rx: 26, ry: 6, alpha: 0.34 });
+            ctx.save();
+            ctx.translate(250, groundY - 17 * scale);
+            ctx.scale(scale, scale);
+            ITEM_ART.pail(ctx, 0, 0, eng.animTimer);
+            ctx.restore();
+        });
+    }
+    function configurePaintedHiddenRoom(e) {
+        e.clearBarriers();
+        e.addBarrier(58, 286, 128, 42);
+        e.addBarrier(462, 240, 92, 62);
+        const layout = {
+            'the alcove': { x: 256, y: 88, w: 128, h: 144 },
+            'the shelves': { x: 20, y: 50, w: 152, h: 128 },
+            'the lectern': { x: 462, y: 171, w: 96, h: 132, walkToX: 442, walkToY: 330 },
+            'the stair up': { x: 560, y: 34, w: 74, h: 270, walkToX: 584, walkToY: 330 }
+        };
+        for (const hotspot of e.rooms.spell_room.hotspots) {
+            if (Object.hasOwn(layout, hotspot.name)) Object.assign(hotspot, layout[hotspot.name]);
+        }
+    }
+    function configurePaintedStudy(e) {
+        e.clearBarriers();
+        e.addBarrier(232, 238, 236, 76);
+        e.addBarrier(142, 276, 40, 38);
+        e.addBarrier(0, 280, 74, 76);
+        e.addSurface('desk', 256, 440, 228);
+        const layout = {
+            'the bookcase': { x: 282, y: 50, w: 200, h: 200 },
+            'the desk': { x: 232, y: 208, w: 236, h: 104 },
+            'the ledger': { x: 280, y: 212, w: 66, h: 20 },
+            'the hourglass': { x: 380, y: 184, w: 34, h: 48 },
+            'the candle': { x: 258, y: 194, w: 22, h: 36 },
+            'the tapestry': { x: 46, y: 80, w: 72, h: 192, walkToX: 118 },
+            'the hidden stair': { x: 50, y: 90, w: 48, h: 176, walkToX: 118, walkToY: 318 },
+            'Corvus': { x: 134, y: 176, w: 60, h: 56, walkToX: 202 },
+            'the feather': { x: 178, y: 200, w: 24, h: 26, walkToX: 202 },
+            'the front door': { x: 550, y: 44, w: 64, h: 248, walkToX: 560, walkToY: 326 },
+            'the stair down': { x: 0, y: 304, w: 74, h: 86, walkToX: 84, walkToY: 346 }
+        };
+        for (const hotspot of e.rooms.study.hotspots) {
+            if (Object.hasOwn(layout, hotspot.name)) Object.assign(hotspot, layout[hotspot.name]);
+        }
+    }
+    function configurePaintedScullery(e) {
+        e.clearForegroundLayers();
+        e.clearBarriers();
+        e.setWalkableArea((px, py) => py > 236 && py < 372 && px > 34 && px < 596, 237);
+        e.setDepthScaling(236, 372, 0.72, 1.12);
+        e.addBarrier(0, 278, 214, 52);
+        configureSculleryPail(e);
+        e.addForegroundLayer(330, (ctx, eng) => {
+            ctx.drawImage(eng.staticLayer('scullery|painted-table', (tableCtx) => {
+                const surfaces = [
+                    [[14, 254], [100, 220], [212, 220], [212, 236], [174, 270], [14, 270]],
+                    [[26, 268], [50, 268], [50, 320], [42, 324], [26, 324]],
+                    [[148, 268], [174, 268], [174, 324], [168, 328], [148, 328]],
+                    [[196, 248], [208, 240], [208, 292], [196, 296]],
+                    [[86, 270], [94, 270], [94, 294], [86, 294]],
+                    [[48, 294], [80, 276], [86, 280], [50, 304]],
+                    [[94, 278], [150, 278], [150, 288], [94, 288]],
+                    [[172, 296], [196, 278], [196, 288], [172, 308]]
+                ];
+                tableCtx.save();
+                tableCtx.beginPath();
+                for (const points of surfaces) {
+                    tableCtx.moveTo(...points[0]);
+                    for (const point of points.slice(1)) tableCtx.lineTo(...point);
+                    tableCtx.closePath();
+                }
+                tableCtx.clip();
+                tableCtx.imageSmoothingEnabled = false;
+                tableCtx.drawImage(sculleryImage, 0, 0, 640, 400);
+                tableCtx.translate(-12, -31);
+                eng.lightPool(tableCtx, 322, 240, 210, '255,150,60', 0.20);
+                tableCtx.restore();
+            }), 0, 0);
+        });
+        e.addSurface('larder_upper', 22, 160, () => 74);
+        e.addSurface('larder_lower', 22, 160, () => 149);
+        const layout = {
+            'the hearth': { x: 224, y: 126, w: 174, h: 105, walkToX: 320, walkToY: 258 },
+            'the pot': { x: 286, y: 177, w: 48, h: 36, walkToX: 320, walkToY: 258 },
+            'the crock of salt': { x: 30, y: 44, w: 42, h: 34, walkToX: 230, walkToY: 340 },
+            'the black bread': { x: 40, y: 128, w: 42, h: 25, walkToX: 230, walkToY: 340 },
+            'the copper pans': { x: 540, y: 86, w: 84, h: 73 },
+            'the scrubbing table': { x: 10, y: 218, w: 204, h: 112 },
+            'the stair up': { x: 408, y: 56, w: 85, h: 171, walkToX: 450, walkToY: 250 }
+        };
+        for (const hotspot of e.rooms.scullery.hotspots) {
+            if (Object.hasOwn(layout, hotspot.name)) Object.assign(hotspot, layout[hotspot.name]);
+        }
+    }
+    if (new URLSearchParams(window.location.search).get('scenery') === 'painted') {
+        sculleryImage.onload = () => {
+            paintedScullery = true;
+            if (engine.currentRoomId === 'scullery') configurePaintedScullery(engine);
+        };
+        sculleryImage.src = 'icons/scullery-trial.png';
+        studyImage.onload = () => {
+            paintedStudy = true;
+            if (engine.currentRoomId === 'study') configurePaintedStudy(engine);
+        };
+        studyImage.src = 'icons/study-trial.png';
+        hiddenRoomImage.onload = () => {
+            paintedHiddenRoom = true;
+            if (engine.currentRoomId === 'spell_room') configurePaintedHiddenRoom(engine);
+        };
+        hiddenRoomImage.src = 'icons/hidden-room-trial.png';
+        cragImage.onload = () => {
+            paintedCrag = true;
+            if (engine.currentRoomId === 'crag_path') configurePaintedCrag(engine);
+        };
+        cragImage.src = 'icons/crag-trial.png';
+    }
+
     function featherCollected(e) {
         return e.getFlag('feather_taken') || e.getFlag('circle_feather') || e.hasItem('raven_feather');
     }
@@ -181,8 +369,17 @@ CrownQuest.defineRooms((engine) => {
                 ctx.fillRect(28, 372, 16, 24);
                 ctx.fillRect(184, 372, 16, 24);
             });
+            if (paintedScullery) configurePaintedScullery(e);
+            else configureSculleryPail(e);
         },
         draw: (ctx, w, h, eng) => {
+            if (paintedScullery) {
+                ctx.save();
+                ctx.imageSmoothingEnabled = false;
+                ctx.drawImage(sculleryImage, 0, 0, w, h);
+                ctx.restore();
+            }
+            if (!paintedScullery) {
             // Shell, walls, floor and beams are fixed geometry and seeded
             // texture: paint them once, then blit. The fire below is animated
             // and stays outside the cached layer.
@@ -214,6 +411,9 @@ CrownQuest.defineRooms((engine) => {
             ctx.closePath();
             ctx.fill();
             // Embers and the pot on its chain
+            }
+            ctx.save();
+            if (paintedScullery) ctx.translate(-12, -31);
             const glow = 0.5 + Math.sin(eng.animTimer / 620) * 0.2;
             ctx.fillStyle = `rgba(226,110,40,${glow * 0.5})`;
             ctx.beginPath();
@@ -251,13 +451,14 @@ CrownQuest.defineRooms((engine) => {
             ctx.ellipse(316, 220, 8, 4, 0, 0, Math.PI * 2);
             ctx.fill();
             eng.lightPool(ctx, 322, 240, 210, '255,150,60', 0.20);
+            ctx.restore();
 
             // ---- Larder shelves on the left wall, in perspective ----
             // The planks and everything standing on them come off SHELF_F, which
             // onEnter also registered as the 'larder_*' surfaces.
             const shelfTop = (x, tier) => eng.standOn(tier ? 'larder_lower' : 'larder_upper', x);
             const shelfTone = (fill) => { ctx.fillStyle = fill; ctx.fill(); };
-            SHELF_F.forEach((f, i) => {
+            if (!paintedScullery) SHELF_F.forEach((f, i) => {
                 F.trap(ctx, 22, 138, f, f + 0.055, F.lBand);
                 shelfTone(i ? PAL.WOOD_SHADOW : PAL.WOOD_BASE);
                 F.trap(ctx, 22, 138, f, f + 0.018, F.lBand);
@@ -270,8 +471,8 @@ CrownQuest.defineRooms((engine) => {
             /** Ellipse of contact shadow on a shelf, tilted to follow the plank's
              *  slope. Measure at the object's OWN x, on the wall it stands on. */
             const shelfShadow = (cx, band, f, rx) => {
-                const y = band(cx, f);
-                const slope = Math.atan2(band(cx + 20, f) - band(cx - 20, f), 40);
+                const y = paintedScullery ? shelfTop(cx, f === SHELF_F[1] ? 1 : 0) : band(cx, f);
+                const slope = paintedScullery ? 0 : Math.atan2(band(cx + 20, f) - band(cx - 20, f), 40);
                 ctx.save();
                 ctx.translate(cx, y);
                 ctx.rotate(slope);
@@ -286,6 +487,8 @@ CrownQuest.defineRooms((engine) => {
             {
                 const cx = 51, base = shelfTop(cx, 0);
                 shelfShadow(cx, F.lBand, SHELF_F[0], 13);
+                const paintedCrock = drawPaintedItem(ctx, 'crock', cx, base, 28, 28);
+                if (!paintedCrock) {
                 ctx.fillStyle = '#0f0c08';
                 ctx.fillRect(cx - 11, base - 21, 22, 21);
                 ctx.fillStyle = '#6a5a48';
@@ -294,13 +497,18 @@ CrownQuest.defineRooms((engine) => {
                 ctx.fillRect(cx - 9, base - 19, 6, 19);
                 ctx.fillStyle = '#c9bfa4';
                 ctx.fillRect(cx - 11, base - 24, 22, 4);
+                }
                 if (!eng.hasItem('sea_salt')) {
                     ctx.fillStyle = '#e8e0cc';
-                    ctx.fillRect(cx - 5, base - 27, 10, 4);
+                    if (paintedCrock) {
+                        ctx.beginPath();
+                        ctx.ellipse(cx, base - 25, 4.5, 1.5, 0, 0, Math.PI * 2);
+                        ctx.fill();
+                    } else ctx.fillRect(cx - 5, base - 27, 10, 4);
                 }
             }
             // Fat jar, upper shelf
-            {
+            if (!paintedScullery) {
                 const cx = 91, base = shelfTop(cx, 0);
                 shelfShadow(cx, F.lBand, SHELF_F[0], 15);
                 ctx.fillStyle = '#0f0c08';
@@ -312,8 +520,9 @@ CrownQuest.defineRooms((engine) => {
             }
             // The black bread, lower shelf
             if (!eng.hasItem('bread')) {
-                const cx = 112, base = shelfTop(cx, 1);
+                const cx = paintedScullery ? 60 : 112, base = shelfTop(cx, 1);
                 shelfShadow(cx, F.lBand, SHELF_F[1], 15);
+                if (!drawPaintedItem(ctx, 'bread', cx, base, 36, 18)) {
                 ctx.fillStyle = '#2a1a0c';
                 ctx.beginPath();
                 ctx.ellipse(cx, base - 8, 15, 8, -0.1, 0, Math.PI * 2);
@@ -326,8 +535,10 @@ CrownQuest.defineRooms((engine) => {
                 ctx.beginPath();
                 ctx.ellipse(cx - 3, base - 11, 8, 3, -0.1, 0, Math.PI * 2);
                 ctx.fill();
+                }
             }
             // Onion rope hanging from a ceiling hook
+            if (!paintedScullery) {
             ctx.strokeStyle = '#7a6a44';
             ctx.lineWidth = 2;
             ctx.beginPath();
@@ -372,22 +583,9 @@ CrownQuest.defineRooms((engine) => {
                 ctx.ellipse(px - 3, base - ry - 4, 5 - i, 3.4 - i * 0.5, 0, 0, Math.PI * 2);
                 ctx.fill();
             });
-            // The pail, stood on the hearthstone where he left it. Drawn from the
-            // shared inventory art so it is unmistakably the same object, and on
-            // the floor rather than far up a side wall where it read as a smudge.
-            if (!eng.hasItem('pail')) {
-                // ITEM_ART.pail is drawn about its middle: its base is 17 units
-                // below the origin, so the origin lifts off the ground line.
-                const groundY = 306, s = 1.55;
-                eng.drawContactShadow(ctx, 250, groundY, 1, { rx: 26, ry: 6, alpha: 0.34 });
-                ctx.save();
-                ctx.translate(250, groundY - 17 * s);
-                ctx.scale(s, s);
-                ITEM_ART.pail(ctx, 0, 0, eng.animTimer);
-                ctx.restore();
             }
-
             // ---- The great scrubbing table, near left ----
+            if (!paintedScullery) {
             ctx.fillStyle = '#0d0a06';
             ctx.fillRect(48, 286, 184, 12);
             woodPlanks(ctx, 52, 288, 176, 10, false, 77);
@@ -466,6 +664,7 @@ CrownQuest.defineRooms((engine) => {
             lightShaft(ctx, 210, 40, 30, 268, 330, 84, 0.13);
             dustMotes(ctx, 190, 40, 120, 290, eng.animTimer, 991);
             eng.vignette(ctx, 0.44, '10,7,4');
+            }
         },
         hotspots: [
             {
@@ -564,6 +763,8 @@ CrownQuest.defineRooms((engine) => {
 
             // Corvus perches at the ego's depth so Rowan can pass behind him.
             e.addForegroundLayer(300, (ctx, eng) => {
+                ctx.save();
+                if (paintedStudy) ctx.translate(60, 0);
                 ctx.fillStyle = '#0d0a06';
                 ctx.fillRect(96, 214, 12, 96);
                 ctx.fillStyle = PAL.WOOD_SHADOW;
@@ -586,9 +787,17 @@ CrownQuest.defineRooms((engine) => {
                     ctx.restore();
                 }
                 drawRaven(ctx, 102, 210, 1.5, false, eng.animTimer);
+                ctx.restore();
             });
+            if (paintedStudy) configurePaintedStudy(e);
         },
         draw: (ctx, w, h, eng) => {
+            if (paintedStudy) {
+                ctx.save();
+                ctx.imageSmoothingEnabled = false;
+                ctx.drawImage(studyImage, 0, 0, w, h);
+                ctx.restore();
+            } else {
             ctx.drawImage(eng.staticLayer('study|shell', (ctx, w, h) => {
                 interiorShell(ctx, w, h, F, Object.assign({}, HOUSE_TONE, {
                     ceiling: '#120e14', leftWall: '#3a3340', rightWall: '#2f2936',
@@ -635,13 +844,22 @@ CrownQuest.defineRooms((engine) => {
                     bx += bw2 + 1;
                 }
             }
+            }
 
             // ---- The tapestry on the left wall ----
             const tf1 = 0.1, tf2 = 0.74;
-            F.trap(ctx, 20, 132, tf1 - 0.03, tf2 + 0.02, F.lBand);
+            const tapestryBand = paintedStudy
+                ? (x, fraction) => 85 + 0.13 * (x - 20) + (fraction - tf1) / (tf2 - tf1) * (185 - 0.2 * (x - 20))
+                : F.lBand;
+            ctx.save();
+            if (paintedStudy) { ctx.translate(36, 0); ctx.scale(0.6, 1); }
+            if (!paintedStudy || !eng.getFlag('stair_revealed')) {
+            F.trap(ctx, 20, 132, tf1 - 0.03, tf2 + 0.02, tapestryBand);
             ctx.fillStyle = '#100a14'; ctx.fill();
+            }
             if (eng.getFlag('stair_revealed')) {
                 // Hauled aside: the doorway behind it, and the tapestry bunched.
+                if (!paintedStudy) {
                 F.trap(ctx, 20, 92, tf1, tf2, F.lBand);
                 ctx.fillStyle = '#07060a'; ctx.fill();
                 F.trap(ctx, 28, 86, tf1 + 0.06, tf2 - 0.04, F.lBand);
@@ -650,17 +868,18 @@ CrownQuest.defineRooms((engine) => {
                     F.trap(ctx, 30 + i * 14, 40 + i * 14, tf1 + 0.08 + i * 0.02, tf2 - 0.06, F.lBand);
                     ctx.fillStyle = i % 2 ? '#241426' : '#170e1a'; ctx.fill();
                 }
-                F.trap(ctx, 92, 132, tf1, tf2, F.lBand);
+                }
+                F.trap(ctx, 92, 132, tf1, tf2, tapestryBand);
                 ctx.fillStyle = '#4a2038'; ctx.fill();
-                F.trap(ctx, 92, 108, tf1, tf2, F.lBand);
+                F.trap(ctx, 92, 108, tf1, tf2, tapestryBand);
                 ctx.fillStyle = '#63304c'; ctx.fill();
             } else {
-                F.trap(ctx, 20, 132, tf1, tf2, F.lBand);
+                F.trap(ctx, 20, 132, tf1, tf2, tapestryBand);
                 ctx.fillStyle = '#4a2038'; ctx.fill();
                 // Woven scene: a stag, a tower, a moon — all in three tones.
                 drawPerspectiveSurface(ctx, 120, 110, {
-                    tl: { x: 20, y: F.lBand(20, tf1) }, tr: { x: 132, y: F.lBand(132, tf1) },
-                    bl: { x: 20, y: F.lBand(20, tf2) }, br: { x: 132, y: F.lBand(132, tf2) }
+                    tl: { x: 20, y: tapestryBand(20, tf1) }, tr: { x: 132, y: tapestryBand(132, tf1) },
+                    bl: { x: 20, y: tapestryBand(20, tf2) }, br: { x: 132, y: tapestryBand(132, tf2) }
                 }, (s) => {
                     s.fillStyle = '#4a2038'; s.fillRect(0, 0, 120, 110);
                     s.fillStyle = '#33162a'; s.fillRect(0, 0, 120, 110);
@@ -684,8 +903,10 @@ CrownQuest.defineRooms((engine) => {
                     s.fillRect(0, 0, 120, 4); s.fillRect(0, 106, 120, 4);
                 });
             }
+            ctx.restore();
 
             // ---- The desk, near right, with the hourglass ----
+            if (!paintedStudy) {
             ctx.fillStyle = '#0d0a06';
             ctx.fillRect(232, DESK_TOP, 184, 14);
             woodPlanks(ctx, 236, DESK_TOP + 2, 176, 11, false, 909);
@@ -698,7 +919,16 @@ CrownQuest.defineRooms((engine) => {
             ctx.fillStyle = PAL.WOOD_BASE;
             ctx.fillRect(248, 276, 4, 46);
             ctx.fillRect(390, 276, 4, 46);
+            }
             // Open ledger, quill and inkpot
+            ctx.save();
+            if (paintedStudy) ctx.translate(24, -34);
+            ctx.save();
+            ctx.translate(0, 264);
+            ctx.scale(1, 0.55);
+            const paintedLedger = drawPaintedItem(ctx, 'ledger', 289, 0, 64, 30);
+            ctx.restore();
+            if (!paintedLedger) {
             ctx.fillStyle = '#0f0d08';
             ctx.fillRect(258, 250, 62, 14);
             ctx.fillStyle = '#cfc3a2';
@@ -709,6 +939,7 @@ CrownQuest.defineRooms((engine) => {
             for (let i = 0; i < 5; i++) {
                 ctx.fillRect(262, 253 + i * 2, 22, 1);
                 ctx.fillRect(293, 253 + i * 2, 22, 1);
+            }
             }
             ctx.fillStyle = '#1a1418';
             ctx.fillRect(330, 252, 12, 12);
@@ -725,8 +956,9 @@ CrownQuest.defineRooms((engine) => {
             ctx.quadraticCurveTo(-4, -12, 0, -22);
             ctx.closePath(); ctx.fill();
             ctx.restore();
+            ctx.restore();
             // Hourglass: brass frame, two glass bulbs, one thin falling stream
-            const hx = 372, hy = eng.standOn('desk', 372);
+            const hx = paintedStudy ? 396 : 372, hy = eng.standOn('desk', hx);
             ctx.fillStyle = '#3a2a08';
             ctx.fillRect(hx - 13, hy - 3, 26, 4);
             ctx.fillRect(hx - 13, hy - 42, 26, 4);
@@ -761,7 +993,8 @@ CrownQuest.defineRooms((engine) => {
 
             // ---- Candle on the desk, and the front door on the right wall ----
             // Dish base on the desk surface, stick built up from the dish.
-            const candleX = 244, deskTop = eng.standOn('desk', candleX);
+            const candleX = paintedStudy ? 268 : 244, deskTop = eng.standOn('desk', candleX);
+            if (!drawPaintedItem(ctx, 'candle', candleX, deskTop, 30, 30)) {
             ctx.fillStyle = '#0d0a06';
             ctx.fillRect(candleX - 7, deskTop - 2, 14, 3);
             ctx.fillStyle = '#3a352c';
@@ -772,11 +1005,13 @@ CrownQuest.defineRooms((engine) => {
             ctx.fillRect(candleX - 3, deskTop - 27, 6, 22);
             ctx.fillStyle = '#c4bca4';
             ctx.fillRect(candleX + 1, deskTop - 27, 2, 22);
+            }
             flame(ctx, candleX, deskTop - 27, 0.42, eng.animTimer);
             eng.lightPool(ctx, candleX, deskTop - 31, 108, '255,200,120', 0.14);
 
             // rBand(x, 1) IS the wall/floor junction, so the leaf and its
             // surround both run to 1: anything short leaves the door hovering.
+            if (!paintedStudy) {
             const df1 = 0.06, df2 = 1;
             F.trap(ctx, 512, 606, df1 - 0.04, df2, F.rBand);
             ctx.fillStyle = '#08070a'; ctx.fill();
@@ -806,6 +1041,7 @@ CrownQuest.defineRooms((engine) => {
             ctx.fill();
 
             eng.vignette(ctx, 0.58, '8,5,14');
+            }
         },
         hotspots: [
             {
@@ -924,8 +1160,15 @@ CrownQuest.defineRooms((engine) => {
             e.setWalkableArea((px, py) => py > 292 && py < 372 && px > 40 && px < 600);
             e.addBarrier(58, 286, 128, 42);
             e.addBarrier(462, 276, 130, 48);
+            if (paintedHiddenRoom) configurePaintedHiddenRoom(e);
         },
         draw: (ctx, w, h, eng) => {
+            if (paintedHiddenRoom) {
+                ctx.save();
+                ctx.imageSmoothingEnabled = false;
+                ctx.drawImage(hiddenRoomImage, 0, 0, w, h);
+                ctx.restore();
+            } else {
             const G = perspectiveFrame(640, 160, 480, 90, 250, 292);
             ctx.drawImage(eng.staticLayer('spell_room|shell', (ctx, w, h) => {
                 interiorShell(ctx, w, h, G, {
@@ -988,6 +1231,9 @@ CrownQuest.defineRooms((engine) => {
             ctx.closePath(); ctx.fill();
             ctx.fillStyle = '#1d1710';
             ctx.fillRect(280, 210, 80, 5);
+            }
+            ctx.save();
+            if (paintedHiddenRoom) ctx.translate(0, -34);
             ctx.fillStyle = '#cfc6ae';
             ctx.beginPath(); ctx.ellipse(304, 200, 11, 10, 0, 0, Math.PI * 2); ctx.fill();
             ctx.fillStyle = '#e8e0c8';
@@ -1009,6 +1255,7 @@ CrownQuest.defineRooms((engine) => {
             const bob = Math.sin(eng.animTimer / 700) * 2;
             ctx.fillStyle = '#9de8a0';
             ctx.beginPath(); ctx.ellipse(340, 196 + bob, 5, 4, 0, 0, Math.PI * 2); ctx.fill();
+            ctx.restore();
 
             // ---- The iron chest, near left ----
             const opened = eng.getFlag('chest_open');
@@ -1065,12 +1312,14 @@ CrownQuest.defineRooms((engine) => {
                 ctx.save();
                 ctx.translate(120, 284);
                 ctx.scale(0.62, 0.62);
+                if (!drawPaintedItem(ctx, 'spellbook', 0, 12, 34, 40)) {
                 ctx.fillStyle = '#3a1f2a';
                 ctx.fillRect(-17, -12, 34, 24);
                 ctx.fillStyle = '#552d3c';
                 ctx.fillRect(-17, -12, 11, 24);
                 ctx.fillStyle = '#d8cdae';
                 ctx.fillRect(12, -10, 5, 20);
+                }
                 ctx.restore();
             }
 
@@ -1106,6 +1355,7 @@ CrownQuest.defineRooms((engine) => {
             }
 
             // ---- The lectern, near right ----
+            if (!paintedHiddenRoom) {
             ctx.fillStyle = '#0d0a06';
             ctx.fillRect(500, 268, 20, 62);
             ctx.fillStyle = PAL.WOOD_SHADOW;
@@ -1126,6 +1376,7 @@ CrownQuest.defineRooms((engine) => {
             ctx.closePath(); ctx.fill();
             ctx.fillStyle = '#0d0a06';
             ctx.fillRect(486, 326, 48, 8);
+            }
 
             // ---- The light with no source ----
             const pulse = 0.12 + Math.sin(eng.animTimer / 900) * 0.045;
@@ -1137,7 +1388,7 @@ CrownQuest.defineRooms((engine) => {
                 ctx.fillStyle = `rgba(185,140,255,${0.20 + (i % 3) * 0.08})`;
                 ctx.fillRect(320 + Math.cos(a) * rr, 190 + Math.sin(a * 1.3) * 42, 2, 2);
             }
-            eng.vignette(ctx, 0.66, '6,4,12');
+            eng.vignette(ctx, paintedHiddenRoom ? 0.18 : 0.66, '6,4,12');
         },
         hotspots: [
             {
@@ -1284,7 +1535,7 @@ CrownQuest.defineRooms((engine) => {
                 if (eng.getFlag('morvane_passed') || elapsed < 6000) return;
                 const approach = Math.min(1, (elapsed - 6000) / 3000);
                 const groundX = 600 - approach * 230;
-                const scale = vgaPersonScale(eng, 346, 1.08);
+                const scale = vgaPersonScale(eng, 346, paintedCrag ? 1.5 : 1.08);
                 eng.drawContactShadow(ctx, groundX, 346, scale);
                 drawVgaPerson(ctx, groundX, 346, scale, Object.assign({}, CAST_MORVANE, {
                     animTimer: eng.animTimer,
@@ -1292,6 +1543,7 @@ CrownQuest.defineRooms((engine) => {
                     farArm: { side: -1, up: -0.3, lo: 0.3 }
                 }));
             });
+            if (paintedCrag) configurePaintedCrag(e);
             // The approach restarts each time Rowan steps back out onto the path,
             // so returning from the house is never an instant death.
             if (!restoring) {
@@ -1320,6 +1572,10 @@ CrownQuest.defineRooms((engine) => {
         },
         draw: (ctx, w, h, eng) => {
             // ---- Sky and sea ----
+            if (paintedCrag) {
+                ctx.drawImage(cragImage, 0, 0, w, h);
+                return;
+            }
             skyBands(ctx, 0, 0, w, 150, ['#3a4f80', '#5f7fae', '#8fa9c8', '#b9c9d8']);
             for (let i = 0; i < 5; i++) {
                 const cx = 60 + i * 148 + Math.sin(eng.animTimer / 9000 + i) * 20;
@@ -1494,7 +1750,9 @@ CrownQuest.defineRooms((engine) => {
                     RULES.award(e, 'morvane_passed');
                     e.playCutscene({
                         duration: 7000,
-                        draw: (c, cw, ch, progress, elapsed) => cutsceneMorvanePasses(c, cw, ch, progress, elapsed),
+                        draw: (c, cw, ch, progress, elapsed) => paintedCrag
+                            ? drawPaintedCragEncounter(c, cw, ch, progress, elapsed)
+                            : cutsceneMorvanePasses(c, cw, ch, progress, elapsed),
                         onEnd: () => {
                             engine.showMessage('He goes into the house. High above, the observatory shutter opens: his evening watch, behind a locked door. The lower rooms are clear if you forgot anything. The path to the cove is open.', { window: true });
                         }
@@ -1522,7 +1780,9 @@ CrownQuest.defineRooms((engine) => {
             },
             {
                 name: 'the skiff', x: 470, y: 330, w: 140, h: 60, walkToX: 520,
-                description: 'A fishing skiff drawn up on the shingle below, its sail hanging like wet washing. There is not a breath of wind in the cove.',
+                get description() { return paintedCrag
+                    ? 'The path on the right descends to the cove. Your fishing skiff waits out of sight on the shingle below, its sail hanging limp. There is not a breath of wind down there.'
+                    : 'A fishing skiff drawn up on the shingle below, its sail hanging like wet washing. There is not a breath of wind in the cove.'; },
                 get: (e) => e.showMessage('It is a boat. You cannot put a boat in your pocket.'),
                 use: (e) => {
                     if (!e.getFlag('morvane_passed')) { e.showMessage('Not while there is something coming up the path.'); return; }

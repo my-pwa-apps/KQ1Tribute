@@ -8,9 +8,14 @@ document.addEventListener('DOMContentLoaded', () => {
     'use strict';
     const CONTENT = CrownQuestContent;
     const RULES = CONTENT.rules;
+    const trialOptions = new URLSearchParams(window.location.search);
+    const actorStyle = trialOptions.get('actors')
+        || (trialOptions.get('scenery') === 'painted' ? 'painted' : 'procedural');
 
     const engine = new GameEngine(Object.assign({}, CONTENT.game, {
         drawTitleBackdrop,
+        drawPlayerSprite: actorStyle === 'painted'
+            ? createRowanSpriteTrial() : null,
         // Fantasy nouns the parser should recognise on top of its neutral base.
         parserSynonyms: {
             sword: ['blade', 'shield'],

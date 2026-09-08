@@ -280,6 +280,7 @@ class GameEngine {
             startY: definition.startY ?? 310,
             onStart: definition.onStart || null,
             drawTitleBackdrop: definition.drawTitleBackdrop || null,
+            drawPlayerSprite: definition.drawPlayerSprite || null,
             parserSynonyms: definition.parserSynonyms || null,
             classicRewrites: definition.classicRewrites || null,
             flavorResponses: definition.flavorResponses || {},
@@ -1782,8 +1783,10 @@ class GameEngine {
 
     /** Add a rectangular barrier the player cannot walk through.
      *  Like AGI priority 0 (unconditional block) control lines. */
-    addBarrier(x, y, w, h) {
-        this.barriers.push({ x, y, w, h });
+    addBarrier(x, y, w, h, enabled = null) {
+        const barrier = { x, y, w, h };
+        if (enabled) barrier.enabled = enabled;
+        this.barriers.push(barrier);
     }
 
     clearBarriers() {
@@ -1834,6 +1837,7 @@ class GameEngine {
             return true;
         }
         for (const b of this.barriers) {
+            if (b.enabled && !b.enabled(this)) continue;
             if (px + halfW > b.x && px - halfW < b.x + b.w &&
                 py >= b.y && py <= b.y + b.h) {
                 return true;
@@ -2566,8 +2570,13 @@ class GameEngine {
             const depthSpd = this.depthScaling ? this.getDepthScale(this.playerY) : 1;
             const spd = this.playerSpeed * depthSpd * dt / (1000 / 60);
             if (dist <= spd) {
-                if (this.playerTargetX !== null) this.playerX = this.playerTargetX;
-                if (this.playerTargetY !== null) this.playerY = this.playerTargetY;
+                const targetX = this.playerTargetX ?? this.playerX;
+                const targetY = this.playerTargetY ?? this.playerY;
+                const blocked = this.collidesBarrier(targetX, targetY);
+                if (!blocked) {
+                    this.playerX = targetX;
+                    this.playerY = targetY;
+                } else this.pendingAction = null;
                 this.playerWalking = false;
                 this.playerTargetX = null;
                 this.playerTargetY = null;
@@ -2906,6 +2915,7 @@ class GameEngine {
             }
         }
         for (const b of this.barriers) {
+            if (b.enabled && !b.enabled(this)) continue;
             ctx.strokeStyle = 'rgba(255,80,80,0.7)';
             ctx.lineWidth = 1;
             ctx.strokeRect(b.x + 0.5, b.y + 0.5, b.w, b.h);
@@ -3679,6 +3689,17 @@ class GameEngine {
 
         // Contact shadow — grounds the sprite on the floor plane so it does not appear to float.
         this.drawContactShadow(ctx, x, y + 12 * s, s);
+
+        if (this.game.drawPlayerSprite) {
+            ctx0.save();
+            let drawn;
+            try {
+                drawn = this.game.drawPlayerSprite(ctx0, this);
+            } finally {
+                ctx0.restore();
+            }
+            if (drawn) return;
+        }
 
         // Idle animation effects (blink, feettap, eyeroll)
         const idleType = this.idleActive ? this.idleType : null;

@@ -1,0 +1,21 @@
+Create only the static background for a playable early-1990s VGA pixel-art fantasy adventure. Landscape 16:10, intended for a final 640x400 canvas. All coordinates refer to that logical canvas and scale proportionally. No interface, borders, lettering, watermarks, or extra views.
+
+A hidden spell chamber hand-cut into bedrock beneath a medieval sorcerer's tower. Low ceiling, rough charcoal-gray stone, muted cool green-gray highlights, aged dark oak, small amber and bottle-green accents. Crisp deliberate pixel clusters, dark contours, three tones per material, selective fine dithering. No blur, photorealism, glossy 3D rendering, or cartoon proportions.
+
+Fixed slightly elevated adventure-game camera. One-point perspective near x320 y90. Rear wall x160-480, y90-250; side-wall floor junctions reach y292 at the outer edges. Show both side walls, the rear wall, ceiling, and a broad quiet stone floor. No stalactites, pillars, or projecting rocks.
+
+Central shallow arched alcove x276-364, y146-250, with an EMPTY narrow interior shelf at y210. It is a niche, not a doorway. A skull and animated jar will be separate overlays; do not paint either.
+
+Two wooden reagent shelves on the left wall within x24-148, y90-192. Two shorter shelves on the right within x438-536, y94-182. Perspective-correct planks, a sparse assortment of small sealed jars and ceramic containers. Muted green and amber contents, restrained specular highlights, no readable labels or hanging objects.
+
+Plain dark-oak lectern within x464-556, y246-334: empty sloping book rest, thick central support, low stable foot. No book or candle on it.
+
+The ONLY exit is at the far right: a narrow stone-framed opening within x556-630, y48-288. Its threshold meets the floor at y288. Visible worn steps ASCEND away into shadow toward the study. Clearly readable staircase, not a black void or ladder. Keep the approach clear; no projecting railing.
+
+Reserve x48-194, y244-338 for a separately drawn iron chest and raised lid. Continue ordinary wall and floor there; no chest, pedestal, object shadow, or placeholder.
+
+Reserve x232-408, y310-380 for a separate chalk ritual circle. Broad subdued floor slabs, no strong seams crossing its center. Do not paint a circle, chalk, runes, salt, feather, or magical glow. Keep connected walking space between the chest and lectern and across the lower foreground, especially x196-452, y296-380.
+
+Dim yet readable soft cool ambient light with no visible source. Ground the lectern with a subtle contact shadow. Quiet, secretive, faintly unnatural atmosphere, never so dark that exits disappear. No windows, torches, flames, crystals, light beams, mist, or particles.
+
+Exclude people, creatures, chest, skull, alcove jar, loose books, chalk circle, runes, ritual ingredients, thimble, rugs, rubble, pits, altar, central table, and additional furniture. Static room scenery only.

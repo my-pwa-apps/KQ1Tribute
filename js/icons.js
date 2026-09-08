@@ -294,8 +294,36 @@ const PORTRAIT_ART = {
 
 // ========== INVENTORY CLOSE-UPS ==========
 
+const PAINTED_ITEM_SPRITES = (() => {
+    const sprites = Object.create(null);
+    const options = new URLSearchParams(window.location.search);
+    const style = options.get('props') || (options.get('scenery') === 'painted' ? 'painted' : 'procedural');
+    if (style === 'painted') {
+        for (const id of ['bread', 'pail', 'crock', 'candle', 'ledger', 'spellbook']) {
+            const image = new Image();
+            image.src = `icons/${id}-trial.png`;
+            sprites[id] = image;
+        }
+    }
+    return sprites;
+})();
+
+function drawPaintedItem(ctx, id, cx, base, width, height) {
+    if (!Object.hasOwn(PAINTED_ITEM_SPRITES, id)) return false;
+    const image = PAINTED_ITEM_SPRITES[id];
+    if (!image.complete || !image.naturalWidth) return false;
+    const scale = Math.min(width / image.naturalWidth, height / image.naturalHeight);
+    ctx.save();
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(image, cx - image.naturalWidth * scale / 2,
+        base - (image.naturalHeight - 2) * scale, image.naturalWidth * scale, image.naturalHeight * scale);
+    ctx.restore();
+    return true;
+}
+
 const ITEM_ART = {
     bread: (ctx, cx, cy) => {
+        if (drawPaintedItem(ctx, 'bread', cx, cy + 13, 48, 28)) return;
         ctx.fillStyle = '#2a1a0c';
         ctx.beginPath();
         ctx.ellipse(cx, cy, 20, 13, -0.12, 0, Math.PI * 2);
@@ -325,6 +353,8 @@ const ITEM_ART = {
     },
 
     pail: (ctx, cx, cy, t) => {
+        const painted = drawPaintedItem(ctx, 'pail', cx, cy + 17, 38, 44);
+        if (!painted) {
         ctx.fillStyle = '#100b06';
         ctx.beginPath();
         ctx.moveTo(cx - 16, cy - 12);
@@ -360,16 +390,18 @@ const ITEM_ART = {
         ctx.arc(cx, cy - 10, 15, Math.PI, 0);
         ctx.stroke();
         ctx.lineWidth = 1;
+        }
         // Water, if it is carrying any
         if (window.engine && window.engine.getFlag('pail_full')) {
             const ripple = Math.sin((t || 0) / 300) * 1.2;
+            const waterWidth = painted ? 10 : 13;
             ctx.fillStyle = PAL.WATER_SHADOW;
             ctx.beginPath();
-            ctx.ellipse(cx, cy - 8 + ripple, 13, 4, 0, 0, Math.PI * 2);
+            ctx.ellipse(cx, cy - 8 + ripple, waterWidth, 4, 0, 0, Math.PI * 2);
             ctx.fill();
             ctx.fillStyle = PAL.WATER_BASE;
             ctx.beginPath();
-            ctx.ellipse(cx, cy - 9 + ripple, 12, 3.2, 0, 0, Math.PI * 2);
+            ctx.ellipse(cx, cy - 9 + ripple, waterWidth - 1, 3.2, 0, 0, Math.PI * 2);
             ctx.fill();
             ctx.fillStyle = PAL.WATER_LIT;
             ctx.fillRect(cx - 7, cy - 10 + ripple, 6, 1);
@@ -489,6 +521,7 @@ const ITEM_ART = {
     },
 
     spellbook: (ctx, cx, cy, t) => {
+        if (!drawPaintedItem(ctx, 'spellbook', cx, cy + 22, 38, 48)) {
         ctx.fillStyle = '#0d0810';
         ctx.fillRect(cx - 19, cy - 22, 38, 44);
         ctx.fillStyle = '#3a1f2a';
@@ -511,6 +544,7 @@ const ITEM_ART = {
         ctx.fillRect(cx + 8, cy - 5, 11, 10);
         ctx.fillStyle = PAL.GOLD_LIT;
         ctx.fillRect(cx + 8, cy - 5, 11, 2);
+        }
         // A sigil on the cover that will not hold still
         const pulse = 0.45 + Math.sin((t || 0) / 300) * 0.3;
         ctx.strokeStyle = `rgba(185,140,255,${pulse})`;

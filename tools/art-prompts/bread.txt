@@ -1,0 +1,9 @@
+Create ONE isolated inventory prop for an early-1990s VGA fantasy adventure: a small, squat, oval loaf of coarse dark rye bread. No other objects.
+
+Three-quarter view from slightly above, showing the front crust and top. Long axis horizontal. A handmade, slightly asymmetric loaf with a dark baked crust, three shallow diagonal scoring cuts, and a few restrained golden crumbs attached to the crust. Whole uncut loaf; no separate slices or loose crumbs.
+
+Deliberate pixel clusters, near-black contour, dark umber shadow, warm brown midtone, restrained ochre highlight. Soft light from upper left. Readable silhouette and broad shading, not a photograph, vector icon, glossy 3D render, or cute cartoon. It must remain recognisable when reduced to only 30 pixels wide. Avoid tiny decorative detail.
+
+Landscape 16:10 canvas. Center the entire loaf with generous clear margins on all sides. The loaf occupies about two thirds of the image width. Show only ONE view, with no frame, text, lettering, watermark, display stand, plate, cloth, hands, furniture, room, or floor.
+
+Background MUST be perfectly flat solid RGB 255,0,255 (#FF00FF), including every gap around the silhouette. No gradient, checkerboard, texture, reflection, cast shadow, or glow. Do not use any pink, purple, or magenta on the loaf. The flat background will be removed by software; do not simulate transparency.

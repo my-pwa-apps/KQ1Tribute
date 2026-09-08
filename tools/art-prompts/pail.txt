@@ -1,0 +1,9 @@
+Create ONE isolated inventory prop for an early-1990s VGA fantasy adventure: an empty medieval wooden water pail with a raised curved iron carrying handle. No other objects.
+
+Three-quarter view from slightly above, showing the front staves, elliptical rim, and dark empty interior. Upright pail resting level, slightly wider at the top than the base. Weathered vertical oak staves held by two dull charcoal iron bands. One raised thin but clearly readable iron handle, attached at opposite sides of the rim. The opening between the handle and rim must be unobstructed background. A tiny muted turquoise paint mark on one stave is the only saturated accent.
+
+Deliberate pixel clusters, near-black contour, warm gray-brown wood, three broad shading tones per material, restrained upper-left highlights. It must remain recognisable at about 50 pixels wide and 70 pixels tall. No photograph, vector icon, glossy 3D render, cartoon face, excessive fine grain, rust flakes, rope, cloth, contents, or water.
+
+Landscape 16:10 canvas. Center the whole pail AND raised handle with generous clear margins on every side. The entire object occupies about four fifths of image height. Show exactly ONE view. No frame, text, lettering, watermark, hands, person, furniture, room, or floor.
+
+Background MUST be perfectly flat solid RGB 255,0,255 (#FF00FF), including the enclosed opening beneath the handle. No gradient, checkerboard, texture, reflection, cast shadow, or glow. Do not use pink, purple, or magenta anywhere on the pail. The flat background will be removed by software; do not simulate transparency.
