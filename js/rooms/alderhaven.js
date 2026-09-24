@@ -13,7 +13,10 @@ CrownQuest.shared.alderhaven = (() => {
         e.addForegroundLayer(groundY, (ctx, eng) => {
             if (eng.currentRoomId === 'troll_bridge' && eng.sequence && eng.bridgeEncounter) return;
             eng.drawContactShadow(ctx, gx, groundY, 1, { rx: 30 * scale, ry: 6 * scale, alpha: 0.26 });
-            drawGoat(ctx, gx, groundY, scale, eng.playerX > gx ? 1 : -1, false, eng.animTimer);
+            const faceRight = eng.playerX > gx;
+            if (!drawCastMember(ctx, 'goat', eng, gx, groundY, 0.45 * scale, faceRight ? -1 : 1)) {
+                drawGoat(ctx, gx, groundY, scale, faceRight ? 1 : -1, false, eng.animTimer);
+            }
         });
     }
 

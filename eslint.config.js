@@ -16,7 +16,7 @@ function scriptScopeDeclarations(file) {
 }
 
 // Load order in index.html: art -> actors -> icons -> cutscenes -> rooms -> game.
-const SHARED_ART_MODULES = ['js/art.js', 'js/actors.js', 'js/icons.js', 'js/cutscenes.js'];
+const SHARED_ART_MODULES = ['js/art.js', 'js/actors.js', 'js/painted-cast.js', 'js/icons.js', 'js/cutscenes.js'];
 const artGlobals = Object.assign({}, ...SHARED_ART_MODULES.map(scriptScopeDeclarations));
 
 // The game ships as plain <script> tags with no bundler, so cross-file symbols
@@ -121,7 +121,7 @@ module.exports = [
     },
     {
         // The shared art modules and everything that consumes them.
-        files: ['js/art.js', 'js/actors.js', 'js/icons.js', 'js/cutscenes.js', 'js/game.js', 'js/rooms/**/*.js'],
+        files: ['js/art.js', 'js/actors.js', 'js/painted-cast.js', 'js/icons.js', 'js/cutscenes.js', 'js/game.js', 'js/rooms/**/*.js'],
         languageOptions: {
             ecmaVersion: 2022,
             sourceType: 'script',

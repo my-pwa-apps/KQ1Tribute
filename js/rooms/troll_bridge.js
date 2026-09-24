@@ -4,6 +4,187 @@
 
 CrownQuest.defineRooms((engine) => {
     const { followingGoat, GOAT_AT, goatHotspot, alderhavenSky, FAR_LIP, NEAR_LIP, SPAN, spanX, spanHalf, bridgeCrossing } = CrownQuest.shared.alderhaven;
+
+    // Painted-scenery trial. The picture's gorge sits a little higher and its
+    // span a little longer than the procedural one, so the live actors (troll,
+    // goat charge, beanstalk) are drawn through one uniform map from the
+    // procedural span onto the painted one, and the floor uses painted numbers.
+    let paintedBridge = false;
+    const bridgeImage = new Image();
+    const MAP = { scale: 1.127, cx: 327, dy: -72.2 };
+    const mapX = (x) => MAP.cx + (x - MAP.cx) * MAP.scale;
+    const PAINTED_SPAN = { nearX: mapX(SPAN.nearX), nearY: 320, farX: mapX(SPAN.farX), farY: 160 };
+    const paintedSpanX = (t) => PAINTED_SPAN.nearX + (PAINTED_SPAN.farX - PAINTED_SPAN.nearX) * t;
+    const PAINTED_FAR_BANK_Y = 158;
+    const PAINTED_BEANSTALK_X = Math.round(mapX(527));
+    function paintedCrossing(e) {
+        return e.playerY > 168
+            ? [{ walk: [null, 330] }, { walk: [Math.round(PAINTED_SPAN.nearX), 330] }, { walk: [Math.round(PAINTED_SPAN.farX), PAINTED_FAR_BANK_Y] }]
+            : [{ walk: [null, PAINTED_FAR_BANK_Y] }, { walk: [Math.round(PAINTED_SPAN.farX), PAINTED_FAR_BANK_Y] }, { walk: [Math.round(PAINTED_SPAN.nearX), 330] }];
+    }
+    const crossing = (e) => (paintedBridge ? paintedCrossing(e) : bridgeCrossing(e));
+    const onFarBank = (e) => e.playerY < (paintedBridge ? 168 : 204);
+
+    function configurePaintedBridge(e) {
+        e.setDepthScaling(150, 392, 0.4, 1.1);
+        e.setWalkableArea((px, py) => {
+            if (py > 318 && py < 392 && px > 20 && px < 620) return true;
+            if (!e.getFlag('troll_routed')) return false;
+            if (py > 150 && py < 168 && px > 30 && px < 610) return true;
+            if (py >= 168 && py <= 322) {
+                const t = (PAINTED_SPAN.nearY - py) / (PAINTED_SPAN.nearY - PAINTED_SPAN.farY);
+                return Math.abs(px - paintedSpanX(t)) < spanHalf(t) * MAP.scale + 3;
+            }
+            return false;
+        }, 151);
+        e.setEdgeTransition('left', (eng) => {
+            if (eng.playerY > 318) eng.goToRoom('dark_wood', 580, 354);
+        });
+        // Coming down the beanstalk lands on the procedural far bank; move to the painted one.
+        if (e.playerY > 180 && e.playerY < 210) {
+            e.playerX = PAINTED_BEANSTALK_X;
+            e.playerY = PAINTED_FAR_BANK_Y;
+        }
+        const layout = {
+            'the gorge': { x: 0, y: 165, w: 640, h: 150 },
+            'the bridge': { x: 285, y: 160, w: 90, h: 165, walkToX: 333, walkToY: 330 },
+            'Grumbold': { x: 300, y: 214, w: 60, h: 52, walkToX: 333, walkToY: 330 },
+            'the beanstalk': {
+                x: PAINTED_BEANSTALK_X - 34, y: 0, w: 70, h: 158, walkToX: PAINTED_BEANSTALK_X, walkToY: PAINTED_FAR_BANK_Y
+            },
+            'the track west': { x: 0, y: 300, w: 40, h: 80, walkToX: 30, walkToY: 340 }
+        };
+        for (const hotspot of e.rooms.troll_bridge.hotspots) {
+            if (Object.hasOwn(layout, hotspot.name)) Object.assign(hotspot, layout[hotspot.name]);
+        }
+    }
+    if (new URLSearchParams(window.location.search).get('scenery') === 'painted') {
+        bridgeImage.onload = () => {
+            paintedBridge = true;
+            if (engine.currentRoomId === 'troll_bridge') configurePaintedBridge(engine);
+        };
+        bridgeImage.src = 'icons/troll-bridge-trial.png';
+    }
+    function drawPaintedBridge(ctx, w, h, eng) {
+        ctx.save();
+        ctx.imageSmoothingEnabled = false;
+        ctx.drawImage(bridgeImage, 0, 0, w, h);
+        ctx.restore();
+        ctx.save();
+        ctx.transform(MAP.scale, 0, 0, MAP.scale, MAP.cx - MAP.cx * MAP.scale, MAP.dy);
+        drawBridgeActors(ctx, w, eng);
+        ctx.restore();
+        drawGull(ctx, 120, 60, 1, eng.animTimer, 1.1);
+    }
+    /** Everything on the bridge that moves or changes: Grumbold, the goat's
+     *  charge, his club, and the beanstalk once the way is clear. Drawn in the
+     *  procedural room's coordinates; the painted room maps them onto its span. */
+    function drawBridgeActors(ctx, w, eng) {
+        // ---- The troll, or the space where he was ----
+        if (eng.sequence && eng.bridgeEncounter) {
+            const elapsed = Math.max(0, eng.animTimer - eng.bridgeEncounter.startedAt);
+            const charge = Math.min(1, elapsed / 1100);
+            const fall = Math.max(0, Math.min(1, (elapsed - 1100) / 1000));
+            const retreat = Math.max(0, Math.min(1, (elapsed - 2100) / 1100));
+            const hitX = spanX(0.36);
+            const hitY = bridgeDeckY(SPAN, 0.36, 10);
+            if (fall < 1) {
+                ctx.save();
+                ctx.beginPath();
+                ctx.rect(0, 0, w, NEAR_LIP - 8);
+                ctx.clip();
+                ctx.translate(hitX + fall * 115, hitY - Math.sin(fall * Math.PI) * 95 + fall * (FAR_LIP + 83 - hitY));
+                ctx.rotate(fall * 2.4);
+                if (!drawPaintedActor(ctx, 'grumbold', 0, 0, { height: 64 * (1 - fall * 0.6) })) drawTroll(ctx, 0, 0, 0.8 * (1 - fall * 0.6), eng.animTimer, true);
+                ctx.restore();
+            }
+            const travel = charge * (1 - retreat);
+            const approach = Math.min(1, travel / 0.65);
+            const deck = Math.max(0, (travel - 0.65) / 0.35);
+            const goatX = 120 + (332 - 120) * approach + (hitX - 332) * deck;
+            const goatY = 366 - approach * 12 + (hitY + 18 - 354) * deck;
+            const goatScale = 1.1 - deck * 0.3;
+            eng.drawContactShadow(ctx, goatX, goatY, 1, { rx: 22 * goatScale, ry: 4, alpha: 0.26 });
+            if (!drawPaintedActor(ctx, 'goat', goatX, goatY, { height: 34 * goatScale }, retreat > 0 ? -1 : 1)) {
+                drawGoat(ctx, goatX, goatY, goatScale, retreat > 0 ? 1 : -1, true, eng.animTimer);
+            }
+            if (elapsed >= 2100 && elapsed < 2700) {
+                const splash = (elapsed - 2100) / 600;
+                ctx.fillStyle = '#c8e4ec';
+                for (let drop = 0; drop < 9; drop++) {
+                    const offset = drop - 4;
+                    ctx.fillRect(hitX + 115 + offset * (3 + splash * 6), FAR_LIP + 83 - Math.sin(splash * Math.PI) * (24 - Math.abs(offset) * 3), 3, 3);
+                }
+            }
+        } else if (!eng.getFlag('troll_routed')) {
+            const tt = 0.36;
+            const ty = bridgeDeckY(SPAN, tt, 10);
+            eng.drawContactShadow(ctx, spanX(tt), ty, 1, { rx: 26, ry: 4, alpha: 0.36 });
+            if (!drawPaintedActor(ctx, 'grumbold', spanX(tt), ty, { height: 64 })) drawTroll(ctx, spanX(tt), ty, 0.8, eng.animTimer, false);
+        } else {
+            // His club, dropped on the near bank where he stopped standing.
+            ctx.fillStyle = '#1a1206';
+            ctx.save();
+            ctx.translate(196, 358);
+            ctx.rotate(0.4);
+            ctx.fillRect(-26, -5, 52, 10);
+            ctx.fillStyle = PAL.WOOD_SHADOW;
+            ctx.fillRect(-25, -4, 50, 8);
+            ctx.fillStyle = PAL.WOOD_BASE;
+            ctx.fillRect(-25, -4, 50, 3);
+            ctx.fillStyle = '#1a1206';
+            ctx.beginPath(); ctx.arc(24, 0, 11, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = PAL.WOOD_SHADOW;
+            ctx.beginPath(); ctx.arc(24, 0, 9, 0, Math.PI * 2); ctx.fill();
+            ctx.restore();
+        }
+
+        // ---- The beanstalk on the far bank ----
+        if (eng.getFlag('troll_routed')) {
+            ctx.fillStyle = '#16240f';
+            ctx.beginPath();
+            ctx.moveTo(506, 202);
+            ctx.quadraticCurveTo(534, 120, 508, 0);
+            ctx.lineTo(548, 0);
+            ctx.quadraticCurveTo(568, 120, 546, 202);
+            ctx.closePath(); ctx.fill();
+            ctx.fillStyle = '#2f6b2c';
+            ctx.beginPath();
+            ctx.moveTo(512, 202);
+            ctx.quadraticCurveTo(538, 120, 512, 0);
+            ctx.lineTo(544, 0);
+            ctx.quadraticCurveTo(564, 120, 542, 202);
+            ctx.closePath(); ctx.fill();
+            ctx.fillStyle = '#47913c';
+            ctx.beginPath();
+            ctx.moveTo(514, 202);
+            ctx.quadraticCurveTo(538, 120, 514, 0);
+            ctx.lineTo(524, 0);
+            ctx.quadraticCurveTo(548, 120, 526, 202);
+            ctx.closePath(); ctx.fill();
+            // Leaves and coiling tendrils
+            for (let i = 0; i < 9; i++) {
+                const ly = 14 + i * 21;
+                const lx = 512 + Math.sin(i * 0.8) * 22 + 16;
+                const side = i % 2 ? 1 : -1;
+                ctx.fillStyle = '#16240f';
+                ctx.beginPath();
+                ctx.ellipse(lx + side * 24, ly, 24, 10, side * 0.3, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillStyle = i % 3 ? PAL.LEAF_BASE : PAL.LEAF_LIT;
+                ctx.beginPath();
+                ctx.ellipse(lx + side * 24, ly - 1, 21, 8, side * 0.3, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillStyle = PAL.LEAF_SHADOW;
+                ctx.fillRect(lx + side * 11, ly - 1, side * 24, 1.4);
+            }
+            ctx.fillStyle = '#e8eef2';
+            ctx.beginPath();
+            ctx.ellipse(528, 10, 66, 16, 0, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    }
+
     // ================= ROOM 9: THE TROLL BRIDGE =================
     engine.registerRoom({
         id: 'troll_bridge',
@@ -35,8 +216,10 @@ CrownQuest.defineRooms((engine) => {
                 if (eng.playerY > 334) eng.goToRoom('dark_wood', 580, 354);
             });
             followingGoat(e, ...GOAT_AT.troll_bridge);
+            if (paintedBridge) configurePaintedBridge(e);
         },
         draw: (ctx, w, h, eng) => {
+            if (paintedBridge) { drawPaintedBridge(ctx, w, h, eng); return; }
             alderhavenSky(ctx, w, 116, eng, 313);
             ctx.drawImage(eng.staticLayer('troll_bridge|far', (ctx, w) => {
                 distantRange(ctx, 126, w, 52, 2121, '#8a9db4', 0.9);
@@ -133,107 +316,7 @@ CrownQuest.defineRooms((engine) => {
                 }
 
             }), 0, 0);
-            // ---- The troll, or the space where he was ----
-            if (eng.sequence && eng.bridgeEncounter) {
-                const elapsed = Math.max(0, eng.animTimer - eng.bridgeEncounter.startedAt);
-                const charge = Math.min(1, elapsed / 1100);
-                const fall = Math.max(0, Math.min(1, (elapsed - 1100) / 1000));
-                const retreat = Math.max(0, Math.min(1, (elapsed - 2100) / 1100));
-                const hitX = spanX(0.36);
-                const hitY = bridgeDeckY(SPAN, 0.36, 10);
-                if (fall < 1) {
-                    ctx.save();
-                    ctx.beginPath();
-                    ctx.rect(0, 0, w, NEAR_LIP - 8);
-                    ctx.clip();
-                    ctx.translate(hitX + fall * 115, hitY - Math.sin(fall * Math.PI) * 95 + fall * (FAR_LIP + 83 - hitY));
-                    ctx.rotate(fall * 2.4);
-                    drawTroll(ctx, 0, 0, 0.8 * (1 - fall * 0.6), eng.animTimer, true);
-                    ctx.restore();
-                }
-                const travel = charge * (1 - retreat);
-                const approach = Math.min(1, travel / 0.65);
-                const deck = Math.max(0, (travel - 0.65) / 0.35);
-                const goatX = 120 + (332 - 120) * approach + (hitX - 332) * deck;
-                const goatY = 366 - approach * 12 + (hitY + 18 - 354) * deck;
-                const goatScale = 1.1 - deck * 0.3;
-                eng.drawContactShadow(ctx, goatX, goatY, 1, { rx: 22 * goatScale, ry: 4, alpha: 0.26 });
-                drawGoat(ctx, goatX, goatY, goatScale, retreat > 0 ? 1 : -1, true, eng.animTimer);
-                if (elapsed >= 2100 && elapsed < 2700) {
-                    const splash = (elapsed - 2100) / 600;
-                    ctx.fillStyle = '#c8e4ec';
-                    for (let drop = 0; drop < 9; drop++) {
-                        const offset = drop - 4;
-                        ctx.fillRect(hitX + 115 + offset * (3 + splash * 6), FAR_LIP + 83 - Math.sin(splash * Math.PI) * (24 - Math.abs(offset) * 3), 3, 3);
-                    }
-                }
-            } else if (!eng.getFlag('troll_routed')) {
-                const tt = 0.36;
-                const ty = bridgeDeckY(SPAN, tt, 10);
-                eng.drawContactShadow(ctx, spanX(tt), ty, 1, { rx: 26, ry: 4, alpha: 0.36 });
-                drawTroll(ctx, spanX(tt), ty, 0.8, eng.animTimer, false);
-            } else {
-                // His club, dropped on the near bank where he stopped standing.
-                ctx.fillStyle = '#1a1206';
-                ctx.save();
-                ctx.translate(196, 358);
-                ctx.rotate(0.4);
-                ctx.fillRect(-26, -5, 52, 10);
-                ctx.fillStyle = PAL.WOOD_SHADOW;
-                ctx.fillRect(-25, -4, 50, 8);
-                ctx.fillStyle = PAL.WOOD_BASE;
-                ctx.fillRect(-25, -4, 50, 3);
-                ctx.fillStyle = '#1a1206';
-                ctx.beginPath(); ctx.arc(24, 0, 11, 0, Math.PI * 2); ctx.fill();
-                ctx.fillStyle = PAL.WOOD_SHADOW;
-                ctx.beginPath(); ctx.arc(24, 0, 9, 0, Math.PI * 2); ctx.fill();
-                ctx.restore();
-            }
-
-            // ---- The beanstalk on the far bank ----
-            if (eng.getFlag('troll_routed')) {
-                ctx.fillStyle = '#16240f';
-                ctx.beginPath();
-                ctx.moveTo(506, 202);
-                ctx.quadraticCurveTo(534, 120, 508, 0);
-                ctx.lineTo(548, 0);
-                ctx.quadraticCurveTo(568, 120, 546, 202);
-                ctx.closePath(); ctx.fill();
-                ctx.fillStyle = '#2f6b2c';
-                ctx.beginPath();
-                ctx.moveTo(512, 202);
-                ctx.quadraticCurveTo(538, 120, 512, 0);
-                ctx.lineTo(544, 0);
-                ctx.quadraticCurveTo(564, 120, 542, 202);
-                ctx.closePath(); ctx.fill();
-                ctx.fillStyle = '#47913c';
-                ctx.beginPath();
-                ctx.moveTo(514, 202);
-                ctx.quadraticCurveTo(538, 120, 514, 0);
-                ctx.lineTo(524, 0);
-                ctx.quadraticCurveTo(548, 120, 526, 202);
-                ctx.closePath(); ctx.fill();
-                // Leaves and coiling tendrils
-                for (let i = 0; i < 9; i++) {
-                    const ly = 14 + i * 21;
-                    const lx = 512 + Math.sin(i * 0.8) * 22 + 16;
-                    const side = i % 2 ? 1 : -1;
-                    ctx.fillStyle = '#16240f';
-                    ctx.beginPath();
-                    ctx.ellipse(lx + side * 24, ly, 24, 10, side * 0.3, 0, Math.PI * 2);
-                    ctx.fill();
-                    ctx.fillStyle = i % 3 ? PAL.LEAF_BASE : PAL.LEAF_LIT;
-                    ctx.beginPath();
-                    ctx.ellipse(lx + side * 24, ly - 1, 21, 8, side * 0.3, 0, Math.PI * 2);
-                    ctx.fill();
-                    ctx.fillStyle = PAL.LEAF_SHADOW;
-                    ctx.fillRect(lx + side * 11, ly - 1, side * 24, 1.4);
-                }
-                ctx.fillStyle = '#e8eef2';
-                ctx.beginPath();
-                ctx.ellipse(528, 10, 66, 16, 0, 0, Math.PI * 2);
-                ctx.fill();
-            }
+            drawBridgeActors(ctx, w, eng);
 
             drawGull(ctx, 120, 70, 1, eng.animTimer, 1.1);
             eng.vignette(ctx, 0.3, '18,24,28');
@@ -253,11 +336,11 @@ CrownQuest.defineRooms((engine) => {
                     ? 'Planks and rope over a very long drop. Without Grumbold it sags rather less. The way across is clear.'
                     : 'Planks and rope over a very long drop. It sags in the middle, mostly under Grumbold.'; },
                 walk: (e) => {
-                    if (e.getFlag('troll_routed')) { e.runSequence(bridgeCrossing(e)); return; }
+                    if (e.getFlag('troll_routed')) { e.runSequence(crossing(e)); return; }
                     e.die('You step onto the bridge. Grumbold picks you up by the back of your tunic with the air of a man doing a job he has done nine hundred times, and drops you into the gorge. The last thing you hear is the river, and it is not sympathetic.');
                 },
                 use: (e) => {
-                    if (e.getFlag('troll_routed')) { e.runSequence(bridgeCrossing(e)); return; }
+                    if (e.getFlag('troll_routed')) { e.runSequence(crossing(e)); return; }
                     e.showMessage('There is a troll standing on it.');
                 }
             },
@@ -277,8 +360,8 @@ CrownQuest.defineRooms((engine) => {
                 name: 'the beanstalk', x: 496, y: 0, w: 76, h: 206, isExit: true, walkToX: 500, walkToY: 196,
                 description: 'A beanstalk as thick as a cottage, going up through the cloud layer and not coming back down.',
                 walk: (e) => e.runSequence([
-                    ...(e.playerY > 204 ? bridgeCrossing(e) : []),
-                    { walk: [500, 196] },
+                    ...(onFarBank(e) ? [] : crossing(e)),
+                    { walk: paintedBridge ? [PAINTED_BEANSTALK_X, PAINTED_FAR_BANK_Y] : [500, 196] },
                     (game) => game.goToRoom('cloud_realm', 90, 344)
                 ]),
                 onExit: (e) => e.goToRoom('cloud_realm', 90, 344),

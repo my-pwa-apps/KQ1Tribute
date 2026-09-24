@@ -1,0 +1,9 @@
+Create ONE isolated character sprite for an early-1990s VGA fantasy adventure.
+
+A sleeping giant lying on his back on the ground, seen from the side with his head to the viewer's left: a leather apron over a rough tunic, bare enormous forearms, a bushy brown beard, mouth open mid-snore. The whole reclining figure fits the canvas width with margins.
+
+Early-1990s VGA adventure-game character sprite in the style of Sierra's King's Quest V: naturalistic proportions, deliberate pixel clusters, near-black contour, three shading tones per material, light from the upper left. It must read clearly at about 230 pixels long on screen. No photograph, anime, chibi, cartoon mascot proportions, glossy 3D render or excessive fine grain.
+
+Whole body, in exactly the pose and facing described above, resting on an invisible ground line. Exactly ONE figure, ONE view. Landscape 16:10 canvas, the figure centered with generous clear margins and occupying about four fifths of the image height. No frame, text, lettering, watermark, props on the ground, floor, cast shadow or scenery.
+
+Background MUST be perfectly flat solid RGB 255,0,255 (#FF00FF), including every gap between limbs, wings, tail and body. No gradient, checkerboard, texture or glow. Do not use pink or magenta anywhere on the figure. The background will be removed by software; do not simulate transparency.

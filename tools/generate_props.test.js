@@ -4,7 +4,7 @@ const fs = require('node:fs/promises');
 const os = require('node:os');
 const path = require('node:path');
 const { chromium } = require('@playwright/test');
-const { prepareProps, DRESSING } = require('./generate_props');
+const { prepareProps, DRESSING, ITEMS, CHARACTERS } = require('./generate_props');
 
 /* global document, Image */
 
@@ -125,4 +125,14 @@ test('dressing batch applies crop recipes and preserves enclosed dark cover colo
         await browser.close();
         await fs.rm(directory, { recursive: true, force: true });
     }
+});
+test('every browser-workflow batch prop has a prompt and fits the preview sheet', async () => {
+    for (const prop of [...ITEMS, ...CHARACTERS]) {
+        const prompt = await fs.readFile(path.join(__dirname, 'art-prompts', prop.batch, prop.id + '.txt'), 'utf8');
+        assert.match(prompt, /RGB 255,0,255/, prop.id + ' prompt must request the keyed background');
+        assert.ok(prop.width <= 288 && prop.height <= 200, prop.id + ' sprite must fit a preview cell');
+    }
+    const rooms = await fs.readdir(path.join(__dirname, 'art-prompts', 'rooms'));
+    assert.deepEqual(rooms.sort(), ['amber_tower', 'cloud_realm', 'dark_wood', 'dragon_cave', 'harbour_road',
+        'troll_bridge', 'village_green', 'well_bottom'].map(id => id + '.txt'));
 });

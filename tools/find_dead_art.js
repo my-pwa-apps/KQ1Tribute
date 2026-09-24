@@ -7,9 +7,9 @@ const path = require('path');
 const { ROOM_FILES, ENGINE_FILES } = require('./modules.js');
 
 const ROOT = path.join(__dirname, '..');
-const PROVIDERS = ['js/art.js', 'js/actors.js', 'js/icons.js', 'js/cutscenes.js'];
+const PROVIDERS = ['js/art.js', 'js/actors.js', 'js/painted-cast.js', 'js/icons.js', 'js/cutscenes.js'];
 const CONSUMERS = [
-    'js/art.js', 'js/actors.js', 'js/icons.js', 'js/cutscenes.js',
+    'js/art.js', 'js/actors.js', 'js/painted-cast.js', 'js/icons.js', 'js/cutscenes.js',
     'js/game.js', ...ROOM_FILES,
     ...ENGINE_FILES, 'js/vr.js'
 ];

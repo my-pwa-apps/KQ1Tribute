@@ -51,7 +51,7 @@ CrownQuest.defineRooms((engine) => {
             const scale = vgaPersonScale(engine, groundY, 1.5);
             const stride = Math.sin(elapsed / 260) * 0.3;
             engine.drawContactShadow(ctx, groundX, groundY, scale);
-            drawVgaPerson(ctx, groundX, groundY, scale, Object.assign({}, CAST_MORVANE, {
+            if (!drawCastMember(ctx, 'morvane', engine, groundX, groundY, 1.12)) drawVgaPerson(ctx, groundX, groundY, scale, Object.assign({}, CAST_MORVANE, {
                 animTimer: elapsed,
                 nearArm: { side: 1, up: 0.4 + stride, lo: 0.2 },
                 farArm: { side: -1, up: -0.3 - stride, lo: 0.3 }
@@ -105,6 +105,7 @@ CrownQuest.defineRooms((engine) => {
                 const groundX = 600 - approach * 230;
                 const scale = vgaPersonScale(eng, 346, paintedCrag ? 1.5 : 1.08);
                 eng.drawContactShadow(ctx, groundX, 346, scale);
+                if (drawCastMember(ctx, 'morvane', eng, groundX, 346, 1.12)) return;
                 drawVgaPerson(ctx, groundX, 346, scale, Object.assign({}, CAST_MORVANE, {
                     animTimer: eng.animTimer,
                     nearArm: { side: 1, up: 0.4, lo: 0.2 },

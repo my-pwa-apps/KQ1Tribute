@@ -5,6 +5,131 @@
 CrownQuest.defineRooms((engine) => {
     const RULES = CrownQuestContent.rules;
     const { followingGoat, GOAT_AT, goatHotspot, alderhavenSky } = CrownQuest.shared.alderhaven;
+
+    // Where the live actors and state props stand. The painted-scenery trial
+    // moves them onto its own picture; the rules and hotspots do not change.
+    const PROCEDURAL_AT = { goat: [486, 346, 1.28], hattie: [120, 352] };
+    const PAINTED_AT = {
+        goat: [520, 322, 1.45], hattie: [206, 302], villager: [560, 252],
+        ropeCoil: [165, 234], wellRope: [356, 208, 244], smoke: [150, 74]
+    };
+    let paintedVillage = false;
+    // The painted hero is half as tall again as the procedural cel; the cast
+    // standing beside him in painted rooms scales with him.
+    const castScale = () => (paintedVillage && engine.game.drawPlayerSprite ? 1.4 : 1);
+    const villageImage = new Image();
+
+    function addVillageActors(e, at) {
+        if (!e.getFlag('goat_follows')) {
+            const [gx, gy, gs] = at.goat;
+            e.addForegroundLayer(gy, (ctx, eng2) => {
+                eng2.drawContactShadow(ctx, gx, gy, 1, { rx: 40 * gs / 1.28, ry: 7, alpha: 0.26 });
+                if (!drawCastMember(ctx, 'goat', eng2, gx, gy, 0.45 * gs)) drawGoat(ctx, gx, gy, gs, -1, false, eng2.animTimer);
+                // The tether it has been chewing on since Tuesday
+                ctx.strokeStyle = '#8d7b58';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(gx - 24, gy - 26); ctx.lineTo(gx + 50, gy - 10);
+                ctx.stroke();
+                ctx.lineWidth = 1;
+                ctx.fillStyle = '#241708';
+                ctx.fillRect(gx + 48, gy - 16, 6, 18);
+            });
+        } else {
+            followingGoat(e, ...GOAT_AT.village_green);
+        }
+        // Hattie stands in the open in front of her cart. Her feet are below
+        // the wheels' ground line, so she correctly occludes them.
+        const [hx, hy] = at.hattie;
+        e.addForegroundLayer(hy, (ctx, eng2) => {
+            eng2.drawContactShadow(ctx, hx, hy, 1, { rx: 21, ry: 5, alpha: 0.26 });
+            if (drawCastMember(ctx, 'hattie', eng2, hx, hy, 0.95)) return;
+            drawVgaPerson(ctx, hx, hy, vgaPersonScale(eng2, hy, 0.96 * castScale()), Object.assign({}, CAST_HATTIE, {
+                animTimer: eng2.animTimer,
+                phase: 1.7,
+                nearArm: { side: 1, up: 0.28, lo: 0.44 },
+                farArm: { side: -1, up: -0.16, lo: 0.4 }
+            }));
+        });
+    }
+
+    function configurePaintedVillage(e) {
+        e.clearForegroundLayers();
+        e.clearBarriers();
+        e.setDepthScaling(220, 372, 0.55, 1.08);
+        e.setWalkableArea((px, py) => py > 240 && py < 372 && px > 20 && px < 620, 241);
+        e.addBarrier(300, 262, 110, 30);  // the well
+        e.addBarrier(52, 244, 134, 52);   // the cart
+        e.addBarrier(402, 272, 98, 28);   // the trough
+        addVillageActors(e, PAINTED_AT);
+        const layout = {
+            'the well': { x: 298, y: 190, w: 115, h: 100, walkToX: 430, walkToY: 304 },
+            'Hattie': { x: 186, y: 236, w: 40, h: 68, walkToX: 250, walkToY: 306 },
+            'the cart': { x: 52, y: 198, w: 135, h: 100 },
+            'the coil of rope': { x: 150, y: 220, w: 30, h: 28, walkToX: 250, walkToY: 306 },
+            'the goat': { x: 482, y: 280, w: 84, h: 48, walkToX: 460, walkToY: 330 },
+            'the cottage': { x: 0, y: 70, w: 240, h: 170 },
+            'the villager': { x: 548, y: 210, w: 26, h: 44 },
+            'the road west': { x: 0, y: 262, w: 40, h: 84, walkToX: 40, walkToY: 306 },
+            'the wood': { x: 600, y: 226, w: 40, h: 80, walkToX: 600, walkToY: 264 }
+        };
+        for (const hotspot of e.rooms.village_green.hotspots) {
+            if (Object.hasOwn(layout, hotspot.name)) Object.assign(hotspot, layout[hotspot.name]);
+        }
+    }
+    if (new URLSearchParams(window.location.search).get('scenery') === 'painted') {
+        villageImage.onload = () => {
+            paintedVillage = true;
+            if (engine.currentRoomId === 'village_green') configurePaintedVillage(engine);
+        };
+        villageImage.src = 'icons/village-green-trial.png';
+    }
+
+    /** The painted green: the picture, then everything that moves or changes. */
+    function drawPaintedVillage(ctx, w, h, eng) {
+        ctx.save();
+        ctx.imageSmoothingEnabled = false;
+        ctx.drawImage(villageImage, 0, 0, w, h);
+        ctx.restore();
+        const at = PAINTED_AT;
+        if (eng.getFlag('rope_tied')) {
+            const [rx, top, bottom] = at.wellRope;
+            ctx.strokeStyle = '#2a2114';
+            ctx.lineWidth = 3;
+            ctx.beginPath(); ctx.moveTo(rx, top); ctx.lineTo(rx, bottom); ctx.stroke();
+            ctx.strokeStyle = '#b9a274';
+            ctx.lineWidth = 1.6;
+            ctx.beginPath(); ctx.moveTo(rx, top); ctx.lineTo(rx, bottom); ctx.stroke();
+            ctx.lineWidth = 1;
+        }
+        if (!eng.hasItem('rope') && !eng.getFlag('rope_tied')) {
+            const [cx, cy] = at.ropeCoil;
+            ctx.strokeStyle = '#2a2114';
+            ctx.lineWidth = 5;
+            ctx.beginPath(); ctx.arc(cx, cy, 8, 0, Math.PI * 2); ctx.stroke();
+            ctx.strokeStyle = '#b9a274';
+            ctx.lineWidth = 3;
+            ctx.beginPath(); ctx.arc(cx, cy, 8, 0, Math.PI * 2); ctx.stroke();
+            ctx.lineWidth = 1;
+        }
+        const [sx, sy] = at.smoke;
+        for (let i = 0; i < 5; i++) {
+            const p = (eng.animTimer / 700 + i * 1.3) % 6;
+            ctx.fillStyle = `rgba(210,210,214,${0.26 - p * 0.04})`;
+            ctx.beginPath();
+            ctx.ellipse(sx + p * 8, sy - p * 11, 6 + p * 3.4, 4 + p * 2.4, 0, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        const [vx, vy] = at.villager;
+        eng.drawContactShadow(ctx, vx, vy, 1, { rx: 11, ry: 3, alpha: 0.2 });
+        if (drawCastMember(ctx, 'villager', eng, vx, vy, 0.93)) return;
+        drawVgaPerson(ctx, vx, vy, vgaPersonScale(eng, vy, 0.94 * castScale()), Object.assign({}, CAST_VILLAGER, {
+            animTimer: eng.animTimer,
+            phase: 0.4,
+            nearArm: { side: 1, up: 0.1 + Math.sin(eng.animTimer / 900) * 0.16, lo: 0.3 },
+            farArm: { side: -1, up: -0.1, lo: 0.36 }
+        }));
+    }
     // ================= ROOM 6: THE VILLAGE GREEN =================
     engine.registerRoom({
         id: 'village_green',
@@ -25,37 +150,11 @@ CrownQuest.defineRooms((engine) => {
             e.addBarrier(24, 268, 150, 52);
             e.setEdgeTransition('left', (eng) => eng.goToRoom('harbour_road', 580, 354));
             e.setEdgeTransition('right', (eng) => eng.goToRoom('dark_wood', 60, 354));
-
-            if (!e.getFlag('goat_follows')) {
-                e.addForegroundLayer(346, (ctx, eng2) => {
-                    eng2.drawContactShadow(ctx, 486, 346, 1, { rx: 40, ry: 7, alpha: 0.26 });
-                    drawGoat(ctx, 486, 346, 1.28, -1, false, eng2.animTimer);
-                    // The tether it has been chewing on since Tuesday
-                    ctx.strokeStyle = '#8d7b58';
-                    ctx.lineWidth = 2;
-                    ctx.beginPath();
-                    ctx.moveTo(462, 320); ctx.lineTo(536, 336);
-                    ctx.stroke();
-                    ctx.lineWidth = 1;
-                    ctx.fillStyle = '#241708';
-                    ctx.fillRect(534, 330, 6, 18);
-                });
-            } else {
-                followingGoat(e, ...GOAT_AT.village_green);
-            }
-            // Hattie stands in the open in front of her cart. Her feet are below
-            // the wheels' ground line, so she correctly occludes them.
-            e.addForegroundLayer(352, (ctx, eng2) => {
-                eng2.drawContactShadow(ctx, 120, 352, 1, { rx: 21, ry: 5, alpha: 0.26 });
-                drawVgaPerson(ctx, 120, 352, vgaPersonScale(eng2, 352, 0.96), Object.assign({}, CAST_HATTIE, {
-                    animTimer: eng2.animTimer,
-                    phase: 1.7,
-                    nearArm: { side: 1, up: 0.28, lo: 0.44 },
-                    farArm: { side: -1, up: -0.16, lo: 0.4 }
-                }));
-            });
+            addVillageActors(e, PROCEDURAL_AT);
+            if (paintedVillage) configurePaintedVillage(e);
         },
         draw: (ctx, w, h, eng) => {
+            if (paintedVillage) { drawPaintedVillage(ctx, w, h, eng); return; }
             alderhavenSky(ctx, w, 150, eng, 808);
             // Everything below the drifting clouds that never moves is painted
             // once per rope state; the chimney smoke rises clear of all of it.

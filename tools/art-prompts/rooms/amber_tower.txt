@@ -1,0 +1,15 @@
+Create only the static background for a playable early-1990s VGA pixel-art fantasy adventure. Landscape 16:10, intended for a final 640x400 canvas. All coordinates refer to that logical canvas and scale proportionally. No interface, borders, lettering, watermarks, or extra views.
+
+A slim tower of honey-coloured stone alone on a windswept headland at sunset, sea on three sides. Warm amber, rose and violet sky; turf in olive and moss. Solemn, hopeful, a little lonely. Crisp deliberate pixel clusters, dark contours, three tones per material, selective fine dithering on the water. No blur, photorealism, glossy 3D rendering, or cartoon proportions.
+
+Fixed eye-level adventure-game camera. Sky y0-170 in hard bands from indigo at the top to amber at the horizon, with a few thin violet clouds. The low sun is a pale gold disc centered x92, y158, radius about 30, laying a road of broken light on the sea. Sea y170-260 across the full width, warm near the sun and cool at the edges.
+
+The headland: a band of bare rock at the cliff edge y250-296, then turf to the bottom of the frame, with a few flat outcrops.
+
+Centre: the Amber Tower, base centered x320 on the ground at y336, about 110 pixels wide at the base, narrowing upward to a conical slate roof whose tip reaches about y40. Honey-coloured ashlar with three shading tones. Near the top, one small barred window x308-332, y131-155 with a DARK EMPTY interior: a figure will be drawn inside it separately. Over the door, three round empty sockets in a row x274-370, y258-292, dark and unlit. A closed arched door of black oak banded in gold x303-337, y292-336, with no handle.
+
+Four leaning standing stones, lichened, all facing the tower: two at left x100-210, y268-336 and two at right x486-560, y262-330.
+
+The shore path leaves the right edge at x596-640, y300-372; keep it readable.
+
+Keep the ground x30-610, y304-372 open and walkable. No people, animals, birds, boats, other buildings, glowing light, signs or lettering.

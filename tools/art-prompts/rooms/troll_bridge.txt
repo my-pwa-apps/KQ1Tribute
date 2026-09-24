@@ -1,0 +1,15 @@
+Create only the static background for a playable early-1990s VGA pixel-art fantasy adventure. Landscape 16:10, intended for a final 640x400 canvas. All coordinates refer to that logical canvas and scale proportionally. No interface, borders, lettering, watermarks, or extra views.
+
+A deep river gorge crossed by one rope-and-plank bridge, mid-morning daylight, blustery. Crisp deliberate pixel clusters, dark contours, three tones per material, selective fine dithering for distance and spray. No blur, photorealism, glossy 3D rendering, or cartoon proportions.
+
+Fixed elevated adventure-game camera looking north across the gorge. Sky y0-116 in hard pale-blue bands. Two hazed mountain ranges y74-150. The far bank: a strip of turf and a line of small dark conifers y150-206, receding into haze.
+
+The gorge runs straight across the whole screen from y206 to y330. Its far wall faces the camera: grey-blue rock with buttresses, lit at the top and falling into deep shadow. A narrow dark river far below at y280-300 with a few pale foam flecks. The near lip is an overhanging edge of turf at y326-334.
+
+The bridge recedes straight away from the viewer across the gorge: planks and two rope hand-lines, anchored by posts on both lips. At the near lip it is centered at x332, y348 and 56 pixels wide. At the far lip it is centered at x322, y206 and 16 pixels wide. The deck sags slightly in the middle. It must be continuous, readable, and exactly this trapezoid, because characters walk along it.
+
+The near bank y330-400: bright turf receding toward the lip, a few grass clumps. A track leaves the left edge at x0-40, y300-372.
+
+Reserve x496-572, y0-206 as plain sky, hills and far-bank trees: a giant beanstalk will be drawn there separately; do not paint any vine, plant or cloud column. Reserve x296-360, y250-318 on the bridge as ordinary planks: a troll will stand there separately; no figure or shadow.
+
+Keep the near bank x20-620, y336-392 open and walkable. No people, animals, birds, extra bridges, buildings, signs or boats.

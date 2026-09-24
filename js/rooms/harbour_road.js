@@ -4,6 +4,55 @@
 
 CrownQuest.defineRooms((engine) => {
     const { followingGoat, GOAT_AT, goatHotspot, alderhavenSky } = CrownQuest.shared.alderhaven;
+
+    // Painted-scenery trial: a ChatGPT background with the skiff, the distant
+    // tower and the gulls still drawn live over it, and the hotspots, floor and
+    // obstacles moved to where the picture put them.
+    let paintedHarbour = false;
+    const harbourImage = new Image();
+    const PAINTED_SKIFF = { x: 160, y: 236, scale: 0.6 };
+    const PAINTED_TOWER = { x: 66, y: 142, scale: 0.1 };
+    function configurePaintedHarbour(e) {
+        e.clearForegroundLayers();
+        e.clearBarriers();
+        e.setDepthScaling(200, 372, 0.5, 1.08);
+        // The turf below the beach, plus the road where it climbs out to the right.
+        e.setWalkableArea((px, py) => py < 372 && px > 20 && px < 620 &&
+            (py > 250 || (px > 520 && py > 250 - (px - 520) * 0.5)), 205);
+        e.addBarrier(30, 250, 70, 40);   // the rocks on the left
+        e.addBarrier(450, 282, 32, 18);  // the sawn stump
+        followingGoat(e, ...GOAT_AT.harbour_road);
+        const layout = {
+            'the skiff': { x: 110, y: 205, w: 100, h: 42, walkToX: 170, walkToY: 262 },
+            'the waymarker': { x: 246, y: 212, w: 42, h: 50, walkToX: 300, walkToY: 272 },
+            'the sea': { x: 0, y: 140, w: 640, h: 50 },
+            'the town': { x: 480, y: 100, w: 160, h: 70 },
+            'the tower': { x: 46, y: 108, w: 40, h: 38 },
+            'the shore path west': { x: 0, y: 250, w: 42, h: 90, walkToX: 40, walkToY: 300 },
+            'the road inland': { x: 596, y: 196, w: 44, h: 80, walkToX: 600, walkToY: 222 }
+        };
+        for (const hotspot of e.rooms.harbour_road.hotspots) {
+            if (Object.hasOwn(layout, hotspot.name)) Object.assign(hotspot, layout[hotspot.name]);
+        }
+    }
+    if (new URLSearchParams(window.location.search).get('scenery') === 'painted') {
+        harbourImage.onload = () => {
+            paintedHarbour = true;
+            if (engine.currentRoomId === 'harbour_road') configurePaintedHarbour(engine);
+        };
+        harbourImage.src = 'icons/harbour-road-trial.png';
+    }
+    function drawPaintedHarbour(ctx, w, h, eng) {
+        ctx.save();
+        ctx.imageSmoothingEnabled = false;
+        ctx.drawImage(harbourImage, 0, 0, w, h);
+        ctx.restore();
+        eng.drawContactShadow(ctx, PAINTED_SKIFF.x, PAINTED_SKIFF.y + 4, 1, { rx: 44, ry: 5, alpha: 0.22 });
+        drawSkiff(ctx, PAINTED_SKIFF.x, PAINTED_SKIFF.y, PAINTED_SKIFF.scale, false, eng.animTimer);
+        drawAmberTower(ctx, PAINTED_TOWER.x, PAINTED_TOWER.y, PAINTED_TOWER.scale, eng.getFlag('sockets_lit') || 0, eng.animTimer);
+        drawGull(ctx, 300, 76, 1.3, eng.animTimer, 0.4);
+        drawGull(ctx, 372, 60, 1, eng.animTimer, 2.1);
+    }
     // ================= ROOM 5: THE HARBOUR ROAD =================
     engine.registerRoom({
         id: 'harbour_road',
@@ -38,8 +87,10 @@ CrownQuest.defineRooms((engine) => {
                 ctx.closePath(); ctx.fill();
                 grassFringe(ctx, 0, 378, 640, 5566, 130, '#9ab06a', '#78904c', '#4e6030');
             });
+            if (paintedHarbour) configurePaintedHarbour(e);
         },
         draw: (ctx, w, h, eng) => {
+            if (paintedHarbour) { drawPaintedHarbour(ctx, w, h, eng); return; }
             alderhavenSky(ctx, w, 148, eng, 141);
             distantRange(ctx, 152, w, 44, 3311, '#8fa4bc', 0.85);
             distantRange(ctx, 158, w, 30, 7722, '#7b91ac', 0.7);

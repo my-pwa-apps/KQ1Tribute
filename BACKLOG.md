@@ -11,6 +11,58 @@ confirmed player-facing progression defects.
 
 ---
 
+## Painted art trial - 2026-09-24
+
+ChatGPT, run in the embedded browser from the prompts in
+[tools/art-prompts](tools/art-prompts), produced backgrounds for the eight Act II
+and III rooms, ten inventory sprites and twelve cast sprites. All are installed
+as opt-in `icons/*-trial.png` behind `?scenery=painted`, and each falls back to
+the procedural art on its own. Coverage is in
+[tests/painted-alderhaven.spec.js](tests/painted-alderhaven.spec.js) (floor,
+exits, props, fallback, screenshots) and the updated painted-* baselines.
+
+- [ ] **Keep the first load after an update from mixing old cached scripts with new HTML**
+
+  **Priority:** Medium
+  **Category:** Bug
+  **Confidence:** High
+  **Player impact:** Medium
+  **Area:** Service worker update path
+  **Affected files:** [serviceworker.js](serviceworker.js), [js/register-sw.js](js/register-sw.js), [index.html](index.html)
+  **Evidence:** CONFIRMED in the embedded browser after the engine split. The page threw `GameEngine.extend is not a function` from every `js/engine/*.js` module and did not start until a reload. `index.html` is fetched network-first, but scripts are served cache-first from any cache (`caches.match`). The old worker therefore paired the new HTML and new module files with the previous `engine.js`.
+  **Problem:** Any release that adds or reshapes script files leaves the first visit after deployment broken.
+  **Impact:** A returning player sees a blank or broken game until they reload or accept the update banner.
+  **Recommended solution:** Serve the app shell from the same versioned cache as its scripts (cache-first, updated by the new worker), or add a version query to script URLs in `index.html` that the validator keeps equal to `VERSION`. Old workers only ever see a consistent set.
+  **Sierra-design consideration:** None.
+  **Regression considerations:** Offline play, the update banner, first-ever install, and the version guard.
+  **Acceptance criteria:** Serving build N under a worker installed from build N-1 loads a consistent build without errors.
+  **Validation:** A Playwright test that installs one worker version, changes script names, reloads once, and asserts no page errors.
+  **Estimated effort:** Small
+  **Game-design value:** Low
+  **Technical debt reduction:** Medium
+
+- [ ] **Finish the painted trial where live props are still procedural**
+
+  **Priority:** Low
+  **Category:** Visual
+  **Confidence:** High
+  **Player impact:** Low
+  **Area:** Painted-scenery trial
+  **Affected files:** [js/rooms/troll_bridge.js](js/rooms/troll_bridge.js), [js/rooms/harbour_road.js](js/rooms/harbour_road.js), [js/rooms/dark_wood.js](js/rooms/dark_wood.js), [tools/art-prompts](tools/art-prompts)
+  **Evidence:** Inspected painted screenshots. The beanstalk (after routing), the beached skiff, the distant tower, the fire pit and the chimney smoke are still flat procedural shapes over painted pictures. Cast sprites are static, so they lose the procedural cel's breathing and arm poses. The painted hare keeps its snare after being freed.
+  **Problem:** A few overlays read as a different art style from the painting beneath them.
+  **Impact:** Cosmetic only; puzzles and state are correct.
+  **Recommended solution:** Generate prompts and sprites for the beanstalk, skiff, fire pit and a freed hare. Consider a two-frame idle for the cast.
+  **Sierra-design consideration:** Keep the state-driven overlays live; paint only their appearance.
+  **Regression considerations:** Procedural fallback per image; the baselines in painted-alderhaven.
+  **Acceptance criteria:** No procedural-looking overlay remains in a painted room screenshot.
+  **Validation:** Inspect and re-record the painted baselines.
+  **Estimated effort:** Medium
+  **Game-design value:** Low
+  **Technical debt reduction:** Low
+
+---
+
 ## Adventure quality audit - 2026-09-24
 
 Review of the clean `270884b` tree. Baseline: static gate clean; 130/130

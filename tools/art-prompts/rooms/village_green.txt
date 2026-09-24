@@ -1,0 +1,19 @@
+Create only the static background for a playable early-1990s VGA pixel-art fantasy adventure. Landscape 16:10, intended for a final 640x400 canvas. All coordinates refer to that logical canvas and scale proportionally. No interface, borders, lettering, watermarks, or extra views.
+
+A small village green in the kingdom of Alderhaven, mid-morning, clear spring daylight. Crisp deliberate pixel clusters, dark contours, three tones per material, selective fine dithering only for distance. No blur, photorealism, glossy 3D rendering, or cartoon proportions.
+
+Fixed eye-level adventure-game camera. Sky y0-150 in hard horizontal pale-blue bands with a few flat clouds. A hazed blue-grey distant range at y116-156. A dark hedge and tree line across the full width at y168-212, with varied rounded crowns. The green itself fills y196-400: bright turf receding into haze, a trodden earth path curving from the left edge at y340 up to the well at x276 y302.
+
+Left: a whitewashed stone cottage x20-176, y176-272 with a deep golden thatched roof whose ridge peaks near y128, two small shuttered windows with warm light, and a plank door x80-116, y218-272. A stone chimney passes through the thatch at x138-162 with its top at y106; no smoke. Beside it, a plank bench and a neat stack of firewood logs x186-250, y248-286.
+
+Centre: a round fieldstone well x250-392, y240-346 with a wooden windlass frame and crank on top. The windlass drum is BARE: no rope, chain or bucket anywhere. Its dark opening reads clearly.
+
+Left of centre in front of the cottage: a peddler's two-wheeled cart x52-196, y226-326 with a red-and-cream striped awning, spoked wheels at x92 and x164 touching the ground at y334, pots, a crock and folded cloth bolts on the cart bed. Keep the cart bed around x150-180, y240-270 filled with cloth only: no rope coil, twine or chain.
+
+Right: a single weathered fence post x600-609, y268-310 and a low wooden water trough x372-420, y328-342.
+
+Reserve these areas as plain turf with no figures, animals or shadows, because characters are drawn separately: x98-144, y296-358; x448-528, y294-350; x548-584, y256-292.
+
+Exits: the road leaves the left edge at x0-40, y302-372; a track leaves the right edge at x600-640, y302-372 toward a darker wood. Keep both clear.
+
+Keep the lower foreground x20-620, y300-372 open and walkable apart from the well. No people, animals, birds, market stalls, signs with text, or extra buildings.

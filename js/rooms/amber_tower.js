@@ -132,6 +132,133 @@ CrownQuest.defineRooms((engine) => {
         e.showMessage('You hold up the mirror. It shows you a moment later than you are, which is unsettling and, just now, useless.');
     };
 
+    // Where the live actors stand. The painted-scenery trial moves them onto
+    // its own tower; the procedural window sits at baseY - h*0.76 in drawAmberTower.
+    const PROCEDURAL_AT = {
+        window: { x: 308, y: 336 - 268 * 0.76 + 3, w: 24, h: 24, figureX: 320, figureY: 336 - 268 * 0.76 + 46, scale: 0.82 },
+        elowen: [350, 344], morvane: [506, 348], hand: [486, 268], cast: 1
+    };
+    const PAINTED_AT = {
+        window: { x: 309, y: 127, w: 19, h: 28, figureX: 318, figureY: 172, scale: 0.82 },
+        elowen: [362, 330], morvane: [522, 340], hand: [500, 256], cast: 1.4
+    };
+    const PAINTED_SOCKETS = [[297, 229], [317, 229], [338, 229]];
+    const PAINTED_DOOR = { left: 301, right: 335, top: 246, bottom: 302 };
+    let paintedTower = false;
+    const towerImage = new Image();
+
+    function addTowerActors(e, at) {
+        // Elowen at the high window: visible from the first moment, so the
+        // player knows what the tower is for before anything explains it.
+        e.addForegroundLayer(120, (ctx, eng) => {
+            if (eng.getFlag('elowen_freed')) return;
+            const win = at.window;
+            ctx.save();
+            ctx.beginPath();
+            ctx.rect(win.x, win.y, win.w, win.h);
+            ctx.clip();
+            drawVgaPerson(ctx, win.figureX, win.figureY, win.scale, Object.assign({}, CAST_ELOWEN, {
+                animTimer: eng.animTimer,
+                phase: 4.1,
+                nearArm: { side: 1, up: 0.6 + Math.sin(eng.animTimer / 1400) * 0.1, lo: 1.1 },
+                farArm: { side: -1, up: -0.5, lo: 1.0 }
+            }));
+            ctx.restore();
+        });
+        const [ex, ey] = at.elowen;
+        e.addForegroundLayer(ey, (ctx, eng) => {
+            if (!eng.getFlag('elowen_freed')) return;
+            eng.drawContactShadow(ctx, ex, ey, 1, { rx: 18, ry: 4, alpha: 0.3 });
+            if (drawCastMember(ctx, 'elowen', eng, ex, ey, 1)) return;
+            drawVgaPerson(ctx, ex, ey, vgaPersonScale(eng, ey, at.cast), Object.assign({}, CAST_ELOWEN, {
+                animTimer: eng.animTimer,
+                nearArm: { side: 1, up: -0.3, lo: -0.5 },
+                farArm: { side: -1, up: 0.1, lo: 0.3 }
+            }));
+        });
+        // Morvane on the shore path, gathering his second stroke.
+        const [mx, my] = at.morvane;
+        e.addForegroundLayer(my, (ctx, eng) => {
+            if (!eng.getFlag('duel_pending')) return;
+            const scale = vgaPersonScale(eng, my, 1.08 * at.cast);
+            eng.drawContactShadow(ctx, mx, my, scale);
+            if (!drawCastMember(ctx, 'morvane', eng, mx, my, 1.12)) drawVgaPerson(ctx, mx, my, scale, Object.assign({}, CAST_MORVANE, {
+                animTimer: eng.animTimer,
+                nearArm: { side: -1, up: 1.3, lo: 0.4 },
+                farArm: { side: 1, up: -0.2, lo: 0.3 }
+            }));
+            const charge = Math.min(1, eng.getCounter('duel_timer') / DUEL_DEATH_MS);
+            eng.lightPool(ctx, at.hand[0], at.hand[1], 26 + charge * 40, '220,240,255', 0.25 + charge * 0.45);
+        });
+    }
+
+    function configurePaintedTower(e) {
+        e.clearForegroundLayers();
+        e.clearBarriers();
+        e.setDepthScaling(290, 372, 0.72, 1.06);
+        e.setWalkableArea((px, py) => py > 298 && py < 372 && px > 30 && px < 610, 299);
+        e.addBarrier(262, 290, 116, 18);  // the tower's footing
+        e.addBarrier(112, 292, 80, 18);   // the left stones
+        e.addBarrier(462, 292, 90, 18);   // the right stones
+        const cast = engine.game.drawPlayerSprite ? PAINTED_AT : Object.assign({}, PAINTED_AT, { cast: 1 });
+        addTowerActors(e, cast);
+        const layout = {
+            'the sockets': { x: 284, y: 218, w: 68, h: 24, walkToX: 318, walkToY: 316 },
+            'the tower door': { x: 298, y: 244, w: 40, h: 60, walkToX: 318, walkToY: 316 },
+            'the high window': { x: 303, y: 120, w: 32, h: 40 },
+            'the standing stones': { x: 110, y: 240, w: 90, h: 72 },
+            'the sea': { x: 0, y: 196, w: 640, h: 60 },
+            'the shore path east': { x: 596, y: 300, w: 44, h: 72, walkToX: 594, walkToY: 330 },
+            'Morvane': { x: 492, y: 246, w: 60, h: 96, walkToX: 440, walkToY: 330 }
+        };
+        for (const hotspot of e.rooms.amber_tower.hotspots) {
+            if (Object.hasOwn(layout, hotspot.name)) Object.assign(hotspot, layout[hotspot.name]);
+        }
+    }
+    if (new URLSearchParams(window.location.search).get('scenery') === 'painted') {
+        towerImage.onload = () => {
+            paintedTower = true;
+            if (engine.currentRoomId === 'amber_tower') configurePaintedTower(engine);
+        };
+        towerImage.src = 'icons/amber-tower-trial.png';
+    }
+
+    /** The painted tower, with the sockets' light and the open door drawn live. */
+    function drawPaintedTower(ctx, w, h, eng) {
+        ctx.save();
+        ctx.imageSmoothingEnabled = false;
+        ctx.drawImage(towerImage, 0, 0, w, h);
+        ctx.restore();
+        const lit = eng.getCounter('sockets_lit');
+        const pulse = 0.8 + Math.sin(eng.animTimer / 500) * 0.2;
+        PAINTED_SOCKETS.slice(0, lit).forEach(([sx, sy]) => {
+            ctx.fillStyle = '#ffe28a';
+            ctx.beginPath(); ctx.arc(sx, sy, 5.5, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = '#fff6d0';
+            ctx.beginPath(); ctx.arc(sx - 1.5, sy - 1.5, 2, 0, Math.PI * 2); ctx.fill();
+            eng.lightPool(ctx, sx, sy, 22, '255,220,140', 0.35 * pulse);
+        });
+        if (eng.getFlag('door_opened')) {
+            const d = PAINTED_DOOR;
+            const mid = (d.left + d.right) / 2;
+            ctx.fillStyle = '#f6e2a8';
+            ctx.beginPath();
+            ctx.moveTo(d.left, d.bottom); ctx.lineTo(d.left, d.top + 14);
+            ctx.quadraticCurveTo(mid, d.top - 6, d.right, d.top + 14);
+            ctx.lineTo(d.right, d.bottom);
+            ctx.closePath(); ctx.fill();
+            ctx.fillStyle = '#2a1c10';
+            ctx.beginPath();
+            ctx.moveTo(d.left + 6, d.bottom); ctx.lineTo(d.left + 6, d.top + 18);
+            ctx.quadraticCurveTo(mid, d.top + 4, d.right - 6, d.top + 18);
+            ctx.lineTo(d.right - 6, d.bottom);
+            ctx.closePath(); ctx.fill();
+            eng.lightPool(ctx, mid, d.bottom - 24, 130, '255,230,160', 0.24);
+        }
+        drawGull(ctx, 220, 92, 1.1, eng.animTimer, 0.9);
+        drawGull(ctx, 452, 76, 0.9, eng.animTimer, 2.6);
+    }
+
     engine.registerRoom({
         id: 'amber_tower',
         name: 'The Amber Tower',
@@ -164,49 +291,11 @@ CrownQuest.defineRooms((engine) => {
                 if (eng.getFlag('door_opened')) return;
                 eng.goToRoom('harbour_road', 78, 336);
             });
-            // Elowen at the high window: visible from the first moment, so the
-            // player knows what the tower is for before anything explains it.
-            e.addForegroundLayer(120, (ctx, eng) => {
-                if (eng.getFlag('elowen_freed')) return;
-                // The window sits at baseY - h*0.76 in drawAmberTower; keeping
-                // this derived rather than guessed is what keeps her in it.
-                const wy = 336 - 268 * 0.76;
-                ctx.save();
-                ctx.beginPath();
-                ctx.rect(308, wy + 3, 24, 24);
-                ctx.clip();
-                drawVgaPerson(ctx, 320, wy + 46, 0.82, Object.assign({}, CAST_ELOWEN, {
-                    animTimer: eng.animTimer,
-                    phase: 4.1,
-                    nearArm: { side: 1, up: 0.6 + Math.sin(eng.animTimer / 1400) * 0.1, lo: 1.1 },
-                    farArm: { side: -1, up: -0.5, lo: 1.0 }
-                }));
-                ctx.restore();
-            });
-            e.addForegroundLayer(344, (ctx, eng) => {
-                if (!eng.getFlag('elowen_freed')) return;
-                eng.drawContactShadow(ctx, 350, 344, 1, { rx: 18, ry: 4, alpha: 0.3 });
-                drawVgaPerson(ctx, 350, 344, vgaPersonScale(eng, 344, 1), Object.assign({}, CAST_ELOWEN, {
-                    animTimer: eng.animTimer,
-                    nearArm: { side: 1, up: -0.3, lo: -0.5 },
-                    farArm: { side: -1, up: 0.1, lo: 0.3 }
-                }));
-            });
-            // Morvane on the shore path, gathering his second stroke.
-            e.addForegroundLayer(348, (ctx, eng) => {
-                if (!eng.getFlag('duel_pending')) return;
-                const scale = vgaPersonScale(eng, 348, 1.08);
-                eng.drawContactShadow(ctx, 506, 348, scale);
-                drawVgaPerson(ctx, 506, 348, scale, Object.assign({}, CAST_MORVANE, {
-                    animTimer: eng.animTimer,
-                    nearArm: { side: -1, up: 1.3, lo: 0.4 },
-                    farArm: { side: 1, up: -0.2, lo: 0.3 }
-                }));
-                const charge = Math.min(1, eng.getCounter('duel_timer') / DUEL_DEATH_MS);
-                eng.lightPool(ctx, 486, 268, 26 + charge * 40, '220,240,255', 0.25 + charge * 0.45);
-            });
+            addTowerActors(e, PROCEDURAL_AT);
+            if (paintedTower) configurePaintedTower(e);
         },
         draw: (ctx, w, h, eng) => {
+            if (paintedTower) { drawPaintedTower(ctx, w, h, eng); return; }
             // ---- A sky that has already started to turn ----
             skyBands(ctx, 0, 0, w, 170, ['#2a2f60', '#5c4b84', '#a86a70', '#e0a06a']);
             const sun = 0.5 + Math.sin(eng.animTimer / 2600) * 0.06;

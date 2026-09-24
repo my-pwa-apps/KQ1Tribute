@@ -4,6 +4,65 @@
 
 CrownQuest.defineRooms((engine) => {
     const RULES = CrownQuestContent.rules;
+
+    // Painted-scenery trial: the picture supplies the columns, wall, horn and
+    // beanstalk; the giant, the shield on its peg and the ring's haze stay live.
+    let paintedCloud = false;
+    const cloudImage = new Image();
+    const PAINTED_SHIELD = { x: 324, y: 196 };
+    const PAINTED_GIANT = { x: 478, y: 268 };
+    function configurePaintedCloud(e) {
+        e.clearForegroundLayers();
+        e.setDepthScaling(250, 372, 0.66, 1.06);
+        e.setWalkableArea((px, py) => py > 285 && py < 372 && px > 40 && px < 600, 286);
+        e.clearBarriers();
+        e.addBarrier(120, 268, 140, 24);  // the drinking horn
+        const layout = {
+            'the Shield of Ardor': { x: PAINTED_SHIELD.x - 32, y: PAINTED_SHIELD.y - 34, w: 64, h: 66, walkToX: 232, walkToY: 300 },
+            'the giant': { x: 370, y: 206, w: 230, h: 76, walkToX: 232, walkToY: 300 },
+            'the drinking horn': { x: 115, y: 238, w: 150, h: 54 },
+            'the columns': { x: 30, y: 0, w: 200, h: 236 },
+            'the beanstalk': { x: 0, y: 270, w: 120, h: 130, walkToX: 80, walkToY: 344 }
+        };
+        for (const hotspot of e.rooms.cloud_realm.hotspots) {
+            if (Object.hasOwn(layout, hotspot.name)) Object.assign(hotspot, layout[hotspot.name]);
+        }
+    }
+    if (new URLSearchParams(window.location.search).get('scenery') === 'painted') {
+        cloudImage.onload = () => {
+            paintedCloud = true;
+            if (engine.currentRoomId === 'cloud_realm') configurePaintedCloud(engine);
+        };
+        cloudImage.src = 'icons/cloud-realm-trial.png';
+    }
+
+    /** The ring's haze over the hall floor, shared by both rooms. */
+    function drawRingHaze(ctx, w, h, eng) {
+        if (!eng.getFlag('ring_worn')) return;
+        ctx.fillStyle = 'rgba(220,232,244,0.22)';
+        ctx.fillRect(0, 200, w, h - 200);
+        for (let i = 0; i < 40; i++) {
+            const mx = (i * 71 + eng.animTimer / 30) % w;
+            ctx.fillStyle = 'rgba(255,255,255,0.3)';
+            ctx.fillRect(mx, 240 + (i % 9) * 16, 22, 2);
+        }
+    }
+
+    function drawPaintedCloud(ctx, w, h, eng) {
+        ctx.save();
+        ctx.imageSmoothingEnabled = false;
+        ctx.drawImage(cloudImage, 0, 0, w, h);
+        ctx.restore();
+        if (!RULES.treasureTaken(eng, 'shield_of_ardor')) {
+            if (!drawPaintedItem(ctx, 'shield_of_ardor', PAINTED_SHIELD.x, PAINTED_SHIELD.y + 28, 58, 58)) {
+                drawShieldOfArdor(ctx, PAINTED_SHIELD.x, PAINTED_SHIELD.y, 1.5, eng.animTimer);
+            }
+            eng.lightPool(ctx, PAINTED_SHIELD.x, PAINTED_SHIELD.y, 90, '255,240,190', 0.16);
+        }
+        eng.drawContactShadow(ctx, PAINTED_GIANT.x, PAINTED_GIANT.y, 1, { rx: 96, ry: 8, alpha: 0.22 });
+        if (!drawPaintedActor(ctx, 'giant', PAINTED_GIANT.x, PAINTED_GIANT.y, { width: 220 })) drawSleepingGiant(ctx, PAINTED_GIANT.x, PAINTED_GIANT.y, 0.88, eng.animTimer);
+        drawRingHaze(ctx, w, h, eng);
+    }
     // ================= ROOM 10: THE CLOUD REALM =================
     /** Put the ring on. Reachable from every hotspot in the hall, because a
      *  player holding the answer must never be able to fail by aiming it at
@@ -55,6 +114,7 @@ CrownQuest.defineRooms((engine) => {
                 ctx.fillRect(px - 27, 250 - ph - 12, 54, 4);
                 ctx.fillRect(px - 26, 244, 52, 4);
             });
+            if (paintedCloud) configurePaintedCloud(e);
         },
         onUpdate: (e) => {
             if (e.dead || e.cutscene || e.sequence) return;
@@ -64,6 +124,7 @@ CrownQuest.defineRooms((engine) => {
             }
         },
         draw: (ctx, w, h, eng) => {
+            if (paintedCloud) { drawPaintedCloud(ctx, w, h, eng); return; }
             // ---- Sky above the weather ----
             skyBands(ctx, 0, 0, w, 200, ['#1e3a72', '#3a63a4', '#6f9ad0', '#a8cbe8']);
             starField(ctx, w, 90, 1717, 40, 1);
@@ -180,18 +241,10 @@ CrownQuest.defineRooms((engine) => {
 
             // Giant asleep on the hall floor, tucked behind the near column
             eng.drawContactShadow(ctx, 400, 266, 1, { rx: 96, ry: 8, alpha: 0.22 });
-            drawSleepingGiant(ctx, 400, 266, 0.88, eng.animTimer);
+            if (!drawPaintedActor(ctx, 'giant', 400, 266, { width: 220 })) drawSleepingGiant(ctx, 400, 266, 0.88, eng.animTimer);
 
             // ---- The ring's effect, if worn ----
-            if (eng.getFlag('ring_worn')) {
-                ctx.fillStyle = 'rgba(220,232,244,0.22)';
-                ctx.fillRect(0, 200, w, h - 200);
-                for (let i = 0; i < 40; i++) {
-                    const mx = (i * 71 + eng.animTimer / 30) % w;
-                    ctx.fillStyle = 'rgba(255,255,255,0.3)';
-                    ctx.fillRect(mx, 240 + (i % 9) * 16, 22, 2);
-                }
-            }
+            drawRingHaze(ctx, w, h, eng);
             eng.vignette(ctx, 0.28, '120,150,190');
         },
         hotspots: [

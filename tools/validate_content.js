@@ -17,6 +17,7 @@ const CONTENT_FILES = [
     'js/game.js',
     'js/art.js',
     'js/actors.js',
+    'js/painted-cast.js',
     'js/icons.js',
     'js/cutscenes.js',
     ...ROOM_FILES

@@ -4,6 +4,91 @@
 
 CrownQuest.defineRooms((engine) => {
     const RULES = CrownQuestContent.rules;
+    /** The fire pit's state: embers and flames, or wet coals and steam. Its
+     *  ring of stones is part of the scenery and drawn beneath this. */
+    function drawFirePit(ctx, w, h, eng, doused) {
+        if (doused) {
+            ctx.fillStyle = '#1a1614';
+            ctx.beginPath(); ctx.ellipse(216, 344, 58, 16, 0, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = '#2d2724';
+            for (let i = 0; i < 20; i++) {
+                const a = i * 1.3;
+                ctx.fillRect(216 + Math.cos(a) * (10 + i * 2), 340 + Math.sin(a) * (4 + i * 0.5), 5, 3);
+            }
+            // Steam, rising in slow deterministic puffs
+            for (let i = 0; i < 6; i++) {
+                const p = (eng.animTimer / 500 + i * 1.1) % 6;
+                ctx.fillStyle = `rgba(226,232,238,${0.3 - p * 0.045})`;
+                ctx.beginPath();
+                ctx.ellipse(170 + i * 20, 336 - p * 22, 9 + p * 5, 6 + p * 3, 0, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        } else {
+            ctx.fillStyle = '#4a1a08';
+            ctx.beginPath(); ctx.ellipse(216, 344, 62, 17, 0, 0, Math.PI * 2); ctx.fill();
+            for (let i = 0; i < 14; i++) {
+                flame(ctx, 162 + i * 8, 344, 0.9 + Math.abs(Math.sin(i * 1.7)) * 1.1, eng.animTimer + i * 240);
+            }
+            eng.lightPool(ctx, 216, 316, 340, '255,140,50', 0.28);
+            ctx.fillStyle = 'rgba(220,90,30,0.08)';
+            ctx.fillRect(0, 0, w, h);
+        }
+    }
+
+    // Painted-scenery trial: a neutral-lit cave, with the fire (and the light
+    // it throws), the dragon and the mirror still drawn live over it.
+    let paintedCave = false;
+    const caveImage = new Image();
+    const PAINTED_MIRROR = { x: 470, y: 298 };
+    function configurePaintedCave(e) {
+        e.setDepthScaling(256, 372, 0.7, 1.06);
+        e.setWalkableArea((px, py) => py > 262 && py < 372 && px > 60 && px < 606 && !(px < 170 && py > 300), 263);
+        const layout = {
+            'the hoard': { x: 330, y: 252, w: 270, h: 78, walkToX: 470, walkToY: 330 },
+            'the Mirror of Ianthe': { x: PAINTED_MIRROR.x - 25, y: PAINTED_MIRROR.y - 28, w: 50, h: 56, walkToX: 470, walkToY: 330 },
+            'the way out': { x: 575, y: 150, w: 65, h: 190, walkToX: 598, walkToY: 300 }
+        };
+        for (const hotspot of e.rooms.dragon_cave.hotspots) {
+            if (Object.hasOwn(layout, hotspot.name)) Object.assign(hotspot, layout[hotspot.name]);
+        }
+    }
+    if (new URLSearchParams(window.location.search).get('scenery') === 'painted') {
+        caveImage.onload = () => {
+            paintedCave = true;
+            if (engine.currentRoomId === 'dragon_cave') configurePaintedCave(engine);
+        };
+        caveImage.src = 'icons/dragon-cave-trial.png';
+    }
+    function drawPaintedCave(ctx, w, h, eng) {
+        const doused = eng.getFlag('dragon_doused');
+        ctx.save();
+        ctx.imageSmoothingEnabled = false;
+        ctx.drawImage(caveImage, 0, 0, w, h);
+        ctx.restore();
+        // With the fire out, only the daylight at the mouth lights the lair.
+        if (doused) {
+            ctx.fillStyle = 'rgba(8,8,18,0.34)';
+            ctx.fillRect(0, 0, w, h);
+        }
+        ctx.fillStyle = '#100c0a';
+        ctx.beginPath(); ctx.ellipse(216, 344, 74, 22, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#3a3129';
+        for (let i = 0; i < 14; i++) {
+            const a = i / 14 * Math.PI * 2;
+            ctx.beginPath();
+            ctx.ellipse(216 + Math.cos(a) * 64, 344 + Math.sin(a) * 19, 9, 6, 0, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        drawFirePit(ctx, w, h, eng, doused);
+        if (!RULES.treasureTaken(eng, 'mirror_of_ianthe')) {
+            if (!drawPaintedItem(ctx, 'mirror_of_ianthe', PAINTED_MIRROR.x, PAINTED_MIRROR.y + 20, 28, 40)) {
+                drawMirrorOfIanthe(ctx, PAINTED_MIRROR.x, PAINTED_MIRROR.y, 0.95, eng.animTimer);
+            }
+            if (doused) eng.lightPool(ctx, PAINTED_MIRROR.x, PAINTED_MIRROR.y, 74, '190,220,255', 0.2);
+        }
+        if (doused) dustMotes(ctx, 560, 200, 80, 140, eng.animTimer, 2424);
+    }
+
     // ================= ROOM 11: THE DRAGON'S CAVE =================
     engine.registerRoom({
         id: 'dragon_cave',
@@ -25,8 +110,9 @@ CrownQuest.defineRooms((engine) => {
             }
             e.addForegroundLayer(342, (ctx, eng) => {
                 eng.drawContactShadow(ctx, 310, 346, 1, { rx: 120, ry: 15, alpha: 0.34 });
-                drawDragon(ctx, 310, 346, 1.45, eng.animTimer, eng.getFlag('dragon_doused'));
+                if (!drawPaintedActor(ctx, 'dragon', 310, 346, { width: 300 })) drawDragon(ctx, 310, 346, 1.45, eng.animTimer, eng.getFlag('dragon_doused'));
             });
+            if (paintedCave) configurePaintedCave(e);
         },
         onUpdate: (e) => {
             if (e.dead || e.cutscene || e.sequence || e.getFlag('dragon_doused')) return;
@@ -35,6 +121,7 @@ CrownQuest.defineRooms((engine) => {
             }
         },
         draw: (ctx, w, h, eng) => {
+            if (paintedCave) { drawPaintedCave(ctx, w, h, eng); return; }
             const doused = eng.getFlag('dragon_doused');
             const lit = doused ? '#4a4650' : '#7a5c4c';
             const base = doused ? '#332f3c' : '#523a30';
@@ -120,32 +207,7 @@ CrownQuest.defineRooms((engine) => {
                     ctx.fill();
                 }
             }), 0, 0);
-            if (doused) {
-                ctx.fillStyle = '#1a1614';
-                ctx.beginPath(); ctx.ellipse(216, 344, 58, 16, 0, 0, Math.PI * 2); ctx.fill();
-                ctx.fillStyle = '#2d2724';
-                for (let i = 0; i < 20; i++) {
-                    const a = i * 1.3;
-                    ctx.fillRect(216 + Math.cos(a) * (10 + i * 2), 340 + Math.sin(a) * (4 + i * 0.5), 5, 3);
-                }
-                // Steam, rising in slow deterministic puffs
-                for (let i = 0; i < 6; i++) {
-                    const p = (eng.animTimer / 500 + i * 1.1) % 6;
-                    ctx.fillStyle = `rgba(226,232,238,${0.3 - p * 0.045})`;
-                    ctx.beginPath();
-                    ctx.ellipse(170 + i * 20, 336 - p * 22, 9 + p * 5, 6 + p * 3, 0, 0, Math.PI * 2);
-                    ctx.fill();
-                }
-            } else {
-                ctx.fillStyle = '#4a1a08';
-                ctx.beginPath(); ctx.ellipse(216, 344, 62, 17, 0, 0, Math.PI * 2); ctx.fill();
-                for (let i = 0; i < 14; i++) {
-                    flame(ctx, 162 + i * 8, 344, 0.9 + Math.abs(Math.sin(i * 1.7)) * 1.1, eng.animTimer + i * 240);
-                }
-                eng.lightPool(ctx, 216, 316, 340, '255,140,50', 0.28);
-                ctx.fillStyle = 'rgba(220,90,30,0.08)';
-                ctx.fillRect(0, 0, w, h);
-            }
+            drawFirePit(ctx, w, h, eng, doused);
 
             // ---- The hoard ----
             ctx.drawImage(eng.staticLayer('dragon_cave|hoard', (ctx) => {

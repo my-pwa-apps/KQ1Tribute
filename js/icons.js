@@ -299,7 +299,8 @@ const PAINTED_ITEM_SPRITES = (() => {
     const options = new URLSearchParams(window.location.search);
     const style = options.get('props') || (options.get('scenery') === 'painted' ? 'painted' : 'procedural');
     if (style === 'painted') {
-        for (const id of ['bread', 'pail', 'crock', 'candle', 'ledger', 'spellbook']) {
+        for (const id of ['bread', 'pail', 'crock', 'candle', 'ledger', 'spellbook', 'sea_salt', 'brass_key',
+            'raven_feather', 'thimble', 'rope', 'parchment', 'ring_of_mist', 'chest_of_cormac', 'shield_of_ardor', 'mirror_of_ianthe']) {
             const image = new Image();
             image.src = `icons/${id}-trial.png`;
             sprites[id] = image;
@@ -409,6 +410,7 @@ const ITEM_ART = {
     },
 
     sea_salt: (ctx, cx, cy) => {
+        if (drawPaintedItem(ctx, 'sea_salt', cx, cy + 16, 34, 36)) return;
         // A twist of cloth holding a heap of coarse grey crystals.
         ctx.fillStyle = '#2a2418';
         ctx.beginPath();
@@ -448,6 +450,7 @@ const ITEM_ART = {
     },
 
     brass_key: (ctx, cx, cy) => {
+        if (drawPaintedItem(ctx, 'brass_key', cx, cy + 12, 44, 28)) return;
         ctx.save();
         ctx.translate(cx, cy);
         ctx.rotate(-0.5);
@@ -473,6 +476,7 @@ const ITEM_ART = {
     },
 
     raven_feather: (ctx, cx, cy) => {
+        if (drawPaintedItem(ctx, 'raven_feather', cx, cy + 14, 48, 32)) return;
         ctx.save();
         ctx.translate(cx, cy);
         ctx.rotate(0.42);
@@ -560,6 +564,7 @@ const ITEM_ART = {
     },
 
     thimble: (ctx, cx, cy, t) => {
+        if (drawPaintedItem(ctx, 'thimble', cx, cy + 16, 28, 34)) return;
         ctx.fillStyle = '#101018';
         ctx.beginPath();
         ctx.moveTo(cx - 13, cy + 16);
@@ -606,6 +611,7 @@ const ITEM_ART = {
     },
 
     rope: (ctx, cx, cy) => {
+        if (drawPaintedItem(ctx, 'rope', cx, cy + 14, 44, 30)) return;
         ctx.strokeStyle = '#2a2114';
         ctx.lineWidth = 9;
         ctx.beginPath(); ctx.arc(cx, cy, 16, 0, Math.PI * 2); ctx.stroke();
@@ -631,6 +637,7 @@ const ITEM_ART = {
     },
 
     parchment: (ctx, cx, cy) => {
+        if (drawPaintedItem(ctx, 'parchment', cx, cy + 18, 32, 40)) return;
         ctx.fillStyle = '#2a2214';
         ctx.beginPath();
         ctx.moveTo(cx - 20, cy - 16);
@@ -672,6 +679,7 @@ const ITEM_ART = {
     },
 
     ring_of_mist: (ctx, cx, cy, t) => {
+        if (drawPaintedItem(ctx, 'ring_of_mist', cx, cy + 12, 30, 26)) return;
         const haze = 0.2 + Math.sin((t || 0) / 420) * 0.1;
         ctx.fillStyle = `rgba(200,210,225,${haze})`;
         ctx.beginPath(); ctx.arc(cx, cy, 22, 0, Math.PI * 2); ctx.fill();
@@ -691,7 +699,13 @@ const ITEM_ART = {
         ctx.fillRect(cx - 24, cy + drift * 0.3, 48, 4);
     },
 
-    chest_of_cormac: (ctx, cx, cy) => drawChestOfCormac(ctx, cx, cy + 2, 1.15),
-    shield_of_ardor: (ctx, cx, cy, t) => drawShieldOfArdor(ctx, cx, cy, 1.25, t),
-    mirror_of_ianthe: (ctx, cx, cy, t) => drawMirrorOfIanthe(ctx, cx, cy - 4, 1.1, t)
+    chest_of_cormac: (ctx, cx, cy) => {
+        if (!drawPaintedItem(ctx, 'chest_of_cormac', cx, cy + 18, 48, 40)) drawChestOfCormac(ctx, cx, cy + 2, 1.15);
+    },
+    shield_of_ardor: (ctx, cx, cy, t) => {
+        if (!drawPaintedItem(ctx, 'shield_of_ardor', cx, cy + 24, 48, 48)) drawShieldOfArdor(ctx, cx, cy, 1.25, t);
+    },
+    mirror_of_ianthe: (ctx, cx, cy, t) => {
+        if (!drawPaintedItem(ctx, 'mirror_of_ianthe', cx, cy + 22, 32, 46)) drawMirrorOfIanthe(ctx, cx, cy - 4, 1.1, t);
+    }
 };

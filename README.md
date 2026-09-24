@@ -65,6 +65,39 @@ Each missing image falls back to its original art independently.
 Run `npx playwright test tests/painted-story.spec.js` for title, intro, outdoor
 movement, hiding, sailing, fallback, and desktop/mobile screenshot checks.
 
+The eight Act II and III rooms (harbour road, village green, well bottom, dark
+wood, troll bridge, cloud hall, dragon's cave and Amber Tower) also have painted
+backgrounds, `icons/<room>-trial.png`. Each room keeps its dynamic props live
+over the picture: the skiff and distant tower, the rope on the cart and windlass,
+chimney smoke, Hattie, the goat and the villager, the gnome's fire, the nailed
+parchment and snared hare, Grumbold and the goat's charge (drawn through a
+uniform map from the procedural span onto the painted one), the shield and the
+giant, the lit or doused fire pit and the mirror, and the tower's sockets, open
+door, Elowen and Morvane. Hotspots, the walkable floor, obstacles, depth scaling
+and exits are re-laid to each picture; puzzles are unchanged. Cast drawn beside
+the painted hero scales with him. Run
+`npx playwright test tests/painted-alderhaven.spec.js` for the floor, exit,
+fallback and screenshot checks.
+
+### Generating art with ChatGPT
+
+The painted trials were generated with ChatGPT's image tool from the prompts in
+[tools/art-prompts](tools/art-prompts): `rooms/` for backgrounds, `items/` and
+`characters/` for isolated sprites on a flat #FF00FF background. Every room
+prompt gives coordinates in the 640x400 logical canvas and reserves the areas
+where live props and actors are drawn, so the picture never paints something the
+game also draws. Keeping one conversation per batch keeps the style consistent.
+
+1. Paste a prompt (prefixed "Generate one image from this specification. Reply
+   with the image only."), and save the result as
+   `art-drafts/<batch>/<id>-source.png`.
+2. For sprites, run `node tools/generate_props.js art-drafts/<batch> --prepare-only --items`
+   (or `--characters`; add `--only=id,id` for a partial batch) to key out the
+   background and write trimmed transparent sprites and a preview sheet.
+3. Inspect the source and preview, copy the accepted file to
+   `icons/<id>-trial.png`, and lay out the room's hotspots, floor and overlays
+   against it in that room's `configurePainted*` function.
+
 The painted scenery trial uses the supplied Rowan sprite sheets by default:
 `http://127.0.0.1:8080/?scenery=painted`.
 Use `?actors=painted` alone to try the sprites with procedural scenery.
@@ -283,6 +316,7 @@ js/engine/*.js        Subsystems extending GameEngine.prototype: input, parser,
 js/registry.js        Room-module queue, drained by the bootstrap
 js/art.js             Drawing primitives, landscape, architecture, the treasures
 js/actors.js          The shared human cel, the cast palettes, the creatures
+js/painted-cast.js    Opt-in painted Rowan atlas and ChatGPT-painted cast sprites
 js/icons.js           Inventory close-ups and speaker portraits
 js/cutscenes.js       Set pieces and the title backdrop
 js/rooms/house.js     Shared shell for the three interiors of Morvane's house

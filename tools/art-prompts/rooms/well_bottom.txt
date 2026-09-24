@@ -1,0 +1,13 @@
+Create only the static background for a playable early-1990s VGA pixel-art fantasy adventure. Landscape 16:10, intended for a final 640x400 canvas. All coordinates refer to that logical canvas and scale proportionally. No interface, borders, lettering, watermarks, or extra views.
+
+A flooded natural chamber at the bottom of a village well, twenty feet underground. Cool wet limestone in slate-blue and grey-green, black shadow, one shaft of daylight. Faintly homely and secretive. Crisp deliberate pixel clusters, dark contours, three tones per material, selective fine dithering. No blur, photorealism, glossy 3D rendering, or cartoon proportions.
+
+Fixed slightly elevated adventure-game camera. Rough rock walls fill y0-300 across the full width. A round masonry well shaft opens in the ceiling at x280-360; at its top, y0-40, a small bright disc of daylight. A soft cold light column falls from it to the floor around x320.
+
+ONE long hemp rope hangs straight down from the shaft at x316-324, from y0 to y320, its end coiled on the floor. It is the way out and must read clearly against the rock.
+
+Damp stone floor y288-400, subtly lighter where the light lands. At the left, a shallow pool of very clear cold water x84-320, y324-376 with a bright rim highlight. A scatter of small green-bronze wish coins in the silt x100-176, y358-382.
+
+Reserve x420-560, y250-352 as plain floor and wall: a gnome sitting on a treasure chest will be drawn there separately; no furniture, chest, rug or shadow. Reserve x524-600, y300-356 as plain floor: a small driftwood fire will be drawn separately; no flames, ash, logs or glow.
+
+A few dripping stalactite stubs along the ceiling edge only; nothing hanging into the middle of the room. Keep the floor x60-580, y292-372 open and walkable. No people, creatures, bones, furniture, tunnels or extra exits.

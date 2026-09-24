@@ -15,7 +15,7 @@ const ALLOW = {};
 
 const SCRIPTS = [
     'js/palette.js', 'js/content.js', 'js/registry.js', 'js/sound.js', 'js/register-sw.js',
-    'js/art.js', 'js/actors.js', 'js/icons.js', 'js/cutscenes.js', 'js/game.js',
+    'js/art.js', 'js/actors.js', 'js/painted-cast.js', 'js/icons.js', 'js/cutscenes.js', 'js/game.js',
     ...ENGINE_FILES, ...ROOM_FILES, 'serviceworker.js', 'tools/serve.js'
 ];
 // Sized but not syntax-checked with --check: the WebXR entry point is an ES module.

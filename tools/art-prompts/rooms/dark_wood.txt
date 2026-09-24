@@ -1,0 +1,17 @@
+Create only the static background for a playable early-1990s VGA pixel-art fantasy adventure. Landscape 16:10, intended for a final 640x400 canvas. All coordinates refer to that logical canvas and scale proportionally. No interface, borders, lettering, watermarks, or extra views.
+
+An old, dark forest just east of a village. Ancient oaks and beeches standing much too close together, deep green shade, cold mossy light, patches of pale sky in the canopy. Crisp deliberate pixel clusters, dark contours, three tones per material, selective fine dithering in the canopy. No blur, photorealism, glossy 3D rendering, or cartoon proportions.
+
+Fixed eye-level adventure-game camera. Ranks of trunks recede into blue-green haze; the nearest trunks are darkest and largest. Canopy across the top y0-150 with ragged gaps of light.
+
+Back left: a mossy rock outcrop with a tall black cave mouth x72-172, y154-262. The opening is ragged and deep black, taller than a man, with faint warm air shimmering at its lip. A narrow worn path climbs from the lower track at x132 y354 up to the cave mouth at y300.
+
+Centre left: one enormous gnarled oak, trunk x168-274, y200-348, roots spreading on the ground. Keep the bark on its trunk at x192-238, y282-324 plain and unobstructed: a small nailed note will be drawn there separately.
+
+Centre: a ring of red-capped toadstools x272-332, y350-376 in the leaf litter.
+
+Reserve x366-480, y262-364 as plain forest floor and ferns: a snared hare and an elf will be drawn separately; no animals, figures, traps or shadows.
+
+A leaf-litter track crosses the lower screen from the left edge x0-40, y300-372 to the right edge x600-640, y300-372, where a hint of brighter light suggests water beyond. Keep both edges clear.
+
+Keep the lower foreground x20-620, y270-372 open and walkable except the oak's base. No people, animals, birds, buildings, signs, fallen logs across the track, or water.

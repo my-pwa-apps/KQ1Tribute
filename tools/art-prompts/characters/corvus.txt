@@ -1,0 +1,9 @@
+Create ONE isolated character sprite for an early-1990s VGA fantasy adventure.
+
+Corvus, a large glossy black raven the size of a cat, perched as if on an invisible perch, head turned to look at the viewer with one bright knowing eye, feathers with a faint green sheen, grey beak.
+
+Early-1990s VGA adventure-game character sprite in the style of Sierra's King's Quest V: naturalistic proportions, deliberate pixel clusters, near-black contour, three shading tones per material, light from the upper left. It must read clearly at about 30 pixels tall on screen. No photograph, anime, chibi, cartoon mascot proportions, glossy 3D render or excessive fine grain.
+
+Whole body, in exactly the pose and facing described above, resting on an invisible ground line. Exactly ONE figure, ONE view. Landscape 16:10 canvas, the figure centered with generous clear margins and occupying about four fifths of the image height. No frame, text, lettering, watermark, props on the ground, floor, cast shadow or scenery.
+
+Background MUST be perfectly flat solid RGB 255,0,255 (#FF00FF), including every gap between limbs, wings, tail and body. No gradient, checkerboard, texture or glow. Do not use pink or magenta anywhere on the figure. The background will be removed by software; do not simulate transparency.

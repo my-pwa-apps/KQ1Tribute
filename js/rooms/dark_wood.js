@@ -5,6 +5,103 @@
 CrownQuest.defineRooms((engine) => {
     const RULES = CrownQuestContent.rules;
     const { followingGoat, GOAT_AT, goatHotspot } = CrownQuest.shared.alderhaven;
+
+    // Where the live actors and state props stand. The painted-scenery trial
+    // moves them onto its own picture; the puzzles and hotspots do not change.
+    const PROCEDURAL_AT = { fennow: [452, 322, 0.92] };
+    const PAINTED_AT = {
+        fennow: [478, 292, 1.3], hare: [420, 300, 1.6], freedHare: [540, 288, 1.35],
+        parchment: [214, 188], goat: [100, 318, 1.4]
+    };
+    let paintedWood = false;
+    const woodImage = new Image();
+
+    function addFennow(e, [fx, fy, fs]) {
+        // Fennow only shows himself after the hare is loose.
+        e.addForegroundLayer(fy, (ctx, eng) => {
+            if (!eng.getFlag('hare_freed')) return;
+            eng.drawContactShadow(ctx, fx, fy, 1, { rx: 17, ry: 4, alpha: 0.24 });
+            if (drawCastMember(ctx, 'fennow', eng, fx, fy, 0.97)) return;
+            drawVgaPerson(ctx, fx, fy, vgaPersonScale(eng, fy, fs), Object.assign({}, CAST_FENNOW, {
+                animTimer: eng.animTimer,
+                phase: 2.9,
+                nearArm: { side: 1, up: 0.2, lo: 0.6 },
+                farArm: { side: -1, up: -0.24, lo: 0.44 }
+            }));
+        });
+    }
+
+    /** The painted track: the band of leaf litter across the picture, the
+     *  climb to the cave, and the open ground in front of the oak. */
+    const paintedFloor = (px, py) => px > 20 && px < 620 && py < 372 &&
+        ((py > 258 && py < 345) || (px > 130 && px < 380 && py >= 345) || (px > 70 && px < 140 && py > 205));
+
+    function configurePaintedWood(e) {
+        e.clearForegroundLayers();
+        e.clearBarriers();
+        e.setDepthScaling(250, 372, 0.6, 1.08);
+        e.setWalkableArea(paintedFloor, 206);
+        e.addBarrier(140, 250, 190, 48);  // the oak's roots
+        if (e.getFlag('goat_follows')) followingGoat(e, ...PAINTED_AT.goat);
+        addFennow(e, PAINTED_AT.fennow);
+        const layout = {
+            'the great oak': { x: 150, y: 20, w: 150, h: 240 },
+            'the parchment': { x: 206, y: 180, w: 34, h: 32, walkToX: 214, walkToY: 304 },
+            'the hare': { x: 396, y: 276, w: 52, h: 34, walkToX: 380, walkToY: 314 },
+            'Fennow': { x: 456, y: 222, w: 46, h: 72, walkToX: 440, walkToY: 314 },
+            'the toadstools': { x: 270, y: 274, w: 56, h: 28 },
+            'the cave mouth': {
+                x: 60, y: 110, w: 64, h: 112, walkToX: 96, walkToY: 212,
+                walk: (e2) => e2.runSequence([
+                    { walk: [null, 300] },
+                    { walk: [120, 290] },
+                    { walk: [98, 214] },
+                    (game) => game.goToRoom('dragon_cave', 560, 340)
+                ])
+            },
+            'the track west': { x: 0, y: 268, w: 40, h: 72, walkToX: 30, walkToY: 304 },
+            'the track east': { x: 600, y: 244, w: 40, h: 62, walkToX: 610, walkToY: 282 },
+            'your goat': { x: 58, y: 262, w: 84, h: 58, walkToX: 160 }
+        };
+        for (const hotspot of e.rooms.dark_wood.hotspots) {
+            if (Object.hasOwn(layout, hotspot.name)) Object.assign(hotspot, layout[hotspot.name]);
+        }
+    }
+    if (new URLSearchParams(window.location.search).get('scenery') === 'painted') {
+        woodImage.onload = () => {
+            paintedWood = true;
+            if (engine.currentRoomId === 'dark_wood') configurePaintedWood(engine);
+        };
+        woodImage.src = 'icons/dark-wood-trial.png';
+    }
+
+    function drawPaintedWood(ctx, w, h, eng) {
+        ctx.save();
+        ctx.imageSmoothingEnabled = false;
+        ctx.drawImage(woodImage, 0, 0, w, h);
+        ctx.restore();
+        if (!eng.hasItem('parchment') && !drawPaintedItem(ctx, 'parchment', PAINTED_AT.parchment[0], PAINTED_AT.parchment[1] + 13, 26, 28)) {
+            const [px, py] = PAINTED_AT.parchment;
+            ctx.fillStyle = '#2a2214';
+            ctx.fillRect(px - 12, py - 11, 26, 24);
+            ctx.fillStyle = '#d6c69a';
+            ctx.fillRect(px - 11, py - 10, 24, 22);
+            ctx.fillStyle = '#b8a67a';
+            ctx.fillRect(px + 5, py - 10, 8, 22);
+            ctx.fillStyle = '#3a2a14';
+            ctx.beginPath(); ctx.arc(px + 1, py - 7, 1.6, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = 'rgba(60,44,20,0.6)';
+            for (let i = 0; i < 4; i++) ctx.fillRect(px - 8, py - 3 + i * 4, 18, 1);
+        }
+        if (!eng.getFlag('hare_freed')) {
+            const [hx, hy, hs] = PAINTED_AT.hare;
+            eng.drawContactShadow(ctx, hx, hy, 1, { rx: 19, ry: 4, alpha: 0.24 });
+            if (!drawCastMember(ctx, 'hare', eng, hx, hy, 0.17 * hs)) drawHare(ctx, hx, hy, hs, false, eng.animTimer);
+        } else if (!eng.getFlag('has_ring')) {
+            const [hx, hy, hs] = PAINTED_AT.freedHare;
+            if (!drawCastMember(ctx, 'hare', eng, hx, hy, 0.17 * hs, -1)) drawHare(ctx, hx, hy, hs, true, eng.animTimer);
+        }
+    }
     // ================= ROOM 8: THE DARK WOOD =================
     engine.registerRoom({
         id: 'dark_wood',
@@ -43,19 +140,11 @@ CrownQuest.defineRooms((engine) => {
                 ctx.fillStyle = '#33261a';
                 ctx.fillRect(606, 0, 10, 400);
             });
-            // Fennow only shows himself after the hare is loose.
-            e.addForegroundLayer(322, (ctx, eng) => {
-                if (!eng.getFlag('hare_freed')) return;
-                eng.drawContactShadow(ctx, 452, 322, 1, { rx: 17, ry: 4, alpha: 0.24 });
-                drawVgaPerson(ctx, 452, 322, vgaPersonScale(eng, 322, 0.92), Object.assign({}, CAST_FENNOW, {
-                    animTimer: eng.animTimer,
-                    phase: 2.9,
-                    nearArm: { side: 1, up: 0.2, lo: 0.6 },
-                    farArm: { side: -1, up: -0.24, lo: 0.44 }
-                }));
-            });
+            addFennow(e, PROCEDURAL_AT.fennow);
+            if (paintedWood) configurePaintedWood(e);
         },
         draw: (ctx, w, h, eng) => {
+            if (paintedWood) { drawPaintedWood(ctx, w, h, eng); return; }
             // Canopy, tree ranks, floor and litter never change between frames,
             // so they are painted once into a cached layer and blitted after.
             ctx.drawImage(eng.staticLayer('dark_wood|scenery', (ctx, w, h) => {
@@ -176,9 +265,9 @@ CrownQuest.defineRooms((engine) => {
             // ---- The snare in the roots ----
             if (!eng.getFlag('hare_freed')) {
                 eng.drawContactShadow(ctx, 400, 350, 1, { rx: 15, ry: 3, alpha: 0.24 });
-                drawHare(ctx, 400, 350, 1.25, false, eng.animTimer);
+                if (!drawCastMember(ctx, 'hare', eng, 400, 350, 0.2)) drawHare(ctx, 400, 350, 1.25, false, eng.animTimer);
             } else if (!eng.getFlag('has_ring')) {
-                drawHare(ctx, 512, 344, 1.05, true, eng.animTimer);
+                if (!drawCastMember(ctx, 'hare', eng, 512, 344, 0.18, -1)) drawHare(ctx, 512, 344, 1.05, true, eng.animTimer);
             }
 
             // ---- The cave mouth, back left ----

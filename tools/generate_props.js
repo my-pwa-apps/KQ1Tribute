@@ -17,6 +17,39 @@ const DRESSING = [
     { id: 'spellbook', width: 96, height: 128, sceneWidth: 26, sceneHeight: 32 }
 ];
 
+// Batches written for the ChatGPT browser workflow: their prompts live in
+// tools/art-prompts/<batch>/<id>.txt. Scene sizes are the procedural art's
+// on-screen size, for the preview sheet only.
+const ITEMS = [
+    { id: 'sea_salt', width: 96, height: 80, sceneWidth: 20, sceneHeight: 16 },
+    { id: 'brass_key', width: 128, height: 64, sceneWidth: 24, sceneHeight: 12 },
+    { id: 'raven_feather', width: 128, height: 64, sceneWidth: 36, sceneHeight: 14 },
+    { id: 'thimble', width: 80, height: 96, sceneWidth: 16, sceneHeight: 20 },
+    { id: 'rope', width: 112, height: 96, sceneWidth: 30, sceneHeight: 26 },
+    { id: 'parchment', width: 96, height: 112, sceneWidth: 22, sceneHeight: 24 },
+    { id: 'ring_of_mist', width: 96, height: 96, sceneWidth: 14, sceneHeight: 14 },
+    { id: 'chest_of_cormac', width: 128, height: 112, sceneWidth: 36, sceneHeight: 30 },
+    { id: 'shield_of_ardor', width: 128, height: 128, sceneWidth: 44, sceneHeight: 44 },
+    { id: 'mirror_of_ianthe', width: 96, height: 128, sceneWidth: 26, sceneHeight: 34 }
+].map(prop => ({ ...prop, batch: 'items' }));
+
+const CHARACTERS = [
+    { id: 'morvane', width: 96, height: 192, sceneWidth: 40, sceneHeight: 84 },
+    { id: 'hattie', width: 96, height: 160, sceneWidth: 40, sceneHeight: 70 },
+    { id: 'fennow', width: 80, height: 176, sceneWidth: 32, sceneHeight: 72 },
+    { id: 'elowen', width: 80, height: 176, sceneWidth: 32, sceneHeight: 72 },
+    { id: 'villager', width: 80, height: 160, sceneWidth: 30, sceneHeight: 60 },
+    { id: 'gnome', width: 96, height: 112, sceneWidth: 34, sceneHeight: 40 },
+    { id: 'corvus', width: 96, height: 96, sceneWidth: 30, sceneHeight: 30 },
+    { id: 'goat', width: 160, height: 112, sceneWidth: 70, sceneHeight: 50 },
+    { id: 'hare', width: 112, height: 80, sceneWidth: 34, sceneHeight: 22 },
+    { id: 'grumbold', width: 160, height: 176, sceneWidth: 70, sceneHeight: 78 },
+    { id: 'giant', width: 280, height: 112, sceneWidth: 230, sceneHeight: 80 },
+    { id: 'dragon', width: 280, height: 160, sceneWidth: 260, sceneHeight: 110 }
+].map(prop => ({ ...prop, batch: 'characters' }));
+
+const BATCHES = { '--dressing': DRESSING, '--items': ITEMS, '--characters': CHARACTERS };
+
 async function prepareProps(directory, props = PROPS) {
     let cleanup = {};
     try { cleanup = JSON.parse(await fs.readFile(path.join(directory, 'cleanup.json'), 'utf8')); }
@@ -172,13 +205,23 @@ async function prepareProps(directory, props = PROPS) {
 }
 
 async function main() {
-    const [directory, ...options] = process.argv.slice(2);
-    if (!directory || options.some(option => !['--generate', '--prepare-only', '--dressing'].includes(option))
-        || new Set(options).size !== options.length || (options.includes('--generate') && options.includes('--prepare-only'))) {
-        throw new Error('Usage: node tools/generate_props.js <new-draft-directory> [--generate|--prepare-only] [--dressing]');
+    const [directory, ...args] = process.argv.slice(2);
+    const only = args.find(option => option.startsWith('--only='));
+    const options = args.filter(option => option !== only);
+    const batchFlags = options.filter(option => Object.hasOwn(BATCHES, option));
+    if (!directory || options.some(option => !['--generate', '--prepare-only', ...Object.keys(BATCHES)].includes(option))
+        || new Set(options).size !== options.length || batchFlags.length > 1
+        || (options.includes('--generate') && options.includes('--prepare-only'))) {
+        throw new Error('Usage: node tools/generate_props.js <new-draft-directory> [--generate|--prepare-only] [--dressing|--items|--characters] [--only=id,id]');
     }
-    const mode = options.find(option => option !== '--dressing');
-    const props = options.includes('--dressing') ? DRESSING : PROPS;
+    const mode = options.find(option => !Object.hasOwn(BATCHES, option));
+    let props = batchFlags.length ? BATCHES[batchFlags[0]] : PROPS;
+    if (only) {
+        const ids = only.slice('--only='.length).split(',').filter(Boolean);
+        const unknown = ids.filter(id => !props.some(prop => prop.id === id));
+        if (!ids.length || unknown.length) throw new Error(`Unknown prop id for this batch: ${unknown.join(', ') || '(none given)'}`);
+        props = props.filter(prop => ids.includes(prop.id));
+    }
     if (mode === '--prepare-only') {
         console.log(JSON.stringify(await prepareProps(directory, props), null, 2));
         return;
@@ -193,7 +236,7 @@ async function main() {
     }
     for (const prop of props) {
         const result = await generateBackground({
-            promptPath: path.join(__dirname, 'art-prompts', prop.id + '.txt'),
+            promptPath: path.join(__dirname, 'art-prompts', ...(prop.batch ? [prop.batch] : []), prop.id + '.txt'),
             outputBase: path.join(directory, prop.id + '-source'),
             generate: mode === '--generate'
         });
@@ -206,4 +249,4 @@ if (require.main === module) {
     main().catch(error => { console.error(error.message); process.exitCode = 1; });
 }
 
-module.exports = { prepareProps, DRESSING };
+module.exports = { prepareProps, DRESSING, ITEMS, CHARACTERS };

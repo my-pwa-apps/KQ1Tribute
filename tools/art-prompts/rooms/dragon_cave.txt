@@ -1,0 +1,15 @@
+Create only the static background for a playable early-1990s VGA pixel-art fantasy adventure. Landscape 16:10, intended for a final 640x400 canvas. All coordinates refer to that logical canvas and scale proportionally. No interface, borders, lettering, watermarks, or extra views.
+
+A dragon's lair: a great cavern inside a wooded hill. Dark rust-brown and violet-grey rock, stalactites in three depth tiers along the roof. Moderately dim, NEUTRAL cool lighting: firelight will be added separately, so do not paint any orange glow, flames or light source. Crisp deliberate pixel clusters, dark contours, three tones per material, selective fine dithering. No blur, photorealism, glossy 3D rendering, or cartoon proportions.
+
+Fixed slightly elevated adventure-game camera. The rock wall fills y0-300. A single cave throat recedes into the hill behind the centre, x140-500, y76-296, darkening steadily inward so it reads as distance. The top of the chamber falls away into darkness.
+
+Floor y296-400: dusty packed earth and flat stone, with rubble along the foot of the wall.
+
+Right of centre on the floor: a heaped hoard of gold coins x356-588, y306-368, with a small crown, a helm and a chalice sitting proud of the coins. Keep the coins at x456-506, y288-344 ordinary: a hand mirror will be drawn there separately; no mirror.
+
+Reserve x140-440, y236-372 as plain floor and wall: a huge dragon curled around a fire pit will be drawn there separately; no creature, pit, ashes, bones or shadow.
+
+Far right: the cave mouth x566-628, y222-372, a ragged opening full of pale green daylight and dark tree silhouettes. It is the only exit and must read clearly.
+
+Keep the floor x40-600, y300-372 walkable. No people, creatures, skeletons, weapons on the walls, torches, water or extra tunnels.

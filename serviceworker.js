@@ -1,6 +1,6 @@
 // Crown Quest: A Fantasy Adventure - Service Worker
 // BUMP VERSION on every code change to invalidate the cache.
-const VERSION = 'v1.4.0';
+const VERSION = 'v1.4.1';
 const CACHE_NAME = `crownquest-${VERSION}`;
 // Painted-art trials (`?scenery=painted` and friends) are ~20 MB that default
 // players never see. They are cached on first use only, in a cache that
@@ -26,6 +26,7 @@ const ASSETS = [
     './js/registry.js',
     './js/art.js',
     './js/actors.js',
+    './js/painted-cast.js',
     './js/icons.js',
     './js/cutscenes.js',
     './js/rooms/house.js',

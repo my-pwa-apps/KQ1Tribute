@@ -1,0 +1,9 @@
+Create ONE isolated character sprite for an early-1990s VGA fantasy adventure.
+
+Hattie, a broad cheerful middle-aged woman peddler: weather-beaten tan face, grey hair with a fringe, a rust-brown wool coat over a cream canvas apron, olive trousers tucked into worn boots, a small green patch on one sleeve, a gold belt buckle. Both hands on her hips.
+
+Early-1990s VGA adventure-game character sprite in the style of Sierra's King's Quest V: realistic proportions (about five and a half heads tall for adults), deliberate pixel clusters, near-black contour, three shading tones per material, light from the upper left. It must read clearly at about 70 pixels tall on screen. No photograph, anime, chibi, cartoon mascot proportions, glossy 3D render or excessive fine grain.
+
+Full body, feet visible and resting on an invisible ground line, standing still in a relaxed neutral pose, three-quarter view facing slightly to the viewer's left. Exactly ONE figure, ONE view. Landscape 16:10 canvas, the figure centered with generous clear margins and occupying about four fifths of the image height. No frame, text, lettering, watermark, props on the ground, floor, cast shadow or scenery.
+
+Background MUST be perfectly flat solid RGB 255,0,255 (#FF00FF), including gaps between arms, legs and body. No gradient, checkerboard, texture or glow. Do not use pink or magenta anywhere on the figure. The background will be removed by software; do not simulate transparency.

@@ -1,0 +1,19 @@
+Create only the static background for a playable early-1990s VGA pixel-art fantasy adventure. Landscape 16:10, intended for a final 640x400 canvas. All coordinates refer to that logical canvas and scale proportionally. No interface, borders, lettering, watermarks, or extra views.
+
+A rutted coastal road above a shingle beach, mid-morning, clear spring daylight. The kingdom of Alderhaven: grey-green turf, pale shingle, weathered stone and thatch. Crisp deliberate pixel clusters, dark contours, three tones per material, selective fine dithering only for distance. No blur, photorealism, glossy 3D rendering, or cartoon proportions.
+
+Fixed eye-level adventure-game camera looking north over the sea. Sky y0-150 in hard horizontal bands of pale blue with a few flat white clouds. The channel fills y150-220; aerial perspective makes the far water paler. On the horizon at x508-616, y122-158, a small rocky island with one tiny squat house on it, hazed blue-grey.
+
+Shingle beach y214-262 running the full width, with a darker tide line. Turf below y248 to the bottom of the frame, receding: small grass detail near the horizon, larger clumps in the foreground.
+
+The road enters from the lower left, about x0-190 at y372, and narrows as it climbs diagonally to x470-560 at y266, where it turns inland. Two worn wheel ruts along it, one shallow puddle near x176 y352, a few grass clumps and one sawn stump near x418 y302.
+
+A leaning waymarker stone at x230-274, y240-302 with three worn, unreadable carved lines. Inland to the right, x340-580, y200-260: a scatter of small thatched cottages and a modest grey castle on a rise, hazed by distance.
+
+Far left, a low grey headland x0-120, y218-258. Reserve x8-76, y178-244 above it: plain sky and headland only. A small tower will be drawn there separately; do not paint any tower, light or building.
+
+Reserve x56-164, y226-282 on the shingle: plain beach only. A beached skiff will be drawn separately; no boat, mast, oars or shadow.
+
+The two exits: a thin cliff-top path leaving the left edge at x0-42, y260-372, and the road leaving the right edge at x598-640, y300-372. Keep both readable and unobstructed.
+
+Keep the whole lower foreground x20-620, y290-372 open, walkable, and free of rocks, fences and tall grass, so characters can cross it. No people, animals, birds, boats, carts, signs with text, or extra buildings in the foreground.

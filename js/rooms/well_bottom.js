@@ -5,6 +5,54 @@
 CrownQuest.defineRooms((engine) => {
     const RULES = CrownQuestContent.rules;
 
+    // Painted-scenery trial: the picture supplies the shaft, rope and pool;
+    // the gnome, his chest and his fire are still drawn live.
+    let paintedWell = false;
+    // The painted hero is half as tall again as the procedural cel; the cast
+    // standing beside him in painted rooms scales with him.
+    const paintedCast = () => paintedWell && !!engine.game.drawPlayerSprite;
+    const wellImage = new Image();
+    /** The painted pool and the rocks in front of it are not floor. */
+    const inPaintedPool = (px, py) => ((px - 165) / 138) ** 2 + ((py - 310) / 58) ** 2 < 1 || (px < 160 && py > 335);
+    function configurePaintedWell(e) {
+        e.setDepthScaling(270, 372, 0.74, 1.06);
+        e.setWalkableArea((px, py) => py > 270 && py < 372 && px > 60 && px < 600 && !inPaintedPool(px, py), 271);
+        const layout = {
+            'the pool': { x: 30, y: 255, w: 270, h: 110, walkToX: 310, walkToY: 326 },
+            'the coins': { x: 130, y: 315, w: 90, h: 40, walkToX: 310, walkToY: 326 },
+            'the rope': { x: 300, y: 0, w: 50, h: 310, walkToX: 336, walkToY: 312 }
+        };
+        for (const hotspot of e.rooms.well_bottom.hotspots) {
+            if (Object.hasOwn(layout, hotspot.name)) Object.assign(hotspot, layout[hotspot.name]);
+        }
+    }
+    if (new URLSearchParams(window.location.search).get('scenery') === 'painted') {
+        wellImage.onload = () => {
+            paintedWell = true;
+            if (engine.currentRoomId === 'well_bottom') configurePaintedWell(engine);
+        };
+        wellImage.src = 'icons/well-bottom-trial.png';
+    }
+
+    /** Mendharbe's hearth, shared by the procedural and painted rooms. */
+    function drawGnomeHearth(ctx, eng) {
+        ctx.fillStyle = '#141110';
+        ctx.beginPath(); ctx.ellipse(560, 340, 40, 13, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#3a352c';
+        for (let i = 0; i < 9; i++) {
+            const a = i / 9 * Math.PI * 2;
+            ctx.beginPath();
+            ctx.ellipse(560 + Math.cos(a) * 32, 340 + Math.sin(a) * 10, 7, 5, 0, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        ctx.fillStyle = '#241708';
+        ctx.fillRect(544, 328, 34, 7);
+        ctx.fillRect(552, 322, 20, 6);
+        flame(ctx, 560, 326, 0.72, eng.animTimer);
+        flame(ctx, 550, 328, 0.5, eng.animTimer + 500);
+        eng.lightPool(ctx, 560, 320, 170, '255,160,70', 0.18);
+    }
+
     /** The name bargain. The name has to be spoken; the menu never supplies it. */
     function sayToGnome(e, text) {
         const said = text.toLowerCase().replace(/[^a-z]/g, '');
@@ -62,10 +110,11 @@ CrownQuest.defineRooms((engine) => {
             e.addForegroundLayer(344, (ctx, eng) => {
                 eng.drawContactShadow(ctx, 468, 344, 1, { rx: 20, ry: 4, alpha: 0.3 });
                 if (!eng.getFlag('gnome_named')) {
-                    drawChestOfCormac(ctx, 468, 328, 0.9);
+                    if (!paintedWell || !drawPaintedItem(ctx, 'chest_of_cormac', 468, 344, 50, 40)) drawChestOfCormac(ctx, 468, 328, 0.9);
                 }
-                drawVgaPerson(ctx, 468, eng.getFlag('gnome_named') ? 344 : 312,
-                    vgaPersonScale(eng, 344, 0.62),
+                if (drawCastMember(ctx, 'gnome', eng, 468, eng.getFlag('gnome_named') ? 344 : 310, 0.5)) return;
+                drawVgaPerson(ctx, 468, eng.getFlag('gnome_named') ? 344 : (paintedCast() ? 318 : 312),
+                    vgaPersonScale(eng, 344, paintedCast() ? 0.86 : 0.62),
                     Object.assign({}, CAST_GNOME, {
                         animTimer: eng.animTimer,
                         phase: 3.5,
@@ -73,8 +122,17 @@ CrownQuest.defineRooms((engine) => {
                         farArm: { side: -1, up: -0.2, lo: 0.5 }
                     }));
             });
+            if (paintedWell) configurePaintedWell(e);
         },
         draw: (ctx, w, h, eng) => {
+            if (paintedWell) {
+                ctx.save();
+                ctx.imageSmoothingEnabled = false;
+                ctx.drawImage(wellImage, 0, 0, w, h);
+                ctx.restore();
+                drawGnomeHearth(ctx, eng);
+                return;
+            }
             ctx.fillStyle = '#07090c';
             ctx.fillRect(0, 0, w, h);
             rockFace(ctx, 0, 0, w, 300, 7373, '#4a5560', '#333d47', '#1e262e');
@@ -133,21 +191,7 @@ CrownQuest.defineRooms((engine) => {
             }
 
             // ---- His hearth: a fire that should not be down here ----
-            ctx.fillStyle = '#141110';
-            ctx.beginPath(); ctx.ellipse(560, 340, 40, 13, 0, 0, Math.PI * 2); ctx.fill();
-            ctx.fillStyle = '#3a352c';
-            for (let i = 0; i < 9; i++) {
-                const a = i / 9 * Math.PI * 2;
-                ctx.beginPath();
-                ctx.ellipse(560 + Math.cos(a) * 32, 340 + Math.sin(a) * 10, 7, 5, 0, 0, Math.PI * 2);
-                ctx.fill();
-            }
-            ctx.fillStyle = '#241708';
-            ctx.fillRect(544, 328, 34, 7);
-            ctx.fillRect(552, 322, 20, 6);
-            flame(ctx, 560, 326, 0.72, eng.animTimer);
-            flame(ctx, 550, 328, 0.5, eng.animTimer + 500);
-            eng.lightPool(ctx, 560, 320, 170, '255,160,70', 0.18);
+            drawGnomeHearth(ctx, eng);
 
             // ---- Old coins and a child's shoe in the silt ----
             ctx.fillStyle = PAL.GOLD_SHADOW;

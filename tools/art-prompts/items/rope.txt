@@ -1,0 +1,9 @@
+Create ONE isolated inventory prop for an early-1990s VGA fantasy adventure. No other objects.
+
+A neat coil of thick tarred hemp rope, about twenty feet, lying flat in loose loops, one short end hanging free. Warm brown-grey fibres, darker tar marks.
+
+Deliberate pixel clusters, near-black contour, three broad shading tones per material, restrained upper-left highlights. It must remain recognisable at about 30 pixels wide on screen. No photograph, vector icon, glossy 3D render, cartoon face, excessive fine grain or text.
+
+Landscape 16:10 canvas. Center the whole object with generous clear margins on every side; it occupies about four fifths of the image height. Show exactly ONE view. No frame, text, lettering, watermark, hands, person, table, room or floor.
+
+Background MUST be perfectly flat solid RGB 255,0,255 (#FF00FF), including every enclosed gap. No gradient, checkerboard, texture, reflection, cast shadow or glow. Do not use pink, purple or magenta anywhere on the object. The flat background will be removed by software; do not simulate transparency.

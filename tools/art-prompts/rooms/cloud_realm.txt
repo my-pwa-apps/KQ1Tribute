@@ -1,0 +1,15 @@
+Create only the static background for a playable early-1990s VGA pixel-art fantasy adventure. Landscape 16:10, intended for a final 640x400 canvas. All coordinates refer to that logical canvas and scale proportionally. No interface, borders, lettering, watermarks, or extra views.
+
+A giant's roofless hall standing on a floor of cloud, high above the weather. Deep blue sky, a few faint stars at the top, a sun far too close at the upper right. Crisp deliberate pixel clusters, dark contours, three tones per material, selective fine dithering on the cloud. No blur, photorealism, glossy 3D rendering, or cartoon proportions.
+
+Fixed eye-level adventure-game camera. Sky y0-200 in hard bands from deep blue to pale blue. The sun is a pale disc centered x556, y62, radius about 30, with a soft halo. The cloud floor fills y250-400: banked, lumpy, white and pale blue-grey, clearly solid enough to walk on, with cumulus crests along its horizon.
+
+Grey stone columns of enormous scale hold up nothing at all. Left: a group of three columns x40-220, y60-250, their bases sunk into the cloud. Right: two columns farther back around x560-620. Between them, the ruined back wall of the hall, grey stone, x280-400, y110-230. On that wall, at x306-374, y136-204, a single iron peg with NOTHING hanging on it.
+
+Left foreground: a gigantic drinking horn lying on its side on the cloud, x108-212, y268-318, banded in gold, big enough to bathe in.
+
+Far left at the cloud edge: the top of a massive beanstalk curling over the lip of the cloud, x40-100, y300-372. It is the way down and must read clearly.
+
+Reserve x290-540, y186-282 as plain cloud floor and distant wall: a sleeping giant will be drawn there separately; no figure, bed, furniture or shadow. Keep x440-500, y70-260 simple: a near column will be drawn over it separately.
+
+Keep the cloud floor x40-600, y292-372 open and walkable. No people, creatures, birds, castles, rainbows, stairs or extra furniture.
