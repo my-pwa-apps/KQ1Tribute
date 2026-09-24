@@ -42,6 +42,24 @@ test.describe('reliability', () => {
         await expect(page.locator('[role="status"]')).toContainText(/breaks off|saved games/i);
     });
 
+    test('one keypress after a crash reloads and restores the newest save', async ({ page }) => {
+        await page.evaluate(() => {
+            const e = window.engine;
+            e.goToRoom('study', 300, 336);
+            e.textWindow = null;
+            e.saveGame(1);
+            e.goToRoom('scullery', 300, 336);
+            e.textWindow = null;
+            e.rooms.scullery.draw = () => { throw new Error('deliberate test failure'); };
+        });
+        await page.waitForFunction(() => !window.engine._loopRunning);
+        await expect(page.locator('[role="status"]')).toContainText('restore Slot 2');
+        await Promise.all([page.waitForEvent('load'), page.keyboard.press('r')]);
+        await page.waitForFunction(() => window.engine && window.engine.currentRoomId === 'study');
+        expect(await page.evaluate(() => ({ title: window.engine.titleScreen, room: window.engine.currentRoomId })))
+            .toEqual({ title: false, room: 'study' });
+    });
+
     test('a throwing hotspot handler does not swallow the click', async ({ page }) => {
         // Hotspot handlers run inside DOM event listeners, where an exception is
         // reported to the console and then discarded - the player just sees a

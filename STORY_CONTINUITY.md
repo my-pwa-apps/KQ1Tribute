@@ -51,6 +51,7 @@
 - Do not make an optional conversation the only explanation of the ending.
 - Do not refer to items being held after they are consumed or deposited.
 - Keep first-visit, solved-puzzle and return-visit narration consistent.
-- Preserve the 250-point score contract and existing puzzle solutions.
+- Preserve the score contract (250 required points plus 20 optional) and the
+  existing puzzle solutions. The gnome's name must be spoken, never picked.
 - Story-state regressions live in tests/game.spec.js; the complete progression
   is exercised in tests/full-game.spec.js, including the reunion.

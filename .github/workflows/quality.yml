@@ -5,6 +5,12 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  workflow_dispatch:
+    inputs:
+      record:
+        description: Record Linux visual baselines instead of comparing
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -55,4 +61,46 @@ jobs:
           path: |
             playwright-report/
             test-results/
+          retention-days: 7
+
+  # Pixel baselines are platform-specific, so Linux keeps its own set
+  # (*-chromium-linux.png), recorded inside the pinned Playwright image so CI
+  # and a maintainer's container render identically. Run this workflow by hand
+  # with "record" to produce the set as an artefact, commit it, and from then
+  # on every pull request fails on a pixel diff.
+  visual:
+    runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/playwright:v1.61.1-noble
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - run: npm ci
+
+      - name: Record Linux baselines
+        if: github.event_name == 'workflow_dispatch' && inputs.record
+        run: npx playwright test tests/visual.spec.js --project=chromium --update-snapshots
+
+      - name: Upload recorded baselines
+        if: github.event_name == 'workflow_dispatch' && inputs.record
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-visual-baselines
+          path: tests/visual.spec.js-snapshots/*-linux.png
+
+      - name: Compare against Linux baselines
+        if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.record) && hashFiles('tests/visual.spec.js-snapshots/*-chromium-linux.png') != '' }}
+        run: npx playwright test tests/visual.spec.js --project=chromium
+
+      - name: Upload visual diffs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: visual-diffs
+          path: test-results/
           retention-days: 7

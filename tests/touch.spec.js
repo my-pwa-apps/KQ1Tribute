@@ -104,6 +104,48 @@ for (const viewport of [{ width: 393, height: 851 }, { width: 851, height: 393 }
     });
 }
 
+test('touch-only death recovery: try again, restore and confirmed restart', async ({ page }, testInfo) => {
+    await start(page, 'enhanced');
+    const tapButton = async (id) => {
+        const rect = await page.evaluate(which => window.engine.overlayButtons().find(button => button.id === which), id);
+        expect(rect, id).toBeTruthy();
+        await tapCanvas(page, rect.x + rect.w / 2, rect.y + rect.h / 2);
+    };
+    const dieInCave = () => page.evaluate(() => {
+        const game = window.engine;
+        game.addToInventory('pail');
+        game.addScore(2);
+        game.goToRoom('dragon_cave', 560, 340);
+        game.textWindow = null;
+        game.playerX = 300;
+        game.update(1000 / 60);
+        return game.dead;
+    });
+    expect(await dieInCave()).toBe(true);
+    await page.evaluate(() => { window.engine.render(); });
+    await page.screenshot({ path: testInfo.outputPath('touch-death-panel.png') });
+    await tapButton('retry');
+    expect(await page.evaluate(() => ({ dead: window.engine.dead, room: window.engine.currentRoomId, x: window.engine.playerX, pail: window.engine.hasItem('pail') })))
+        .toEqual({ dead: false, room: 'dragon_cave', x: 560, pail: true });
+    await dismiss(page);
+
+    if (!await page.locator('#btn-save').isVisible()) await page.locator('#btn-tools').tap();
+    await page.locator('#btn-save').tap();
+    await page.locator('.slot-row').first().getByRole('button', { name: 'Save', exact: true }).tap();
+    expect(await dieInCave()).toBe(true);
+    await tapButton('restore');
+    await page.locator('.slot-row').first().getByRole('button', { name: 'Load', exact: true }).tap();
+    expect(await page.evaluate(() => ({ dead: window.engine.dead, room: window.engine.currentRoomId }))).toEqual({ dead: false, room: 'dragon_cave' });
+    await dismiss(page);
+
+    expect(await dieInCave()).toBe(true);
+    await tapButton('restart');
+    expect(await page.evaluate(() => ({ dead: window.engine.dead, armed: window.engine.restartArmed }))).toEqual({ dead: true, armed: true });
+    await tapButton('restart');
+    expect(await page.evaluate(() => ({ dead: window.engine.dead, room: window.engine.currentRoomId, score: window.engine.score })))
+        .toEqual({ dead: false, room: 'scullery', score: 0 });
+});
+
 test('classic touch parser submits text without a hardware keyboard', async ({ page, context }, testInfo) => {
     await start(page, 'classic');
     const session = await context.newCDPSession(page);

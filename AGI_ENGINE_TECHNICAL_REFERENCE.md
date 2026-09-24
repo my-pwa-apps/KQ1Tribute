@@ -1,5 +1,11 @@
 # Sierra Online AGI Engine — Technical Reference for HTML5 Canvas Implementation
 
+> **Status: historical background reading.** This document describes Sierra's
+> original AGI interpreter as reconstructed by other projects. It does **not**
+> describe Crown Quest's engine and binds nothing in this repository; see
+> [README.md](README.md) and [js/engine.js](js/engine.js) for the actual system.
+> Names such as ANIOBJ in engine comments point here only as inspiration.
+
 > Compiled from four open-source AGI reimplementations:
 > - **ScummVM** (C++) — `engines/agi/` — most complete, multi-platform
 > - **NAGI** (C) — closest to original disassembly

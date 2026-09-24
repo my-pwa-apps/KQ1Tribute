@@ -9,6 +9,13 @@ CrownQuest.defineRooms((engine) => {
         { id: 'shield_of_ardor', label: 'the Shield of Ardor' },
         { id: 'mirror_of_ianthe', label: 'the Mirror of Ianthe' }
     ];
+    // The duel cutscene is split where its own caption hands Rowan the move
+    // ("You have nothing left but a mirror"), so the player makes the last play.
+    const DUEL_TOTAL_MS = 15000;
+    const DUEL_PAUSE_AT = 0.5;
+    const DUEL_FIRST_STROKE_MS = DUEL_TOTAL_MS * DUEL_PAUSE_AT;
+    const DUEL_WARN_MS = 6000;
+    const DUEL_DEATH_MS = 14000;
 
     /** Set a treasure into its socket over the tower door. The three sockets
      *  fill left to right regardless of the order they are offered in. */
@@ -54,34 +61,76 @@ CrownQuest.defineRooms((engine) => {
             'He raises one white hand and the air goes hard.'
         ], {
             skippable: true,
+            // First stroke: the shield takes it and breaks. The cutscene stops
+            // on "You have nothing left but a mirror" and hands Rowan the move.
             onEnd: () => {
                 e.playCutscene({
-                    duration: 15000,
-                    draw: (ctx, w, h, progress, elapsed) => cutsceneMorvaneDuel(ctx, w, h, progress, elapsed),
-                    onEnd: () => {
-                        RULES.award(e, 'duel');
-                        e.removeFromInventory('shield_of_ardor');
-                        e.setFlag('elowen_freed');
-                        e.runSequence([
-                            'The shield lies in bright pieces. Its light runs into the open doorway and joins the chest\'s gold. The ward has spent itself protecting its heir; the curse, not the kingdom, is what breaks.',
-                            'The woman comes down the stair. "Rowan," she says, and you know before she touches your face that this is the name somebody used before you were called Boy.',
-                            '"I am Elowen. Your mother." She holds you. For a while there is no kingdom, no sorcerer, and nothing you have to do.',
-                            'She tells you of the wreck: she was carried ashore beneath the tower, while Morvane took you from the rocks. The ward saved her life but sealed her inside, beyond his reach and beyond rescue.',
-                            '"Your father is Aldric. He thought us both drowned. You were six when the ship went down. You are seventeen now, and I have missed every one of those mornings."',
-                            'At the castle, Aldric rises from his sickbed to meet you both. His illness is real, but so is his joy. He names you before his council: Rowan, his son and heir.',
-                            'Weeks pass. The chest\'s gold repairs roofs and fills granaries. The mirror and the shield\'s fragments are laid in the royal treasury. Their ward is finished; the work of rebuilding belongs to people.',
-                            (eng) => { eng.removeFromInventory('mirror_of_ianthe'); eng.updateInventoryUI(); },
-                            'Aldric does not die. He lays down the burden of rule, with the council as witness. You accept it. Elowen, queen and mother, will set the crown upon your head.'
-                        ], { onEnd: () => e.playCutscene({
-                            duration: 12000,
-                            draw: (ctx, w, h, progress, elapsed) => cutsceneCoronation(ctx, w, h, progress, elapsed),
-                            onEnd: () => e.victory('Alderhaven has its royal family back, a new king, and a goat in the great hall that nobody has been able to remove.')
-                        }) });
-                    }
+                    duration: DUEL_FIRST_STROKE_MS,
+                    draw: (ctx, w, h, progress, elapsed) => cutsceneMorvaneDuel(ctx, w, h, progress * DUEL_PAUSE_AT, elapsed),
+                    onEnd: () => beginDuelPause(e)
                 });
             }
         });
     }
+
+    /** Morvane gathers himself for a second stroke. The player has to raise the
+     *  mirror: the tale says it turns malice back, and it is all Rowan has left. */
+    function beginDuelPause(e) {
+        e.removeFromInventory('shield_of_ardor');
+        e.setFlag('duel_pending');
+        e.setFlag('duel_timer', 0);
+        e.setFlag('duel_warned', false);
+        e.updateInventoryUI();
+        // A death here retries from this moment, not from the far end of Act II.
+        e.checkpoint();
+        e.showMessage('The shield lies in bright pieces at your feet. Morvane gathers himself for a second stroke, slower and surer than the first. You have nothing left in your hands but a mirror.', { window: true, priority: true });
+    }
+
+    /** The answer to the second stroke, from any hotspot or from the item alone. */
+    function raiseMirror(e) {
+        if (!e.getFlag('duel_pending') || !e.hasItem('mirror_of_ianthe')) return false;
+        e.setFlag('duel_pending', false);
+        RULES.award(e, 'duel');
+        e.playCutscene({
+            duration: DUEL_TOTAL_MS - DUEL_FIRST_STROKE_MS,
+            draw: (ctx, w, h, progress, elapsed) => cutsceneMorvaneDuel(ctx, w, h,
+                DUEL_PAUSE_AT + progress * (1 - DUEL_PAUSE_AT), elapsed + DUEL_FIRST_STROKE_MS),
+            onEnd: () => afterTheDuel(e)
+        });
+        return true;
+    }
+
+    /** During the pause, any item aimed at anything still answers sensibly. */
+    function duelItem(e, itemId) {
+        if (!e.getFlag('duel_pending')) return false;
+        if (itemId === 'mirror_of_ianthe') return raiseMirror(e);
+        e.showMessage('Morvane does not so much as glance at it. His hand is still rising.');
+        return true;
+    }
+
+    function afterTheDuel(e) {
+        e.setFlag('elowen_freed');
+        e.runSequence([
+            'The shield lies in bright pieces. Its light runs into the open doorway and joins the chest\'s gold. The ward has spent itself protecting its heir; the curse, not the kingdom, is what breaks.',
+            'The woman comes down the stair. "Rowan," she says, and you know before she touches your face that this is the name somebody used before you were called Boy.',
+            '"I am Elowen. Your mother." She holds you. For a while there is no kingdom, no sorcerer, and nothing you have to do.',
+            'She tells you of the wreck: she was carried ashore beneath the tower, while Morvane took you from the rocks. The ward saved her life but sealed her inside, beyond his reach and beyond rescue.',
+            '"Your father is Aldric. He thought us both drowned. You were six when the ship went down. You are seventeen now, and I have missed every one of those mornings."',
+            'At the castle, Aldric rises from his sickbed to meet you both. His illness is real, but so is his joy. He names you before his council: Rowan, his son and heir.',
+            'Weeks pass. The chest\'s gold repairs roofs and fills granaries. The mirror and the shield\'s fragments are laid in the royal treasury. Their ward is finished; the work of rebuilding belongs to people.',
+            (eng) => { eng.removeFromInventory('mirror_of_ianthe'); eng.updateInventoryUI(); },
+            'Aldric does not die. He lays down the burden of rule, with the council as witness. You accept it. Elowen, queen and mother, will set the crown upon your head.'
+        ], { onEnd: () => e.playCutscene({
+            duration: 12000,
+            draw: (ctx, w, h, progress, elapsed) => cutsceneCoronation(ctx, w, h, progress, elapsed),
+            onEnd: () => e.victory('Alderhaven has its royal family back, a new king, and a goat in the great hall that nobody has been able to remove.')
+        }) });
+    }
+
+    engine.items.mirror_of_ianthe.use = (e) => {
+        if (raiseMirror(e)) return;
+        e.showMessage('You hold up the mirror. It shows you a moment later than you are, which is unsettling and, just now, useless.');
+    };
 
     engine.registerRoom({
         id: 'amber_tower',
@@ -89,9 +138,23 @@ CrownQuest.defineRooms((engine) => {
         description: 'A tower of honey-coloured stone on the headland, with three empty sockets cut above its door.',
         smell: 'Sea wind, warm stone, and something underneath it like a struck bell.',
         hint: (e) => {
+            if (e.getFlag('duel_pending')) return 'The tale said the mirror turns malice back. Hold it up to him.';
             const left = TREASURES.filter((t) => !e.getFlag('socket_' + t.id));
             if (!left.length) return 'The door is open. What happens next is not up to you.';
             return `Set ${left.map((t) => t.label).join(', ')} into the sockets above the door.`;
+        },
+        onUpdate: (e, dt) => {
+            if (!e.getFlag('duel_pending') || e.dead) return;
+            const t = e.getCounter('duel_timer') + dt;
+            e.setFlag('duel_timer', t);
+            if (t > DUEL_WARN_MS && !e.getFlag('duel_warned')) {
+                e.setFlag('duel_warned');
+                e.showMessage('The light round his hand has gone white. Whatever he is about to do, he is nearly ready to do it.', { window: true });
+            }
+            if (t > DUEL_DEATH_MS) {
+                e.setFlag('duel_pending', false);
+                e.die('The second stroke lands, and there is no shield left to take it. Morvane steps over you on his way up the stair. "A useful boy," he says again, and this time he means it as an epitaph.');
+            }
         },
         onEnter: (e) => {
             e.sound.startAmbient('sea');
@@ -128,6 +191,19 @@ CrownQuest.defineRooms((engine) => {
                     nearArm: { side: 1, up: -0.3, lo: -0.5 },
                     farArm: { side: -1, up: 0.1, lo: 0.3 }
                 }));
+            });
+            // Morvane on the shore path, gathering his second stroke.
+            e.addForegroundLayer(348, (ctx, eng) => {
+                if (!eng.getFlag('duel_pending')) return;
+                const scale = vgaPersonScale(eng, 348, 1.08);
+                eng.drawContactShadow(ctx, 506, 348, scale);
+                drawVgaPerson(ctx, 506, 348, scale, Object.assign({}, CAST_MORVANE, {
+                    animTimer: eng.animTimer,
+                    nearArm: { side: -1, up: 1.3, lo: 0.4 },
+                    farArm: { side: 1, up: -0.2, lo: 0.3 }
+                }));
+                const charge = Math.min(1, eng.getCounter('duel_timer') / DUEL_DEATH_MS);
+                eng.lightPool(ctx, 486, 268, 26 + charge * 40, '220,240,255', 0.25 + charge * 0.45);
             });
         },
         draw: (ctx, w, h, eng) => {
@@ -170,46 +246,48 @@ CrownQuest.defineRooms((engine) => {
             }
 
             // ---- The headland ----
-            ctx.fillStyle = '#14151c';
-            ctx.beginPath();
-            ctx.moveTo(0, 268); ctx.lineTo(120, 254); ctx.lineTo(330, 262);
-            ctx.lineTo(520, 250); ctx.lineTo(640, 266); ctx.lineTo(640, h); ctx.lineTo(0, h);
-            ctx.closePath(); ctx.fill();
-            ctx.save();
-            ctx.beginPath();
-            ctx.moveTo(0, 272); ctx.lineTo(120, 258); ctx.lineTo(330, 266);
-            ctx.lineTo(520, 254); ctx.lineTo(640, 270); ctx.lineTo(640, h); ctx.lineTo(0, h);
-            ctx.closePath();
-            ctx.clip();
-            // Bare rock only in a band at the cliff edge; turf over everything
-            // else, or the headland reads as a heap of rubble.
-            rockFace(ctx, 0, 250, w, 46, 7878, '#7d6a5c', '#584c42', '#332d28');
-            ctx.fillStyle = '#3f4a24';
-            ctx.fillRect(0, 276, w, h - 276);
-            ctx.fillStyle = '#4c5a2b';
-            ctx.fillRect(0, 300, w, h - 300);
-            blendSeam(ctx, 0, 300, w, '#3f4a24', '#4c5a2b');
-            ctx.fillStyle = '#576330';
-            ctx.fillRect(0, 336, w, h - 336);
-            blendSeam(ctx, 0, 336, w, '#4c5a2b', '#576330');
-            // A few outcrops pushing up through the turf
-            const out = seededRandom(2929);
-            for (let i = 0; i < 9; i++) {
-                const ox = out() * w, oy = 300 + out() * 70, orr = 14 + out() * 22;
-                ctx.fillStyle = '#231f1c';
-                ctx.beginPath(); ctx.ellipse(ox, oy, orr, orr * 0.34, 0, 0, Math.PI * 2); ctx.fill();
-                ctx.fillStyle = '#584c42';
-                ctx.beginPath(); ctx.ellipse(ox, oy - 2, orr * 0.9, orr * 0.28, 0, 0, Math.PI * 2); ctx.fill();
-                ctx.fillStyle = '#7d6a5c';
-                ctx.beginPath(); ctx.ellipse(ox - orr * 0.2, oy - 4, orr * 0.5, orr * 0.14, 0, 0, Math.PI * 2); ctx.fill();
-            }
-            ctx.restore();
-            grassFringe(ctx, 0, 292, w, 8989, 120, '#8a9a52', '#66763a', '#414e24');
-            turfTexture(ctx, 0, 274, w, h - 274, 9696, 'rgba(140,158,84,0.15)', 'rgba(46,58,28,0.15)');
-            // Warm low light raking the turf from the left
-            ctx.fillStyle = 'rgba(255,190,120,0.10)';
-            ctx.fillRect(0, 268, w, h - 268);
+            ctx.drawImage(eng.staticLayer('amber_tower|headland', (ctx, w, h) => {
+                ctx.fillStyle = '#14151c';
+                ctx.beginPath();
+                ctx.moveTo(0, 268); ctx.lineTo(120, 254); ctx.lineTo(330, 262);
+                ctx.lineTo(520, 250); ctx.lineTo(640, 266); ctx.lineTo(640, h); ctx.lineTo(0, h);
+                ctx.closePath(); ctx.fill();
+                ctx.save();
+                ctx.beginPath();
+                ctx.moveTo(0, 272); ctx.lineTo(120, 258); ctx.lineTo(330, 266);
+                ctx.lineTo(520, 254); ctx.lineTo(640, 270); ctx.lineTo(640, h); ctx.lineTo(0, h);
+                ctx.closePath();
+                ctx.clip();
+                // Bare rock only in a band at the cliff edge; turf over everything
+                // else, or the headland reads as a heap of rubble.
+                rockFace(ctx, 0, 250, w, 46, 7878, '#7d6a5c', '#584c42', '#332d28');
+                ctx.fillStyle = '#3f4a24';
+                ctx.fillRect(0, 276, w, h - 276);
+                ctx.fillStyle = '#4c5a2b';
+                ctx.fillRect(0, 300, w, h - 300);
+                blendSeam(ctx, 0, 300, w, '#3f4a24', '#4c5a2b');
+                ctx.fillStyle = '#576330';
+                ctx.fillRect(0, 336, w, h - 336);
+                blendSeam(ctx, 0, 336, w, '#4c5a2b', '#576330');
+                // A few outcrops pushing up through the turf
+                const out = seededRandom(2929);
+                for (let i = 0; i < 9; i++) {
+                    const ox = out() * w, oy = 300 + out() * 70, orr = 14 + out() * 22;
+                    ctx.fillStyle = '#231f1c';
+                    ctx.beginPath(); ctx.ellipse(ox, oy, orr, orr * 0.34, 0, 0, Math.PI * 2); ctx.fill();
+                    ctx.fillStyle = '#584c42';
+                    ctx.beginPath(); ctx.ellipse(ox, oy - 2, orr * 0.9, orr * 0.28, 0, 0, Math.PI * 2); ctx.fill();
+                    ctx.fillStyle = '#7d6a5c';
+                    ctx.beginPath(); ctx.ellipse(ox - orr * 0.2, oy - 4, orr * 0.5, orr * 0.14, 0, 0, Math.PI * 2); ctx.fill();
+                }
+                ctx.restore();
+                grassFringe(ctx, 0, 292, w, 8989, 120, '#8a9a52', '#66763a', '#414e24');
+                turfTexture(ctx, 0, 274, w, h - 274, 9696, 'rgba(140,158,84,0.15)', 'rgba(46,58,28,0.15)');
+                // Warm low light raking the turf from the left
+                ctx.fillStyle = 'rgba(255,190,120,0.10)';
+                ctx.fillRect(0, 268, w, h - 268);
 
+            }), 0, 0);
             // ---- The tower ----
             eng.drawContactShadow(ctx, 320, 336, 1, { rx: 92, ry: 12, alpha: 0.34 });
             drawAmberTower(ctx, 320, 336, 1, eng.getCounter('sockets_lit'), eng.animTimer);
@@ -231,32 +309,34 @@ CrownQuest.defineRooms((engine) => {
             eng.lightPool(ctx, 320, 268, 200, '255,210,140', 0.10);
 
             // ---- Standing stones, older than the tower ----
-            [[128, 330, 1.1], [176, 322, 0.8], [498, 328, 1], [548, 320, 0.72]].forEach(([sx, sy, ss]) => {
-                ctx.fillStyle = '#17161a';
-                ctx.beginPath();
-                ctx.moveTo(sx - 13 * ss, sy); ctx.lineTo(sx - 9 * ss, sy - 54 * ss);
-                ctx.lineTo(sx + 8 * ss, sy - 58 * ss); ctx.lineTo(sx + 13 * ss, sy);
-                ctx.closePath(); ctx.fill();
-                ctx.fillStyle = '#6e6a62';
-                ctx.beginPath();
-                ctx.moveTo(sx - 11 * ss, sy - 1); ctx.lineTo(sx - 7.5 * ss, sy - 52 * ss);
-                ctx.lineTo(sx + 6.5 * ss, sy - 55 * ss); ctx.lineTo(sx + 11 * ss, sy - 1);
-                ctx.closePath(); ctx.fill();
-                ctx.fillStyle = '#9a948a';
-                ctx.beginPath();
-                ctx.moveTo(sx - 11 * ss, sy - 1); ctx.lineTo(sx - 7.5 * ss, sy - 52 * ss);
-                ctx.lineTo(sx - 1 * ss, sy - 53 * ss); ctx.lineTo(sx - 3 * ss, sy - 1);
-                ctx.closePath(); ctx.fill();
-                ctx.fillStyle = '#40382f';
-                ctx.beginPath();
-                ctx.moveTo(sx + 4 * ss, sy - 1); ctx.lineTo(sx + 6.5 * ss, sy - 55 * ss);
-                ctx.lineTo(sx + 11 * ss, sy - 1);
-                ctx.closePath(); ctx.fill();
-                ctx.fillStyle = '#7c8a52';
-                for (let i = 0; i < 5; i++) ctx.fillRect(sx - 9 * ss + i * 4 * ss, sy - 48 * ss + (i % 3) * 9 * ss, 3 * ss, 2 * ss);
-                eng.drawContactShadow(ctx, sx, sy, 1, { rx: 18 * ss, ry: 4 * ss, alpha: 0.24 });
-            });
+            ctx.drawImage(eng.staticLayer('amber_tower|stones', (ctx) => {
+                [[128, 330, 1.1], [176, 322, 0.8], [498, 328, 1], [548, 320, 0.72]].forEach(([sx, sy, ss]) => {
+                    ctx.fillStyle = '#17161a';
+                    ctx.beginPath();
+                    ctx.moveTo(sx - 13 * ss, sy); ctx.lineTo(sx - 9 * ss, sy - 54 * ss);
+                    ctx.lineTo(sx + 8 * ss, sy - 58 * ss); ctx.lineTo(sx + 13 * ss, sy);
+                    ctx.closePath(); ctx.fill();
+                    ctx.fillStyle = '#6e6a62';
+                    ctx.beginPath();
+                    ctx.moveTo(sx - 11 * ss, sy - 1); ctx.lineTo(sx - 7.5 * ss, sy - 52 * ss);
+                    ctx.lineTo(sx + 6.5 * ss, sy - 55 * ss); ctx.lineTo(sx + 11 * ss, sy - 1);
+                    ctx.closePath(); ctx.fill();
+                    ctx.fillStyle = '#9a948a';
+                    ctx.beginPath();
+                    ctx.moveTo(sx - 11 * ss, sy - 1); ctx.lineTo(sx - 7.5 * ss, sy - 52 * ss);
+                    ctx.lineTo(sx - 1 * ss, sy - 53 * ss); ctx.lineTo(sx - 3 * ss, sy - 1);
+                    ctx.closePath(); ctx.fill();
+                    ctx.fillStyle = '#40382f';
+                    ctx.beginPath();
+                    ctx.moveTo(sx + 4 * ss, sy - 1); ctx.lineTo(sx + 6.5 * ss, sy - 55 * ss);
+                    ctx.lineTo(sx + 11 * ss, sy - 1);
+                    ctx.closePath(); ctx.fill();
+                    ctx.fillStyle = '#7c8a52';
+                    for (let i = 0; i < 5; i++) ctx.fillRect(sx - 9 * ss + i * 4 * ss, sy - 48 * ss + (i % 3) * 9 * ss, 3 * ss, 2 * ss);
+                    eng.drawContactShadow(ctx, sx, sy, 1, { rx: 18 * ss, ry: 4 * ss, alpha: 0.24 });
+                });
 
+            }), 0, 0);
             drawGull(ctx, 220, 92, 1.1, eng.animTimer, 0.9);
             drawGull(ctx, 452, 76, 0.9, eng.animTimer, 2.6);
             eng.vignette(ctx, 0.38, '30,20,34');
@@ -272,11 +352,12 @@ CrownQuest.defineRooms((engine) => {
                     e.showMessage('All three sockets burn steady gold.');
                 },
                 use: (e) => {
+                    if (e.getFlag('duel_pending')) { duelItem(e, 'mirror_of_ianthe'); return; }
                     const held = TREASURES.filter((t) => e.hasItem(t.id));
                     if (!held.length) { e.showMessage('You have nothing left to set.'); return; }
                     setTreasure(e, held[0].id);
                 },
-                useItem: (e, itemId) => setTreasure(e, itemId)
+                useItem: (e, itemId) => duelItem(e, itemId) || setTreasure(e, itemId)
             },
             {
                 name: 'the tower door', x: 296, y: 292, w: 48, h: 48, walkToX: 320,
@@ -285,12 +366,15 @@ CrownQuest.defineRooms((engine) => {
                     if (e.getFlag('door_opened')) { e.showMessage('It stands open. So does everything after it.'); return; }
                     e.showMessage('You push. It does not move, and you would be disappointed in it if it had.');
                 },
-                useItem: (e, itemId) => setTreasure(e, itemId)
+                useItem: (e, itemId) => duelItem(e, itemId) || setTreasure(e, itemId)
             },
             {
                 name: 'the high window', x: 302, y: 128, w: 36, h: 40,
                 description: 'A barred window near the top of the tower. There is somebody behind the bars, and she has been watching you since you came over the rise.',
-                talk: (e) => e.showMessage('You call up. She puts one hand flat against the bars, and does not call back, and you understand that she cannot.'),
+                talk: (e) => {
+                    RULES.award(e, 'called_to_window');
+                    e.showMessage('You call up. She puts one hand flat against the bars, and does not call back, and you understand that she cannot.');
+                },
                 look: (e) => e.showMessage('A woman in blue stands at the barred window with one hand against the stone. She is very still, in the particular way of somebody who has learned that moving does not help.')
             },
             {
@@ -308,6 +392,15 @@ CrownQuest.defineRooms((engine) => {
                     if (e.getFlag('door_opened')) { e.showMessage('Not now. Not with the door open.'); return; }
                     e.goToRoom('harbour_road', 78, 336);
                 }
+            },
+            {
+                name: 'Morvane', x: 476, y: 250, w: 62, h: 100, walkToX: 430,
+                description: 'Morvane, on the shore path, with one white hand raised and the light gathering in it. He is not hurrying. He has never needed to.',
+                talk: (e) => e.showMessage('"Nothing you say now will matter, boy," he says pleasantly. "Nothing you ever said did."'),
+                get: (e) => e.showMessage('You would not get within arm\'s reach, and he would very much like you to try.'),
+                use: (e) => e.showMessage('Your hands are empty but for a mirror, and he is watching them.'),
+                useItem: (e, itemId) => duelItem(e, itemId),
+                get hidden() { return !engine.getFlag('duel_pending'); }
             }
         ]
     });

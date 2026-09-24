@@ -1,6 +1,7 @@
 const { test, expect } = require('@playwright/test');
 const fs = require('fs');
 const path = require('path');
+const { ROOM_FILES, SHARED_ROOM_FILES, ENGINE_FILES } = require('../tools/modules.js');
 
 // The game has no bundler, so its module boundaries are enforced by load order
 // and a registry rather than by imports. These tests assert the contract holds
@@ -18,7 +19,7 @@ test.describe('module architecture', () => {
         const ids = await page.evaluate(() => [...new Set([
             ...Object.keys(window.engine.rooms), ...Object.keys(window.engine.items), ...Object.keys(window.engine.portraitArt)
         ])]);
-        const source = fs.readFileSync(path.join(__dirname, '../js/engine.js'), 'utf8');
+        const source = ENGINE_FILES.map(file => fs.readFileSync(path.join(__dirname, '..', file), 'utf8')).join('\n');
         const literals = [...source.matchAll(/(['"])([^'"\n]+)\1/g)].map(match => match[2]);
         expect(ids.filter(id => literals.includes(id))).toEqual([]);
         expect(source).not.toMatch(/scullery-boy|Bramble King|sorcerer\\'s floors/);
@@ -51,7 +52,9 @@ test.describe('module architecture', () => {
             roomIds: Object.keys(window.engine.rooms).sort()
         }));
 
-        expect(result.moduleCount).toBe(3);
+        // One module per room; shared helper modules register no rooms.
+        expect(result.moduleCount).toBe(ROOM_FILES.length - SHARED_ROOM_FILES.length);
+        expect(result.moduleCount).toBe(ROOM_IDS.length);
         expect(result.roomIds).toEqual(ROOM_IDS);
     });
 

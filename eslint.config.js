@@ -35,7 +35,13 @@ const gameGlobals = {
 
 // Classes are declared in one script and consumed by another, so the
 // declaration itself always looks unused to a per-file linter.
-const crossFileDeclarations = '^(GameEngine|SoundEngine|AnimatedObject)$';
+const crossFileDeclarations = '^(GameEngine|SoundEngine|AnimatedObject|AnimatedNPC)$';
+
+// js/engine.js declares the engine's constants at script scope; the subsystem
+// modules in js/engine/ read them as globals, exactly as the browser does.
+const engineGlobals = Object.assign({ AnimatedNPC: 'readonly' }, scriptScopeDeclarations('js/engine.js'));
+delete engineGlobals.GameEngine;
+const engineConstants = `^(${Object.keys(engineGlobals).join('|')})$`;
 
 const sharedRules = {
     'no-undef': 'error',
@@ -78,6 +84,29 @@ module.exports = [
                 ...globals.serviceworker,
                 ...gameGlobals
             }
+        },
+        rules: sharedRules
+    },
+    {
+        // The engine core owns constants that only its subsystem modules read.
+        files: ['js/engine.js'],
+        languageOptions: {
+            ecmaVersion: 2022,
+            sourceType: 'script',
+            globals: { ...globals.browser, ...gameGlobals }
+        },
+        rules: Object.assign({}, sharedRules, {
+            'no-unused-vars': ['error', Object.assign({}, sharedRules['no-unused-vars'][1], {
+                varsIgnorePattern: `${crossFileDeclarations}|${engineConstants}`
+            })]
+        })
+    },
+    {
+        files: ['js/engine/**/*.js'],
+        languageOptions: {
+            ecmaVersion: 2022,
+            sourceType: 'script',
+            globals: { ...globals.browser, ...gameGlobals, ...engineGlobals }
         },
         rules: sharedRules
     },

@@ -1,33 +1,47 @@
 // Crown Quest: A Fantasy Adventure - Service Worker
 // BUMP VERSION on every code change to invalidate the cache.
-const VERSION = 'v1.3.16';
+const VERSION = 'v1.4.0';
 const CACHE_NAME = `crownquest-${VERSION}`;
+// Painted-art trials (`?scenery=painted` and friends) are ~20 MB that default
+// players never see. They are cached on first use only, in a cache that
+// survives version bumps, so nobody downloads them on install or on update.
+const TRIAL_ART_CACHE = 'crownquest-art-trials';
+const isTrialArt = (url) => url.origin === self.location.origin && /\/icons\/[a-z-]+-trial\.png$/.test(url.pathname);
 
 const ASSETS = [
-    './icons/title-trial.png',
-    './icons/intro-house-trial.png',
-    './icons/intro-morvane-trial.png',
-    './icons/intro-opendoor-trial.png',
-    './icons/crag-trial.png',
-    './icons/bread-trial.png',
-    './icons/pail-trial.png',
-    './icons/crock-trial.png',
-    './icons/candle-trial.png',
-    './icons/ledger-trial.png',
-    './icons/spellbook-trial.png',
     './',
     './index.html',
     './manifest.json',
     './js/palette.js',
     './js/engine.js',
+    './js/engine/input.js',
+    './js/engine/parser.js',
+    './js/engine/narration.js',
+    './js/engine/scenes.js',
+    './js/engine/world.js',
+    './js/engine/render.js',
+    './js/engine/player.js',
+    './js/engine/saveload.js',
+    './js/engine/npc.js',
     './js/registry.js',
     './js/art.js',
     './js/actors.js',
     './js/icons.js',
     './js/cutscenes.js',
-    './js/rooms/act1.js',
-    './js/rooms/act2.js',
-    './js/rooms/act3.js',
+    './js/rooms/house.js',
+    './js/rooms/scullery.js',
+    './js/rooms/study.js',
+    './js/rooms/spell_room.js',
+    './js/rooms/crag_path.js',
+    './js/rooms/alderhaven.js',
+    './js/rooms/harbour_road.js',
+    './js/rooms/village_green.js',
+    './js/rooms/well_bottom.js',
+    './js/rooms/dark_wood.js',
+    './js/rooms/troll_bridge.js',
+    './js/rooms/cloud_realm.js',
+    './js/rooms/dragon_cave.js',
+    './js/rooms/amber_tower.js',
     './js/game.js',
     './js/sound.js',
     './js/vr.js',
@@ -36,10 +50,6 @@ const ASSETS = [
     './js/content.js',
     './js/register-sw.js',
     './icons/crown-192.svg',
-    './icons/scullery-trial.png',
-    './icons/study-trial.png',
-    './icons/hidden-room-trial.png',
-    './icons/rowan-atlas-trial.png',
     './icons/crown-512.svg',
     './icons/crown-maskable-512.svg',
     './fonts/vt323-latin-400-normal.woff2'
@@ -54,7 +64,7 @@ self.addEventListener('install', (event) => {
 self.addEventListener('activate', (event) => {
     event.waitUntil(
         caches.keys().then((keys) => Promise.all(
-            keys.filter((k) => k.startsWith('crownquest-') && k !== CACHE_NAME)
+            keys.filter((k) => k.startsWith('crownquest-') && k !== CACHE_NAME && k !== TRIAL_ART_CACHE)
                 .map((k) => caches.delete(k))
         )).then(() => self.clients.claim())
     );
@@ -72,14 +82,14 @@ self.addEventListener('fetch', (event) => {
         (url.pathname.endsWith('/') || url.pathname.endsWith('/index.html'));
 
     event.respondWith(
-        (isAppShell ? networkFirst(req) : cacheFirst(req))
+        isAppShell ? networkFirst(req) : cacheFirst(req, isTrialArt(url) ? TRIAL_ART_CACHE : CACHE_NAME)
     );
 });
 
-function cacheResponse(req, res) {
+function cacheResponse(req, res, cacheName = CACHE_NAME) {
     if (!res || res.status !== 200 || res.type !== 'basic') return;
     const clone = res.clone();
-    caches.open(CACHE_NAME).then((cache) => cache.put(req, clone)).catch(() => {});
+    caches.open(cacheName).then((cache) => cache.put(req, clone)).catch(() => {});
 }
 
 function networkFirst(req) {
@@ -97,11 +107,11 @@ function networkFirst(req) {
     }).finally(() => clearTimeout(timeout));
 }
 
-function cacheFirst(req) {
+function cacheFirst(req, cacheName) {
     return caches.match(req).then((cached) => {
         if (cached) return cached;
         return fetch(req).then((res) => {
-            cacheResponse(req, res);
+            cacheResponse(req, res, cacheName);
             return res;
         }).catch(() => new Response('Asset unavailable offline.', {
             status: 504,

@@ -65,13 +65,12 @@ test('a continuous player-input journey wins without injected progression or ski
     await command(page, 'get parchment');
     await command(page, 'get hare');
     await command(page, 'talk Fennow');
-    await choose(page, 'accept his gift');
+    await choose(page, 'accept the ring');
     await choose(page, 'Thank you.');
     await command(page, 'walk track west', 'village_green');
     await command(page, 'use well', 'well_bottom');
     await command(page, 'use pool');
-    await command(page, 'talk gnome');
-    await choose(page, 'Your name is Mendharbe');
+    await command(page, 'say mendharbe');
     await command(page, 'use rope', 'village_green');
     await command(page, 'walk wood', 'dark_wood');
     await command(page, 'walk track east', 'troll_bridge');
@@ -89,5 +88,8 @@ test('a continuous player-input journey wins without injected progression or ski
     await command(page, 'walk road west', 'harbour_road');
     await command(page, 'walk shore path west', 'amber_tower');
     for (const treasure of ['Chest of Cormac', 'Shield of Ardor', 'Mirror of Ianthe']) await command(page, `use ${treasure} on sockets`);
+    expect(await page.evaluate(() => window.engine.getFlag('duel_pending'))).toBe(true);
+    await command(page, 'hold up mirror');
+    // The required route alone finishes below the maximum, at the lowest rank.
     expect(await page.evaluate(() => ({ won: window.engine.won, score: window.engine.score }))).toEqual({ won: true, score: 250 });
 });

@@ -9,6 +9,9 @@
 
 window.CrownQuest = window.CrownQuest || {
     _roomModules: [],
+    // Stateless helpers shared by several room files (the house shell, the
+    // Alderhaven exteriors). Shared modules fill this in at parse time.
+    shared: {},
 
     /** Queue a group of rooms. `fn` receives the live engine instance. */
     defineRooms(fn) {

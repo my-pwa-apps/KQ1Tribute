@@ -23,7 +23,7 @@ test('Fennow remains available for unasked clues after gifting the ring', async 
         game.executeParserCommand('get hare');
         game.executeParserCommand('talk Fennow');
         game._advanceDialog();
-        game.selectDialogOption(game.activeDialog.visibleOptions.findIndex(option => option.text.includes('accept his gift')));
+        game.selectDialogOption(game.activeDialog.visibleOptions.findIndex(option => option.text.includes('accept the ring')));
         game._advanceDialog();
         game.selectDialogOption(game.activeDialog.visibleOptions.findIndex(option => option.text.includes('Thank you.')));
         game._advanceDialog();
@@ -39,7 +39,7 @@ test('Fennow remains available for unasked clues after gifting the ring', async 
     expect(result.rings).toBe(1);
     expect(result.options.some(text => text.includes('above the cloud'))).toBe(true);
     expect(result.options.some(text => text.includes('And the dragon'))).toBe(true);
-    expect(result.options.some(text => text.includes('accept his gift'))).toBe(false);
+    expect(result.options.some(text => text.includes('accept the ring'))).toBe(false);
 });
 
 const treasures = ['chest_of_cormac', 'shield_of_ardor', 'mirror_of_ianthe'];
@@ -63,6 +63,7 @@ for (const first of treasures) {
                 });
                 for (let frame = 0; frame < 10000 && !game.won; frame++) {
                     if (game.textWindow) game.dismissTextWindow();
+                    if (game.getFlag('duel_pending') && !game.cutscene) game.executeParserCommand('use mirror');
                     game.update(1000 / 60);
                 }
                 return { snapshots, won: game.won, score: game.score, inventory: game.inventory };
@@ -274,7 +275,7 @@ for (const pending of ['sequence', 'cutscene', 'dialog', 'ending']) {
 
 for (const gift of [
     { dialog: 'hattie', item: 'rope', text: 'Could I have a rope?' },
-    { dialog: 'fennow', item: 'ring_of_mist', text: 'accept his gift' }
+    { dialog: 'fennow', item: 'ring_of_mist', text: 'accept the ring' }
 ]) {
     test(`${gift.item}: dialogue history follows restore and restart`, async ({ page }) => {
         const result = await page.evaluate(({ dialog, item, text }) => {

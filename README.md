@@ -260,7 +260,8 @@ Ianthe**. The king is dying, there is no heir, and out on the western headland
 there is a tower nobody in the kingdom will name.
 
 Twelve rooms across three acts, one goat, one dragon, one gnome with a name
-problem, and 250 points.
+problem, and 270 points: 250 on the road to the crown and 20 more for the
+curious and the kind.
 
 ---
 
@@ -273,16 +274,22 @@ are parsed before the engine exists and register themselves through a queue.
 index.html            UI shell: canvas, verb bar, inventory, save modal
 js/palette.js         Shared colour vocabulary (PAL)
 js/sound.js           Procedural PSG-style audio: square/triangle/noise, no files
-js/engine.js          Reusable GameEngine: render loop, input, parser, inventory,
-                      save/load, cutscenes, dialog trees, depth scaling, overlays
+js/engine.js          Reusable GameEngine: state, room entry, inventory, flags,
+                      score, the update loop and crash recovery
+js/engine/*.js        Subsystems extending GameEngine.prototype: input, parser,
+                      narration (text window, dialogue), scenes (cutscenes,
+                      sequences, death), world (layers, exits, NPCs), render,
+                      player (the ego cel), saveload, npc
 js/registry.js        Room-module queue, drained by the bootstrap
 js/art.js             Drawing primitives, landscape, architecture, the treasures
 js/actors.js          The shared human cel, the cast palettes, the creatures
 js/icons.js           Inventory close-ups and speaker portraits
 js/cutscenes.js       Set pieces and the title backdrop
-js/rooms/act1.js      Morvane's house on Serpent's Crag
-js/rooms/act2.js      Alderhaven
-js/rooms/act3.js      The Amber Tower
+js/rooms/house.js     Shared shell for the three interiors of Morvane's house
+js/rooms/scullery.js  One file per room: scullery, study, spell_room, crag_path,
+  ...                 harbour_road, village_green, well_bottom, dark_wood,
+                      troll_bridge, cloud_realm, dragon_cave, amber_tower
+js/rooms/alderhaven.js  Shared exterior helpers: the goat, the sky, bridge geometry
 js/game.js            Bootstrap only: items, dialog trees, the opening, wiring
 js/vr.js              Optional first-person WebXR projection of the same scenes
 js/content.js         Score contract, item metadata, victory ranks, shared rules
@@ -292,18 +299,21 @@ js/content.js         Score contract, item metadata, victory ranks, shared rules
 
 | Kind of change | File |
 |---|---|
-| Reusable system (input, parser, inventory, save/load, cutscene machinery, NPCs, depth scaling, overlays) | `js/engine.js` |
+| Engine state, room entry, inventory, flags, the update loop | `js/engine.js` |
+| Reusable system (input, parser, narration, cutscene machinery, room geometry, rendering, save/load) | the matching `js/engine/*.js` |
 | Drawing helper used by more than one room | `js/art.js` |
 | A person or a creature | `js/actors.js` |
 | An inventory icon or a speaker portrait | `js/icons.js` |
 | A set-piece animation or the title art | `js/cutscenes.js` |
-| A room's art, hotspots and puzzle logic | the matching `js/rooms/*.js` |
+| A room's art, hotspots and puzzle logic | that room's `js/rooms/<room_id>.js` |
+| A helper several rooms share | `js/rooms/house.js` (interiors) or `js/rooms/alderhaven.js` (exteriors) |
 | Items, dialog trees, the opening | `js/game.js` |
 | Score contract, item metadata, victory ranks, shared progression rules | `js/content.js` |
 
 Adding a module requires three registrations — `index.html`, the `ASSETS` list
-in `serviceworker.js`, and `CONTENT_FILES` in `tools/validate_content.js`. The
-static gate fails if any is missed.
+in `serviceworker.js`, and the load-order list in `tools/modules.js`. The static
+gate fails if any is missed, if a room file on disk is unlisted, or if any file
+in `js/` grows past 1,500 lines (`tools/check_modules.js`).
 
 The engine itself is game-agnostic: item icons, speaker portraits, room scents,
 parser synonyms, classic-mode rewrites and the title backdrop are all supplied
@@ -323,8 +333,17 @@ by the content layer rather than hard-coded.
     cleared on restart; older saves without choices use an empty history.
 - Save UI and `saveGame` share one eligibility check. Cutscenes, sequences and
     active conversations cannot be saved because their callbacks are not data.
+- `room.verbs` answers parser verbs that name no object (`say`, `cast`, `hide`,
+    `sail`); `say` receives the spoken text. Items may provide `use`, `wear` or
+    `fill` handlers for commands that name only the item (`wear ring`).
+- `showMessage(text, { priority: true })` marks a warning or signpost that later
+    narration must wait behind; `queueMessage` shows a consequence after the line
+    the player is reading. `promptText(question, onSubmit)` asks for typed input
+    in either interface and on touch.
+- Each genuine room arrival is the death-recovery checkpoint; `checkpoint()`
+    moves it for scripted beats that raise the stakes without changing room.
 - Progression uses `CrownQuestContent.rules.award(engine, event)` and its single
-    250-point ledger. Award history and treasure custody persist independently of
+    270-point ledger (250 required, 20 optional). Award history and treasure custody persist independently of
     inventory possession. New flags remain part of the ordinary save state.
 
 Architecture tests reject registered room/item/portrait IDs in engine string
@@ -357,9 +376,10 @@ literal flag name. A flag that is read but never written, or written but never
 read, fails the build — a misspelt flag is otherwise invisible at runtime.
 
 [tests/full-game.spec.js](tests/full-game.spec.js) checks both the displayed score
-and the raw 250-point award total before clamping. The automatic finale grants
-10 points, while the original puzzle rewards are unchanged. All scored actions
-are required, so victory has one attainable rank rather than unused lower tiers.
+and the raw 270-point award total before clamping. The required route earns 250;
+20 optional points reward curiosity and kindness, and the victory rank tells the
+minimal, partial and complete routes apart. The duel pauses for the player to
+raise the mirror.
 [tests/player-journey.spec.js](tests/player-journey.spec.js) completes the adventure
 through real keyboard/parser inputs, without teleporting, injecting progression
 state, or skipping sequences. State and reliability regressions run in CI too.

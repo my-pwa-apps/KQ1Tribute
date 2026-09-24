@@ -4,12 +4,14 @@
 const fs = require('fs');
 const path = require('path');
 
+const { ROOM_FILES, ENGINE_FILES } = require('./modules.js');
+
 const ROOT = path.join(__dirname, '..');
 const PROVIDERS = ['js/art.js', 'js/actors.js', 'js/icons.js', 'js/cutscenes.js'];
 const CONSUMERS = [
     'js/art.js', 'js/actors.js', 'js/icons.js', 'js/cutscenes.js',
-    'js/game.js', 'js/rooms/act1.js', 'js/rooms/act2.js', 'js/rooms/act3.js',
-    'js/engine.js', 'js/vr.js'
+    'js/game.js', ...ROOM_FILES,
+    ...ENGINE_FILES, 'js/vr.js'
 ];
 
 const read = (f) => fs.readFileSync(path.join(ROOT, f), 'utf8');

@@ -265,7 +265,7 @@
             font: 16px 'Courier New', monospace;
             text-transform: uppercase;
         }
-        #save-modal {
+        #save-modal, #say-modal {
             display: none;
             position: fixed;
             top: 0; left: 0; width: 100%; height: 100%;
@@ -274,8 +274,8 @@
             justify-content: center;
             align-items: center;
         }
-        #save-modal.open { display: flex; }
-        #save-modal-inner {
+        #save-modal.open, #say-modal.open { display: flex; }
+        #save-modal-inner, #say-form {
             background: linear-gradient(to bottom, #5a3d16, #33200c);
             border: 2px solid #d9a441;
             padding: 20px 28px;
@@ -283,13 +283,25 @@
             box-shadow: 0 0 40px rgba(0,0,0,0.8);
             border-radius: 4px;
         }
-        #save-modal-inner h3 {
+        #save-modal-inner h3, #say-form h3 {
             margin: 0 0 14px 0;
             color: #ffe28a;
             font-size: 18px;
             text-align: center;
             text-shadow: 1px 1px 0 #000;
         }
+        #say-input {
+            display: block;
+            box-sizing: border-box;
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #FFFFFF;
+            background: #000000;
+            color: #FFFFFF;
+            font: 16px 'Courier New', monospace;
+            text-transform: uppercase;
+        }
+        #say-actions { display: flex; justify-content: center; gap: 12px; margin-top: 14px; }
         .slot-row {
             display: flex;
             align-items: center;
@@ -457,7 +469,7 @@
             #dpad-center {
                 display: none;
             }
-            #save-modal-inner {
+            #save-modal-inner, #say-form {
                 min-width: 0;
                 width: 90vw;
                 padding: 14px;
@@ -549,9 +561,28 @@
             <button id="save-modal-close">Cancel</button>
         </div>
     </div>
+    <div id="say-modal" role="dialog" aria-modal="true" aria-labelledby="say-title">
+        <form id="say-form" autocomplete="off">
+            <h3 id="say-title">Say what?</h3>
+            <input id="say-input" type="text" maxlength="40" aria-labelledby="say-title">
+            <div id="say-actions">
+                <button class="slot-action" type="submit">Say it</button>
+                <button class="slot-action" type="button" id="say-cancel">Cancel</button>
+            </div>
+        </form>
+    </div>
     <script src="js/palette.js"></script>
     <script src="js/sound.js"></script>
     <script src="js/engine.js"></script>
+    <script src="js/engine/input.js"></script>
+    <script src="js/engine/parser.js"></script>
+    <script src="js/engine/narration.js"></script>
+    <script src="js/engine/scenes.js"></script>
+    <script src="js/engine/world.js"></script>
+    <script src="js/engine/render.js"></script>
+    <script src="js/engine/player.js"></script>
+    <script src="js/engine/saveload.js"></script>
+    <script src="js/engine/npc.js"></script>
     <script type="module" src="js/vr.js"></script>
     <script src="js/content.js"></script>
     <script src="js/registry.js"></script>
@@ -559,9 +590,20 @@
     <script src="js/actors.js"></script>
     <script src="js/icons.js"></script>
     <script src="js/cutscenes.js"></script>
-    <script src="js/rooms/act1.js"></script>
-    <script src="js/rooms/act2.js"></script>
-    <script src="js/rooms/act3.js"></script>
+    <script src="js/rooms/house.js"></script>
+    <script src="js/rooms/scullery.js"></script>
+    <script src="js/rooms/study.js"></script>
+    <script src="js/rooms/spell_room.js"></script>
+    <script src="js/rooms/crag_path.js"></script>
+    <script src="js/rooms/alderhaven.js"></script>
+    <script src="js/rooms/harbour_road.js"></script>
+    <script src="js/rooms/village_green.js"></script>
+    <script src="js/rooms/well_bottom.js"></script>
+    <script src="js/rooms/dark_wood.js"></script>
+    <script src="js/rooms/troll_bridge.js"></script>
+    <script src="js/rooms/cloud_realm.js"></script>
+    <script src="js/rooms/dragon_cave.js"></script>
+    <script src="js/rooms/amber_tower.js"></script>
     <script src="js/game.js"></script>
     <script src="js/register-sw.js"></script>
 </body>

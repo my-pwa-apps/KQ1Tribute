@@ -10,18 +10,25 @@ function read(file) {
     return fs.readFileSync(path.join(__dirname, '..', file), 'utf8');
 }
 
-// Content is split across a bootstrap, shared art and per-act room modules.
+// Content is split across a bootstrap, shared art and per-room modules.
 // Every cross-reference check runs over the concatenation of all of them.
+const { ROOM_FILES, SHARED_ROOM_FILES, ENGINE_FILES } = require('./modules.js');
 const CONTENT_FILES = [
     'js/game.js',
     'js/art.js',
     'js/actors.js',
     'js/icons.js',
     'js/cutscenes.js',
-    'js/rooms/act1.js',
-    'js/rooms/act2.js',
-    'js/rooms/act3.js'
+    ...ROOM_FILES
 ];
+
+// A room file on disk that the module list does not name would never load.
+for (const file of fs.readdirSync(path.join(__dirname, '..', 'js/rooms'))) {
+    if (file.endsWith('.js') && !ROOM_FILES.includes(`js/rooms/${file}`)) fail(`Room module is not listed in tools/modules.js: js/rooms/${file}`);
+}
+for (const file of ENGINE_FILES) {
+    if (!fs.existsSync(path.join(__dirname, '..', file))) fail(`Engine module is missing: ${file}`);
+}
 
 for (const file of CONTENT_FILES) {
     if (!fs.existsSync(path.join(__dirname, '..', file))) {
@@ -55,12 +62,21 @@ if (html.indexOf('js/content.js') > html.indexOf('js/game.js')) {
 
 // Room modules queue themselves against the registry and are drained by the
 // bootstrap, so every module must be loaded before game.js and cached offline.
-for (const file of CONTENT_FILES.concat('js/registry.js')) {
+for (const file of CONTENT_FILES.concat('js/registry.js', ENGINE_FILES)) {
     if (!html.includes(file)) fail(`Content module is not loaded by index.html: ${file}`);
     if (!sw.includes(file)) fail(`Content module is not cached by the service worker: ${file}`);
     if (file !== 'js/game.js' && html.indexOf(file) > html.indexOf('js/game.js')) {
         fail(`${file} must load before js/game.js.`);
     }
+}
+// Load order matters: the module list is the order index.html must follow,
+// and a shared helper must be parsed before the rooms that read it.
+const loadOrder = [...ENGINE_FILES, ...ROOM_FILES].map((file) => html.indexOf(`src="${file}"`));
+if (loadOrder.some((position, i) => i > 0 && position < loadOrder[i - 1])) {
+    fail('index.html must load the engine and room modules in the order listed in tools/modules.js.');
+}
+for (const file of SHARED_ROOM_FILES) {
+    if (/defineRooms\(/.test(read(file))) fail(`Shared module must not register rooms: ${file}`);
 }
 
 const IMMERSIVE_RUNTIME_FILES = [
@@ -96,7 +112,7 @@ for (const asset of assetMatches) {
 
 // A misspelt flag name is invisible at runtime: getFlag returns false forever and
 // the puzzle silently never opens. Cross-reference every literal flag name.
-const engine = read('js/engine.js');
+const engine = ENGINE_FILES.map(read).join('\n');
 // content.js holds the shared progression rules, so it is a flag and score source too.
 const contentSource = read('js/content.js');
 const flagSources = game + engine + contentSource;

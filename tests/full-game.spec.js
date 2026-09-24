@@ -3,7 +3,7 @@ const { test, expect } = require('@playwright/test');
 // A scripted walkthrough of the whole game. This is the only test that proves
 // the puzzle chain is completable and that maxScore is actually reachable.
 
-const MAX_SCORE = 250;
+const MAX_SCORE = 270;
 
 /** Drive the game directly rather than through clicks: the point of this test
  *  is the progression chain, not the input layer (tests/game.spec.js covers that). */
@@ -98,6 +98,9 @@ test.describe('full walkthrough', () => {
         await act(page, 'study', 'the tapestry', 'look');
         expect((await state(page)).inventory).toEqual(expect.arrayContaining(['brass_key', 'raven_feather']));
 
+        await act(page, 'study', 'the ledger', 'look');
+        await pickDialogOption(page, 'corvus', 'Who am I?');
+
         // ---- ACT I: the hidden room ----
         await act(page, 'spell_room', 'the iron chest', 'useItem', 'brass_key');
         await act(page, 'spell_room', 'the spellbook', 'get');
@@ -115,19 +118,32 @@ test.describe('full walkthrough', () => {
         // ---- ACT II: the rope and the goat ----
         await pickDialogOption(page, 'hattie', 'Could I have a rope?');
         expect((await state(page)).inventory).toContain('rope');
+        await pickDialogOption(page, 'hattie', 'What is the tower on the headland?');
+        await act(page, 'village_green', 'the villager', 'talk');
         await act(page, 'village_green', 'the well', 'useItem', 'rope');
+        // Grumbold's one story, told before the goat makes it two.
+        await page.evaluate(() => { window.engine.goToRoom('troll_bridge', 120, 354); window.engine.textWindow = null; });
+        await pickDialogOption(page, 'troll', 'Has anyone ever got past you?');
         await act(page, 'village_green', 'the goat', 'useItem', 'bread');
         expect(await page.evaluate(() => window.engine.getFlag('goat_follows'))).toBe(true);
 
         // ---- ACT II: the parchment, the hare, the ring ----
         await act(page, 'dark_wood', 'the parchment', 'look');
         await act(page, 'dark_wood', 'the hare', 'get');
-        await pickDialogOption(page, 'fennow', 'Take this ring, then. (accept his gift)');
+        await pickDialogOption(page, 'fennow', 'I would be glad of it. (accept the ring)');
+        await pickDialogOption(page, 'fennow', 'And the dragon?');
         expect((await state(page)).inventory).toContain('ring_of_mist');
 
         // ---- ACT II: the chest ----
         await act(page, 'well_bottom', 'the pool', 'use');
-        await pickDialogOption(page, 'gnome', 'Your name is Mendharbe.');
+        await pickDialogOption(page, 'gnome', 'I know your name.');
+        await page.evaluate(() => {
+            const e = window.engine;
+            if (!e.isTextPromptOpen()) throw new Error('naming the gnome should prompt for the name');
+            e.dom.sayInput.value = 'Mendharbe';
+            e.dom.sayForm.requestSubmit();
+            e.textWindow = null;
+        });
         expect((await state(page)).inventory).toContain('chest_of_cormac');
 
         // ---- ACT II: the troll and the shield ----
@@ -154,9 +170,14 @@ test.describe('full walkthrough', () => {
         expect(beforeEnd.dead).toBe(false);
 
         // ---- ACT III ----
+        await act(page, 'amber_tower', 'the high window', 'talk');
         await act(page, 'amber_tower', 'the sockets', 'useItem', 'chest_of_cormac');
         await act(page, 'amber_tower', 'the sockets', 'useItem', 'shield_of_ardor');
         await act(page, 'amber_tower', 'the sockets', 'useItem', 'mirror_of_ianthe');
+        // The second stroke waits for the player: the mirror has to be raised.
+        expect(await page.evaluate(() => ({ pending: window.engine.getFlag('duel_pending'), shield: window.engine.hasItem('shield_of_ardor') })))
+            .toEqual({ pending: true, shield: false });
+        await act(page, 'amber_tower', 'Morvane', 'useItem', 'mirror_of_ianthe');
         await page.evaluate(() => {
             const game = window.engine;
             for (let beat = 0; beat < 100 && !game.won; beat++) {

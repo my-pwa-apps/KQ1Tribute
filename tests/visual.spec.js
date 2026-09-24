@@ -204,6 +204,23 @@ test.describe('visual baselines', () => {
             await shot(page, 'amber-tower-open');
         });
 
+        test('Morvane gathering the second stroke', async ({ page }) => {
+            await enterRoom(page, 'amber_tower', 330, 344,
+                [['sockets_lit', 3], ['door_opened', true], ['duel_pending', true], ['duel_timer', 7000]]);
+            await page.evaluate(() => { const e = window.engine; e.addToInventory('mirror_of_ianthe'); e.sequence = null; e.cutscene = null; e.playerFacing = 'right'; });
+            await shot(page, 'amber-tower-duel');
+        });
+
+        test('death panel waiting for restart confirmation', async ({ page }) => {
+            await page.evaluate(() => {
+                const e = window.engine;
+                e.score = 40;
+                e.die('The second stroke lands, and there is no shield left to take it.');
+                e.requestRestart();
+            });
+            await shot(page, 'death-overlay-confirm');
+        });
+
         test('Elowen reunited outside the tower', async ({ page }) => {
             await enterRoom(page, 'amber_tower', 400, 344,
                 [['sockets_lit', 3], ['door_opened', true], ['elowen_freed', true]]);
@@ -403,7 +420,7 @@ test.describe('visual baselines', () => {
         test('victory overlay', async ({ page }) => {
             await page.evaluate(() => {
                 const e = window.engine;
-                e.score = 250;
+                e.score = 270;
                 e.victory('Alderhaven is whole again.');
             });
             await shot(page, 'victory-overlay');

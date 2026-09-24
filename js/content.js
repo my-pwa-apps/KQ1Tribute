@@ -16,7 +16,8 @@
         // Highest score actually achievable in a single playthrough, verified by
         // tests/full-game.spec.js. Keep this in sync when scoring opportunities
         // change, otherwise the status bar advertises points nobody can earn.
-        maxScore: 250,
+        // 250 are on the required route; 20 reward curiosity and kindness.
+        maxScore: 270,
         startRoom: 'scullery',
         startX: 300,
         startY: 322,
@@ -29,7 +30,9 @@
             headline: 'LONG LIVE THE KING!',
             subhead: 'Alderhaven is whole again.',
             ranks: [
-                { min: 0, title: 'Rowan the Unbroken, First of His Name', flavor: 'The ballads will be insufferable. You have earned every verse.' }
+                { min: 1, title: 'Rowan the Unbroken, First of His Name', flavor: 'The ballads will be insufferable. You have earned every verse.' },
+                { min: 0.96, title: 'Rowan the Listener', flavor: 'You heard what the kingdom had to tell you. Most kings never do.' },
+                { min: 0, title: 'Rowan the Steadfast', flavor: 'You did what needed doing. Somewhere, a raven thinks you missed a few things.' }
             ],
             closingLines: [
                 'From the sorcerer\'s scullery to the throne of Alderhaven...',
@@ -66,8 +69,13 @@
             sailed: 15, rope_tied: 5, goat_follows: 5, hare_freed: 10,
             ring_of_mist: 10, chest_of_cormac: 25, troll_routed: 15,
             shield_of_ardor: 25, dragon_doused: 25, mirror_of_ianthe: 25,
-            door_opened: 20, duel: 10
+            door_opened: 20, duel: 10,
+            // Optional: none of these gate progress.
+            ledger_read: 3, corvus_origin: 3, hattie_tower: 3, villager_greeted: 2,
+            grumbold_goat: 3, fennow_dragon: 3, called_to_window: 3
         },
+        /** Awards the finished game can be completed without. */
+        optionalAwards: ['ledger_read', 'corvus_origin', 'hattie_tower', 'villager_greeted', 'grumbold_goat', 'fennow_dragon', 'called_to_window'],
         wasAwarded(game, event) {
             return game.getFlag(`award_${event}`) === true;
         },
@@ -96,6 +104,19 @@
             e.setFlag('goat_follows');
             this.award(e, 'goat_follows');
             e.updateInventoryUI();
+        },
+        /** Corvus's moulted feather, from the perch or from asking him for it. */
+        featherCollected(e) {
+            return e.getFlag('feather_taken') || e.getFlag('circle_feather') || e.hasItem('raven_feather');
+        },
+        takeFeather(e) {
+            if (this.featherCollected(e)) return false;
+            e.setFlag('feather_taken');
+            e.sound.pickup();
+            e.addToInventory('raven_feather');
+            this.award(e, 'raven_feather');
+            e.updateInventoryUI();
+            return true;
         },
         /** Fennow's gift, reachable from both the snare hotspot and his dialog. */
         giveRingOfMist(e) {

@@ -11,6 +11,285 @@ confirmed player-facing progression defects.
 
 ---
 
+## Adventure quality audit - 2026-09-24
+
+Review of the clean `270884b` tree. Baseline: static gate clean; 130/130
+chromium functional tests pass (game, full-game, player-journey, navigation,
+state-regressions, reliability); per-room frame cost 5.0-12.3 ms
+(village_green slowest). No regressions were found in the items closed by the
+2026-09-06 pass. The findings below come from reading the code and from
+temporary Playwright probes, which were deleted afterwards. Each one either
+reproduces in a probe or can be seen directly in the cited code. None of them
+blocks the proven 250-point route.
+
+### Implementation follow-up
+
+All eleven findings are fixed, along with six of the seven inherited structural
+items. The seventh, Linux visual baselines, is prepared but waits on a CI run.
+Regression coverage lives in the new
+[tests/audit-regressions.spec.js](tests/audit-regressions.spec.js) and in
+additions to the touch, reliability, game, full-game, player-journey and
+state-regression specs.
+
+- Final gate `npm run check`: **427 passed, 61 intentionally skipped**
+  (profile-specific). Static checks are clean; `check:sw` reports
+  `v1.3.16 -> v1.4.0`.
+- Room frame cost is 4.0-6.6 ms.
+- The score contract is 270: 250 required plus 20 optional.
+- Rooms now live one per file. The "Affected files" links to `js/rooms/act1.js`
+  and `act2.js` below are historical: act1 became `house.js`, `scullery.js`,
+  `study.js`, `spell_room.js` and `crag_path.js`; act2 became `alderhaven.js`
+  and one file per Alderhaven room; act3 became `amber_tower.js`. The engine
+  subsystems now live in `js/engine/`.
+- New or changed baselines, all inspected: `death-overlay`,
+  `death-overlay-confirm`, `victory-overlay` and `amber-tower-duel`. The three
+  goat-encounter images and the painted/prop images differ only in the
+  "/ 270" score HUD.
+
+- [x] **Let every input model recover from death without discarding the adventure**
+
+  **Resolution:** The death panel now offers real Try Again (T), Restore (F7) and Restart (R) buttons, each of which works by pointer, tap and key. Try Again replays the arrival in the current room (`_captureArrival`/`checkpoint`); Restart asks for confirmation once there is score to lose; the message bar names the same options. The victory panel has a tappable Play Again. Verified by the new touch-only test in [tests/touch.spec.js](tests/touch.spec.js) (retry, restore from a slot, confirmed restart) and the inspected `death-overlay`, `death-overlay-confirm` and `victory-overlay` baselines.
+
+  **Priority:** High
+  **Category:** UI/UX
+  **Confidence:** High
+  **Player impact:** High
+  **Area:** Death overlay, restart, touch controls
+  **Affected files:** [js/engine.js](js/engine.js), [index.html](index.html), [tests/touch.spec.js](tests/touch.spec.js)
+  **Evidence:** CONFIRMED by probe: in the mobile-chromium profile, after the dragon kills Rowan, a canvas tap leaves `dead === true`. The visible buttons are only the verbs, Objects, Hint, Tools and the d-pad; there is no Restart or Restore control. `handleCanvasActivate` returns immediately when `dead` is set, and R is the only restart path (keydown handler). The panel says "Press R to try again", but `restart()` wipes flags, inventory and score and returns to the scullery. The message bar says "Press R to restart", and neither text mentions F7/Load.
+  **Problem:** On touch, a death with no save can only be undone by reloading the page, and a death with a save relies on finding Load inside Tools. On desktop, "try again" really means "lose everything since the opening". Six death triggers exist (crag, bridge, giant x2, dragon x2).
+  **Impact:** One Sierra-style death can end a phone session outright. A keyboard player who takes "try again" at its word throws away all unsaved progress.
+  **Recommended solution:** Make the death panel offer the classic Sierra choice through real buttons as well as keys: Restore (opens the load modal), Restart (asks to confirm if the score is above zero), and optionally Try Again from the room entrance. Accept a tap on each option. Make the panel text and the message bar agree. Give the victory panel's "Press R to play again" a tappable equivalent.
+  **Sierra-design consideration:** Keep the deaths, their jokes and manual saves. Restore/Restart/Quit is the authentic Sierra death dialog. A room-entry retry is optional modernisation and should be clearly labelled.
+  **Regression considerations:** Refusing to save while dead; keyboard R; restoring from an empty slot; the victory overlay; no double restart from one tap.
+  **Acceptance criteria:** Using only touch, a player can restart after a death, or restore a save, on both phone orientations. Every death prompt names the options that actually exist.
+  **Validation:** Add a touch.spec case: die, tap Restore, load a slot; die again, tap Restart, confirm, and arrive in the scullery with score 0.
+  **Estimated effort:** Small
+  **Game-design value:** High
+  **Technical debt reduction:** Low
+
+- [x] **Teach the classic parser the verbs its own puzzles invite**
+
+  **Resolution:** The parser keeps prepositions while parsing, so GIVE/FEED X TO Y, PUT/POUR/THROW/TIE/SPRINKLE X IN/ON/TO Y, WEAR/PUT ON, FILL X WITH Y, V Y WITH X (`unlock chest with key`), CLIMB DOWN/ENTER, HIDE, SAY, CAST, SAIL and ASK X FOR Y all reach the existing handlers. Rooms answer object-less verbs through `room.verbs` and items answer item-only commands through `use`/`wear`/`fill`. Incomplete phrases ask a specific question ("Give Crust of Bread to whom?"). Verified by the 31-row phrase table and the no-echo test in [tests/audit-regressions.spec.js](tests/audit-regressions.spec.js).
+
+  **Priority:** High
+  **Category:** Parser
+  **Confidence:** High
+  **Player impact:** High
+  **Area:** Classic (parser) mode and the touch parser field
+  **Affected files:** [js/engine.js](js/engine.js), [js/game.js](js/game.js), [js/rooms/act1.js](js/rooms/act1.js), [js/rooms/act2.js](js/rooms/act2.js), [tests/game.spec.js](tests/game.spec.js)
+  **Evidence:** CONFIRMED by a probe of 70 commands, each run in the state where it should work. Parser confusion or a snark reply comes back for: `give bread to goat`, `feed goat`, `tie rope to well`, `say mendharbe`, `wear ring`, `put on ring`, `fill pail`, `hide behind boulder`, `free/untie/release hare`, `put feather in circle`, `cast spell`, `throw/pour water on fire`, `put chest in socket`, `sail` and `lift hourglass`. `climb down well`, `go down well` and `enter well` reply "You'll have to steer your feet yourself", because the well is not an exit. `unlock chest with key` replies "It is locked. You will have to use the brass key on it.": `normalizeParserText` strips WITH, so the instrument is lost. `get key` in the study answers with hourglass snark. `ask raven for feather` talks to the feather. `use thimble on boat` says "You don't see that here". The equivalent `use X on Y` forms all work.
+  **Problem:** The vocabulary covers look/get/use/talk/walk plus jokes. The game's solutions are giving, wearing, speaking a name, filling, hiding, freeing and tying, and players type exactly those verbs. The previous review noted the gap but did not backlog it.
+  **Impact:** Classic mode is a headline feature. There, the most natural phrasing of eight of the game's puzzles is refused, sometimes with a reply that restates the command the player just typed. This is guess-the-verb friction the puzzles themselves do not deserve.
+  **Recommended solution:** Map GIVE/FEED/OFFER/SHOW X TO Y, PUT/PLACE/DROP/INSERT/THROW/POUR X IN/ON/INTO Y, and WEAR/PUT ON onto the existing `useItem` dispatch. Accept WITH as an instrument separator (`unlock chest with key`, `fill pail with water`). Treat CLIMB DOWN/ENTER on a non-exit hotspot as USE of that hotspot. Add a SAY/SPEAK verb routed to an optional `say` hotspot handler or content hook (see the gnome item below). Add nouns for things found under or behind objects (`key`, `boat`, `water`) through `parserSynonyms` or hotspot names. Keep new aliases in the content layer where they name game nouns.
+  **Sierra-design consideration:** A parser is supposed to accept the player's own wording. Keep the jokes and the terse classic replies. The fix must widen phrasing only and never hint at or bypass a puzzle.
+  **Regression considerations:** Existing `use X on Y` routes, the player-journey command list, snark for genuinely wrong items, `again`, and the architecture test that keeps content IDs out of the engine.
+  **Acceptance criteria:** Every command listed under Evidence either performs the intended action or gives a specific, truthful refusal. No reply tells the player to do exactly what they just typed.
+  **Validation:** A table-driven parser spec with one row per phrasing: set up the state, run the command, assert the resulting flag or inventory change. Then rerun player-journey.
+  **Estimated effort:** Medium
+  **Game-design value:** High
+  **Technical debt reduction:** Medium
+
+- [x] **Stop important narration from being silently replaced in the single text window**
+
+  **Resolution:** `showMessage(..., { priority: true })` marks warnings and signposts. Later messages, and their screen-reader announcements, queue behind a priority window. `queueMessage` shows a consequence after the current line, and a window opened by a dialogue action now survives the end of the dialogue. The crag and cloud warnings and the three-treasure signpost use these. Verified by the room-entry (classic, enhanced, live region) and chest-last tests in [tests/audit-regressions.spec.js](tests/audit-regressions.spec.js).
+
+  **Priority:** Medium
+  **Category:** UI/UX
+  **Confidence:** High
+  **Player impact:** Medium
+  **Area:** Text window, room entry, dialogue end, screen-reader announcements
+  **Affected files:** [js/engine.js](js/engine.js), [js/game.js](js/game.js), [js/rooms/act1.js](js/rooms/act1.js), [js/rooms/act2.js](js/rooms/act2.js)
+  **Evidence:** CONFIRMED by probe, three cases. (1) In classic mode, the first crag warning ("you hear a stick strike stone... closer") is replaced by the room description, because `goToRoom` calls `showMessage(room.description)` after `onEnter` and classic mode opens a window for every message. The same happens to the cloud hall's "Fennow's ring is in your pocket" reminder. (2) In both modes, the `aria-live` region ends on the room description, so screen-reader users never hear either warning. (3) If the Chest of Cormac is the last treasure collected, the window announcing that the tower has begun to shine is opened inside the gnome's dialogue action and then cleared by `_advanceDialog`'s `pendingEnd` branch (`textWindow = null`). Afterwards `windowAfterDialog` is null and the text survives only in the enhanced-mode message bar.
+  **Problem:** `showTextWindow` has one slot and no queue, so any later message overwrites an earlier, more important one.
+  **Impact:** Classic players lose the fair warning before the crag death, and screen-reader players lose it in both modes. Anyone who collects the chest last misses the only in-world pointer to Act III, leaving the hint system as the only signpost.
+  **Recommended solution:** Queue window messages, or mark messages raised during `onEnter` or a dialogue action as priority so the description goes to the message bar only. Also let `pendingEnd` keep a window opened by the action. Order live-region announcements so the warning is announced last.
+  **Sierra-design consideration:** Keep the terse classic cadence. The fix is about ordering, not about adding text.
+  **Regression considerations:** Room-transition message rhythm, the dialogue text/options cadence, blocking sequences that expect a single window, and the existing crag timer and pause behaviour.
+  **Acceptance criteria:** In both modes, the crag warning and the cloud reminder are the text the player (and the live region) receives on first entry. Collecting the chest last still shows the treasure window after the dialogue closes.
+  **Validation:** Probe-style tests for classic and enhanced crag entry, cloud entry with the ring, and the gnome bargain with the shield and mirror already held.
+  **Estimated effort:** Small
+  **Game-design value:** Medium
+  **Technical debt reduction:** Medium
+
+- [x] **Make the player speak the gnome's name instead of picking it from a menu**
+
+  **Resolution:** The menu offers "I know your name.", which opens a typed prompt (`promptText`) in both interfaces and on touch; classic players can also type SAY MENDHARBE. Wrong guesses get varied replies, and saying the parchment's literal EBRAHDNEM nudges toward reading it backwards. Verified by the menu, prompt and guess tests in [tests/game.spec.js](tests/game.spec.js) and [tests/audit-regressions.spec.js](tests/audit-regressions.spec.js), plus both full-route specs.
+
+  **Priority:** Medium
+  **Category:** Puzzle
+  **Confidence:** High
+  **Player impact:** Medium
+  **Area:** Mendharbe's bargain
+  **Affected files:** [js/game.js](js/game.js), [js/rooms/act2.js](js/rooms/act2.js), [js/content.js](js/content.js)
+  **Evidence:** CONFIRMED by probe: holding the parchment is enough for the gnome's menu to list "4. Your name is Mendharbe." The parchment never has to be read, and the backwards word never has to be reversed. The parser has no SAY verb (see the parser item). The gnome's own line, "Guess all you like", can't be acted on.
+  **Problem:** The UI performs the puzzle's only inference, so the KQ1 name-guessing homage has no player step.
+  **Impact:** The first treasure — 25 points, and the game's most iconic homage — comes free once the parchment is picked up.
+  **Recommended solution:** Replace the literal option with "I know your name." That option should prompt for the name through the existing parser/touch input, or tell the player to SAY it. Accept `say mendharbe` (tolerating a missing "the") and answer wrong guesses with jokes; the existing Rumpelstiltskin joke can be one. Hattie's clue and the parchment stay as they are, so the puzzle remains fair: read the word backwards.
+  **Sierra-design consideration:** This restores the original design intent. Don't make it harder than a single reversal, and never punish wrong guesses.
+  **Regression considerations:** The touch parser field must be reachable from the dialogue; the award must stay single (`nameTheGnome`); the after_bargain topic; player-journey and full-game routes need updating.
+  **Acceptance criteria:** The chest cannot be won without the player entering the reversed word. Touch, keyboard and pointer players can all enter it. Wrong answers get varied, non-punishing replies.
+  **Validation:** Parser and touch tests for right, wrong and not-yet-found answers; full 250-point journey.
+  **Estimated effort:** Small
+  **Game-design value:** High
+  **Technical debt reduction:** Low
+
+- [x] **Give the player the mirror's payoff in the duel**
+
+  **Resolution:** The duel cutscene now stops after the shield breaks, on its own caption "You have nothing left but a mirror". Morvane stands on the shore path gathering the second stroke, with a warning at 6 s and a death at 14 s. USE MIRROR, from the item alone or aimed at any tower hotspot or at Morvane, plays the reflection and awards `duel`. The pause is a death-recovery checkpoint and can be saved and restored. Verified by the wait, death, retry and save tests in [tests/audit-regressions.spec.js](tests/audit-regressions.spec.js), the updated socket-order and reunion tests, and the inspected `amber-tower-duel` baseline.
+
+  **Priority:** Medium
+  **Category:** Puzzle
+  **Confidence:** Medium
+  **Player impact:** Medium
+  **Area:** Amber Tower finale
+  **Affected files:** [js/rooms/act3.js](js/rooms/act3.js), [js/cutscenes.js](js/cutscenes.js), [js/content.js](js/content.js)
+  **Evidence:** CONFIRMED in code: `beginTheEnd` runs setting the third treasure, Morvane's monologue, `cutsceneMorvaneDuel`, the `duel` award, the reunion and the coronation as one uninterrupted sequence. Hattie's tale, the continuity rules ("the mirror returns hostile magic") and the mirror's description all set up an action the player never takes. The previous review noted the climax is "mostly automatic".
+  **Problem:** The player's last act is placing a treasure in a socket. The villain is defeated without any player input.
+  **Impact:** The ending lands with less force than the puzzles before it, and a clearly planted setup gets no payoff.
+  **Recommended solution:** Pause after "He raises one white hand and the air goes hard." and wait for a single action: USE MIRROR (on Morvane, or anywhere) reflects the curse and plays the duel cutscene. Any other action, or a long delay, triggers a death with Sierra humour, then a retry from the start of the pause. Move the `duel` award onto this action.
+  **Sierra-design consideration:** KQ-style finales hinge on one final item use. Failing must never cost progress; there must be no dead end after the ward opens.
+  **Regression considerations:** Save refusal during the ending, skipping the sequence with Escape, the six socket orders, the score contract, and the parser, pointer and touch paths for the mirror.
+  **Acceptance criteria:** Victory needs one intentional mirror use. Failing or skipping can never strand the game, and total points stay 250.
+  **Validation:** Full-game and player-journey routes; a test of failure followed by a retry; saves refused during the pause.
+  **Estimated effort:** Medium
+  **Game-design value:** High
+  **Technical debt reduction:** Low
+
+- [x] **Give the score something to reward beyond finishing**
+
+  **Resolution:** Seven guarded optional awards (20 points) now sit on existing interactions: reading the ledger, asking Corvus "Who am I?", Hattie's tower tale, greeting the villager, Grumbold's goat story, Fennow on the dragon, and calling to the tower window. `maxScore` is 270 and there are three ranks: Steadfast (the 250-point minimal route), Listener (260+) and Unbroken (270). full-game earns all 270 unclamped; player-journey wins the minimal route at 250.
+
+  **Priority:** Medium
+  **Category:** Score
+  **Confidence:** High
+  **Player impact:** Medium
+  **Area:** Award table, victory ranks
+  **Affected files:** [js/content.js](js/content.js), [js/rooms](js/rooms), [tests/full-game.spec.js](tests/full-game.spec.js)
+  **Evidence:** CONFIRMED in code: all 21 entries in `rules.awards`, 250 points in total, sit on the single required route (every one is a prerequisite for victory), and `victory.ranks` holds one rank with `min: 0`. Every finished game therefore ends on 250/250 with the same title.
+  **Problem:** The score works purely as a progress bar. Nothing rewards exploration, kindness beyond the hare, or cleverness. That is the job Sierra scoring does, and the previous review already noted lower ranks need optional points.
+  **Impact:** Players have no reason to experiment, and the rank screen carries no information.
+  **Recommended solution:** Add about 5-8 guarded optional awards to interactions that already exist and have personality, for example: asking Corvus every question, reading the ledger's list of years, sparing the wish-coins, or greeting the villager. Raise `maxScore` to match, and reintroduce two or three ranks with thresholds that can each be reached by a real route.
+  **Sierra-design consideration:** Keep optional points modest and never required. No points for deaths, and none that can be farmed.
+  **Regression considerations:** The unclamped-sum contract test, persistent `award_*` guards, existing saves (they store a raw score, so `maxScore` clamping and the rank thresholds must still hold for them), and status-bar text.
+  **Acceptance criteria:** The minimum route and the full route produce different scores and ranks, and the unclamped sum equals `maxScore`.
+  **Validation:** Update full-game to earn every award; add a test that the minimal route wins below the maximum.
+  **Estimated effort:** Medium
+  **Game-design value:** Medium
+  **Technical debt reduction:** Low
+
+- [x] **Stop precaching 19.7 MB of opt-in trial art for every player**
+
+  **Resolution:** The trial PNGs have been removed from `ASSETS`. The service worker caches them on first use in `crownquest-art-trials`, a cache that survives version bumps. The contributor guide now describes the opt-in trial assets. Painted-* suites pass (the images still load on request); `npm run check:sw` passes at `v1.4.0`.
+
+  **Priority:** Medium
+  **Category:** Performance
+  **Confidence:** High
+  **Player impact:** Medium
+  **Area:** Service worker, painted-art trials
+  **Affected files:** [serviceworker.js](serviceworker.js), [js/rooms/act1.js](js/rooms/act1.js), [js/cutscenes.js](js/cutscenes.js), [js/icons.js](js/icons.js), [js/actors.js](js/actors.js), [.github/copilot-instructions.md](.github/copilot-instructions.md)
+  **Evidence:** CONFIRMED: `ASSETS` precaches 15 `icons/*-trial.png` files, 19,717,086 bytes in total. The code only loads them under `?scenery=painted`, `?props=painted` or `?actors=painted`. `VERSION` is bumped on every code change, so each deploy creates a new cache and downloads them again. The contributor guide still says "no sprite sheets or image assets exist anywhere in this project".
+  **Problem:** Default players, who see procedural art, pay the full download and storage cost of an experiment they never see.
+  **Impact:** Metered mobile players download about 20 MB on first visit and after every update. Installation is slower, and an install can fail on a flaky connection. The documentation also misleads contributors about the asset model.
+  **Recommended solution:** Drop the trial PNGs from `ASSETS` and cache them at runtime only when a painted mode is requested, or move the trials to a separate build. Update the guide's asset rule to describe the opt-in trial assets.
+  **Sierra-design consideration:** None; the default art is unchanged.
+  **Regression considerations:** Painted-mode test suites (painted-*.spec.js), offline play of default mode, and the service-worker version guard.
+  **Acceptance criteria:** A default first visit precaches no `*-trial.png`, and painted mode still renders when online.
+  **Validation:** Inspect the Cache Storage contents after install in default and painted modes; run the painted-* suites and `npm run check:sw`.
+  **Estimated effort:** Small
+  **Game-design value:** Low
+  **Technical debt reduction:** Medium
+
+- [x] **Make the following goat a character you can look at**
+
+  **Resolution:** `goatHotspot` ("your goat") sits in each room's hotspot list at the goat's drawn position, with LOOK/TALK/GET/USE text that changes after the troll. Verified in all four rooms by [tests/audit-regressions.spec.js](tests/audit-regressions.spec.js).
+
+  **Priority:** Low
+  **Category:** Interaction
+  **Confidence:** High
+  **Player impact:** Low
+  **Area:** Goat in harbour_road, village_green, dark_wood, troll_bridge
+  **Affected files:** [js/rooms/act2.js](js/rooms/act2.js)
+  **Evidence:** CONFIRMED by probe: with `goat_follows`, `look goat` in the dark wood returns "You don't see any goat here", and clicking the drawn goat hits no hotspot. `followingGoat` only adds a draw layer, and the village goat hotspot is hidden once it follows.
+  **Problem:** A visible companion, the hero of the bridge scene, can't be looked at, talked to or fed.
+  **Impact:** A small immersion break, and a missed chance for the post-troll jokes the goat has earned.
+  **Recommended solution:** Have `followingGoat` also register a goat hotspot at its drawn position, with state-aware LOOK, TALK and USE text before and after the troll.
+  **Sierra-design consideration:** Pure flavour; don't turn it into a puzzle.
+  **Regression considerations:** Hotspot ordering (last-to-first), bridge crossing clicks near the goat, and the navigation specs.
+  **Acceptance criteria:** In every room where it is drawn, the goat answers LOOK and TALK in both interfaces.
+  **Validation:** Parser and click checks in the four rooms before and after `troll_routed`.
+  **Estimated effort:** Small
+  **Game-design value:** Medium
+  **Technical debt reduction:** Low
+
+- [x] **Keep room hints from prescribing completed steps**
+
+  **Resolution:** Scullery and well hints now check `circle_salt` and `dragon_doused`. The well hint also tells the player to read the name backwards and say it. Verified by the hint test in [tests/audit-regressions.spec.js](tests/audit-regressions.spec.js).
+
+  **Priority:** Low
+  **Category:** Interaction
+  **Confidence:** High
+  **Player impact:** Low
+  **Area:** Scullery and well hints
+  **Affected files:** [js/rooms/act1.js](js/rooms/act1.js), [js/rooms/act2.js](js/rooms/act2.js)
+  **Evidence:** CONFIRMED by probe: after the salt has gone into the circle and the thimble is made, the scullery hint still says "There is a crock of coarse sea salt... Take a pinch." After the dragon is doused, the well hint still says "Fill your pail here. Water is going to matter later." Both test inventory rather than progress (`hasItem('sea_salt')`, `pail_full`).
+  **Problem:** This is the same class of issue the earlier rope-hint fix addressed, in two more rooms.
+  **Impact:** A player who asks for help is sent to repeat finished work.
+  **Recommended solution:** Test `circle_salt`/`thimble` and `dragon_doused` before the inventory checks.
+  **Sierra-design consideration:** Hints stay optional and unscored.
+  **Regression considerations:** First-visit hint order.
+  **Acceptance criteria:** No room hint prescribes a completed step.
+  **Validation:** Extend the hint assertions in the state-regression specs.
+  **Estimated effort:** Small
+  **Game-design value:** Low
+  **Technical debt reduction:** Low
+
+- [x] **Make gift conversations say and do what they mean**
+
+  **Resolution:** Fennow now offers the ring in his greeting until he has given it, and Rowan answers "I would be glad of it." Asking Corvus for the feather hands it over through the same `RULES.takeFeather` as the perch, which awards it once. Verified in [tests/audit-regressions.spec.js](tests/audit-regressions.spec.js) and the restore/restart gift regression.
+
+  **Priority:** Low
+  **Category:** Dialogue
+  **Confidence:** High
+  **Player impact:** Low
+  **Area:** Fennow and Corvus dialogue
+  **Affected files:** [js/game.js](js/game.js)
+  **Evidence:** CONFIRMED in code and by probe: Fennow's first menu offers "Take this ring, then. (accept his gift)" before any ring has been mentioned, and the line reads as if Rowan were handing over a ring. The previous review noted this as polish. Asking Corvus "May I have that feather?" gets "Take it." but grants nothing (probe: `hasFeather: false`), while the study hint says "he will let you have it if you ask".
+  **Problem:** The option text and the resulting state don't match what the player chose.
+  **Impact:** Brief confusion. Players may believe they already hold the feather.
+  **Recommended solution:** Have Fennow offer the ring in his greeting or reply first, then let Rowan accept it in his own voice. Have Corvus's answer grant the feather through the same code as the perch hotspot, or reword it and the hint so that picking it up is clearly still needed.
+  **Sierra-design consideration:** Keep Corvus's dry reply and Fennow's quiet generosity.
+  **Regression considerations:** Once-only choices and their persistence across save/restore, the single `raven_feather` award, and the `featherCollected` visibility.
+  **Acceptance criteria:** Each gift option says what the player means, and its outcome matches its text.
+  **Validation:** Dialogue tests for both gifts, including save/restore.
+  **Estimated effort:** Small
+  **Game-design value:** Low
+  **Technical debt reduction:** Low
+
+- [x] **Match the doused-dragon narration to its art**
+
+  **Resolution:** The dousing line now describes the dragon sinking back beside the steaming pit, wings drooping and head low, as the doused baseline shows it.
+
+  **Priority:** Low
+  **Category:** Narrative
+  **Confidence:** High
+  **Player impact:** Low
+  **Area:** Dragon cave
+  **Affected files:** [js/rooms/act2.js](js/rooms/act2.js)
+  **Evidence:** CONFIRMED: the dousing sequence says the dragon "backs against the far wall with its wings clamped flat". The `dragon-cave-doused` baseline shows it still lying beside the pit, head low and wings drooped, exactly where it was before (the art direction chosen in an earlier pass).
+  **Problem:** Text and picture describe different outcomes.
+  **Impact:** A small continuity break at a key puzzle payoff.
+  **Recommended solution:** Rewrite the line to match the slumped, appalled dragon on the picture. This is cheaper, and keeps the chosen art.
+  **Sierra-design consideration:** Keep the joke that it is "far too busy being upset".
+  **Regression considerations:** Classic rewrites, skipped sequence.
+  **Acceptance criteria:** The narration describes the pose that is on screen.
+  **Validation:** Read through the sequence against the baseline image.
+  **Estimated effort:** Small
+  **Game-design value:** Low
+  **Technical debt reduction:** Low
+
+---
+
 ## Adventure quality audit - 2026-09-06
 
 ### Release-Polish Follow-Up
@@ -244,7 +523,8 @@ items remain open. They are not claimed fixed by this gameplay repair pass.
 
 ## Structural Work - Player-Impact Priorities
 
-- [ ] **Split the oversized engine into focused modules**
+- [x] **Split the oversized engine into focused modules**
+  - **Resolution:** `js/engine.js` (901 lines) keeps state, room entry, inventory, flags, the loop and crash handling. `GameEngine.extend()` installs `js/engine/{input,parser,narration,scenes,world,render,player,saveload,npc}.js`, and every method moved verbatim. The routing tables in README and the contributor guide name the modules. The functional and visual suites pass unchanged.
   - **Priority:** Medium
   - **Category:** Architecture
   - **Confidence:** High
@@ -264,7 +544,8 @@ items remain open. They are not claimed fixed by this gameplay repair pass.
   - **Business value:** Medium — no user-visible change, but it is the precondition for most other work here.
   - **Technical debt reduction:** High
 
-- [ ] **Enforce the file-size ceiling automatically**
+- [x] **Enforce the file-size ceiling automatically**
+  - **Resolution:** [tools/check_modules.js](tools/check_modules.js) syntax-checks every shipped script. It fails any `js/` file over 1,500 lines and lists files over 800. Its allow-list is empty and the tool rejects stale entries. It replaces the `node -c` chain in `check:static`.
   - **Priority:** Low
   - **Category:** Architecture
   - **Confidence:** High
@@ -284,7 +565,8 @@ items remain open. They are not claimed fixed by this gameplay repair pass.
   - **Game-design value:** Low
   - **Technical debt reduction:** High
 
-- [ ] **Split the act files into one file per room**
+- [x] **Split the act files into one file per room**
+  - **Resolution:** The twelve rooms each live in `js/rooms/<room_id>.js`. Shared helpers moved to `js/rooms/house.js` (interior shell) and `js/rooms/alderhaven.js` (goat, sky, bridge geometry) under `CrownQuest.shared`. [tools/modules.js](tools/modules.js) is the single load-order list; validate_content checks index.html order, the service worker, and unlisted files on disk. The architecture test now expects 12 room modules.
   - **Priority:** Medium
   - **Category:** Architecture
   - **Confidence:** High
@@ -308,14 +590,15 @@ items remain open. They are not claimed fixed by this gameplay repair pass.
 
 ## Correctness, Performance and Process
 
-- [ ] **Extend static-layer caching to the remaining scenes**
+- [x] **Extend static-layer caching to the remaining scenes**
+  - **Resolution:** Static scenery in village_green, troll_bridge, dragon_cave, harbour_road, amber_tower, spell_room and study is now cached, with flag state encoded in the keys (for example `rope_tied`, `cart_rope`, `doused`). Measured 4.1-6.8 ms per room, all under 8 ms. Every room baseline passes within its existing tolerance; the only rewritten room images differ in the "/ 270" score HUD.
   - **Priority:** Low
   - **Category:** Performance
   - **Confidence:** High
   - **Player impact:** Low
   - **Area:** Rooms
   - **Affected files:** [js/rooms/act1.js](js/rooms/act1.js), [js/rooms/act2.js](js/rooms/act2.js), [js/rooms/act3.js](js/rooms/act3.js)
-  - **Evidence:** CONFIRMED remaining uncached scenery in room draw functions. Updated desktop measurement: all rooms 2.6-7.4ms/frame; the older 14.6/15.1ms measurements are superseded. Mobile power/frame cost was not measured.
+  - **Evidence:** CONFIRMED remaining uncached scenery in room draw functions. 2026-09-24 desktop measurement: 5.0-12.3ms/frame (village_green 12.3, troll_bridge 10.8, dragon_cave 10.3, spell_room 10.1), all under the 16ms budget; seven rooms are at or above this item's 8ms target. Mobile power/frame cost was not measured.
   - **Problem:** Some static procedural scenery still repaints every frame, but no current desktop frame-budget failure was observed.
   - **Impact:** Potential avoidable CPU/battery cost; low-end dropped frames remain unverified, not a confirmed defect.
   - **Recommended solution:** Wrap each room's static prefix in `eng.staticLayer(key, fn)`, composing any flag the art depends on into the key. Verify each with the visual baselines, which must stay byte-identical.
@@ -328,7 +611,8 @@ items remain open. They are not claimed fixed by this gameplay repair pass.
   - **Game-design value:** Low
   - **Technical debt reduction:** Low
 
-- [ ] **Confirm or delete `AGI_ENGINE_TECHNICAL_REFERENCE.md`**
+- [x] **Confirm or delete `AGI_ENGINE_TECHNICAL_REFERENCE.md`**
+  - **Resolution:** The first lines now state that it is historical background reading about Sierra's interpreter and binds nothing in this repository.
   - **Priority:** Low
   - **Category:** Documentation
   - **Confidence:** Medium
@@ -373,6 +657,7 @@ items remain open. They are not claimed fixed by this gameplay repair pass.
   - **Game-design value:** High
 
 - [ ] **Make visual baselines reproducible off a Windows desktop**
+  - **Status (2026-09-24):** Partly done, and blocked on a Linux runner. The `visual` job in [.github/workflows/quality.yml](.github/workflows/quality.yml) runs the suite inside the pinned `mcr.microsoft.com/playwright:v1.61.1-noble` image. It records `*-chromium-linux.png` baselines as an artefact when dispatched with `record`, and compares against them on every push and pull request once they are committed. No Docker or WSL is available on this machine, so the Linux set has not been recorded and the job has not been seen to fail on a planted diff; the acceptance criteria stay open.
   - **Priority:** Medium
   - **Category:** Testing
   - **Confidence:** High
@@ -439,7 +724,8 @@ items remain open. They are not claimed fixed by this gameplay repair pass.
   - **Validation:** Boundary tests plus parser-response regression checks; document explicit content hooks.
   - **Game-design value:** Medium
 
-- [ ] **Give the crash screen a recovery action**
+- [x] **Give the crash screen a recovery action**
+  - **Resolution:** The crash panel names the newest save slot. R, Enter or a tap stores the choice in sessionStorage and reloads, and `start()` restores that slot. With no save it reloads to the title. Verified by the new reload-and-restore test in [tests/reliability.spec.js](tests/reliability.spec.js).
   - **Priority:** Low
   - **Category:** UI/UX
   - **Confidence:** High

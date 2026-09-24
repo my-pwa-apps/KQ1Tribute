@@ -360,15 +360,17 @@ test.describe('no unwinnable states', () => {
         expect(await refill()).toBe(true);
     });
 
-    test('the gnome cannot be named without finding the parchment', async ({ page }) => {
+    test('the gnome\'s menu never supplies his name, even with the parchment', async ({ page }) => {
         await boot(page);
         const available = await page.evaluate(() => {
             const e = window.engine;
+            e.addToInventory('parchment');
             e.startDialog('gnome');
             while (e.activeDialog && e.activeDialog.phase !== 'options') e._advanceDialog();
             return e.activeDialog.visibleOptions.map((o) => o.text);
         });
         expect(available.some((t) => t.includes('Mendharbe'))).toBe(false);
+        expect(available.some((t) => t.includes('I know your name'))).toBe(true);
     });
 });
 
@@ -659,15 +661,21 @@ test.describe('story continuity', () => {
                 advanceSequence();
                 const duelInventory = [...game.inventory];
                 game.update(15000);
+                // The first stroke breaks the shield; the second waits for the mirror.
+                const paused = game.getFlag('duel_pending');
+                game.textWindow = null;
+                game.executeParserCommand('use mirror');
+                game.update(15000);
                 const reunion = game.sequence.steps.filter(step => step.say).map(step => step.say).join(' ');
                 const afterDuel = [...game.inventory];
                 advanceSequence();
                 game.update(12000);
-                return { duelInventory, afterDuel, reunion, freed: game.getFlag('elowen_freed'), won: game.won, score: game.score,
+                return { duelInventory, afterDuel, reunion, paused, freed: game.getFlag('elowen_freed'), won: game.won, score: game.score,
                     treasuresLeft: game.inventory.filter(id => treasures.includes(id)) };
             }, skipping);
             expect(result.duelInventory).toEqual(expect.arrayContaining(['shield_of_ardor', 'mirror_of_ianthe']));
             expect(result.duelInventory).not.toContain('chest_of_cormac');
+            expect(result.paused).toBe(true);
             expect(result.afterDuel).not.toContain('shield_of_ardor');
             expect(result.reunion).toContain('Your mother');
             expect(result.reunion).toContain('Your father is Aldric');

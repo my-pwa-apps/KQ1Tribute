@@ -39,7 +39,9 @@ document.addEventListener('DOMContentLoaded', () => {
             elf: ['fennow'],
             peddler: ['hattie', 'cart'],
             ring: ['mist', 'band'],
-            key: ['brass'],
+            key: ['brass', 'hourglass'],
+            boat: ['skiff'],
+            note: ['parchment'],
             feather: ['raven', 'quill'],
             salt: ['crock'],
             plant: ['beanstalk', 'stalk'],
@@ -97,6 +99,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 {
                     text: 'Who am I?',
                     response: '"You came off a ship. It broke on the rocks below this house, eleven winters back, and he went down and came up with one thing." He tilts his head. "He did not go down to save anybody. He went down to see what had washed up."',
+                    action: (e) => RULES.award(e, 'corvus_origin'),
                     once: true
                 },
                 {
@@ -106,8 +109,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 },
                 {
                     text: 'May I have that feather?',
-                    response: '"Take it. I have a great many and you have nothing at all." He looks away, pointedly. "Some spells want a feather of a black bird. I am told this is a coincidence."',
-                    condition: (e) => !e.hasItem('raven_feather') && !e.getFlag('feather_taken') && !e.getFlag('circle_feather'),
+                    response: '"Take it. I have a great many and you have nothing at all." He nudges it off the perch into your hand and looks away, pointedly. "Some spells want a feather of a black bird. I am told this is a coincidence."',
+                    condition: (e) => !RULES.featherCollected(e),
+                    action: (e) => RULES.takeFeather(e),
                     once: true
                 },
                 {
@@ -171,6 +175,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 {
                     text: 'What is the tower on the headland?',
                     response: 'Her hands stop. "A woman behind a ward. Nobody can see her face clearly or hear her voice. Eleven years." She lowers her voice. "The old tale says the tower shelters royal blood: the chest sustains, the shield guards, the mirror turns malice back. Only the sheltered one\'s heir can bring them together and freely open it. We thought that heir drowned."',
+                    action: (e) => RULES.award(e, 'hattie_tower'),
                     once: true
                 },
                 {
@@ -188,14 +193,18 @@ document.addEventListener('DOMContentLoaded', () => {
         startTopic: 'greeting',
         topics: [{
             id: 'greeting',
-            text: '"That snare cost somebody a day," says the elf, "and you undid it in a minute, and you did not eat what was in it. That is three unusual things before breakfast."',
+            get text() {
+                const opening = '"That snare cost somebody a day," says the elf, "and you undid it in a minute, and you did not eat what was in it. That is three unusual things before breakfast."';
+                return engine.getFlag('has_ring') ? opening
+                    : `${opening} He turns a plain grey ring between two fingers. "Unusual things ought to be answered. This is yours, if you will have it."`;
+            },
             options: [
                 {
                     text: 'It was caught. That is all.',
                     response: '"Yes," he says. "That is all. That is the whole of it and most people manage to make it complicated." He looks at you sideways. "Fennow."'
                 },
                 {
-                    text: 'Take this ring, then. (accept his gift)',
+                    text: 'I would be glad of it. (accept the ring)',
                     response: '"It is not a great magic. It will not stop a blade or open a door." He drops the grey band into your palm. "It will make you no more visible than weather. Weather can walk past a great many things that a boy cannot."',
                     condition: (e) => !e.getFlag('has_ring'),
                     action: (e) => RULES.giveRingOfMist(e),
@@ -210,6 +219,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 {
                     text: 'And the dragon?',
                     response: '"Four hundred years on the same fire. It has never once let it go out." He smiles, faintly. "I have often thought that if somebody ever did put it out, the dragon would be far too upset to eat anybody."',
+                    action: (e) => RULES.award(e, 'fennow_dragon'),
                     once: true
                 },
                 {
@@ -246,10 +256,10 @@ document.addEventListener('DOMContentLoaded', () => {
                         once: true
                     },
                     {
-                        text: 'Your name is Mendharbe.',
-                        response: 'The gnome goes very quiet. Then he stands up off the chest, brushes it down, and bows so low his beard touches the water. "Thirty years," he says. "And it was the vanity that did it. It always is."',
-                        condition: (e) => e.hasItem('parchment') && !e.getFlag('gnome_named'),
-                        action: (e) => RULES.nameTheGnome(e),
+                        text: 'I know your name.',
+                        response: '"Do you now." He folds his hands over his beard. "Then say it, boy. Out loud. A name only counts when it is spoken."',
+                        condition: (e) => !e.getFlag('gnome_named'),
+                        action: (e) => e.promptText('Say the gnome\'s name aloud:', (name) => e.executeParserCommand(`say ${name}`)),
                         endDialog: true
                     },
                     {
@@ -309,6 +319,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 {
                     text: 'Has anyone ever got past you?',
                     response: 'He thinks about this for an uncomfortably long time. "One goat," he says at last, with feeling. "Once. Long time ago. Don\'t like goats."',
+                    action: (e) => RULES.award(e, 'grumbold_goat'),
                     once: true
                 },
                 {
@@ -358,7 +369,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (all && !this.getFlag('has_all_three')) {
             this.setFlag('has_all_three');
             this.sound.scoreUp();
-            this.showMessage('All three treasures of Alderhaven are in your hands, and the weight of them is not the weight of the metal. Out on the western headland, something the colour of old honey has begun to shine.', { window: true });
+            this.queueMessage('All three treasures of Alderhaven are in your hands, and the weight of them is not the weight of the metal. Out on the western headland, something the colour of old honey has begun to shine.', { priority: true });
         }
     };
 

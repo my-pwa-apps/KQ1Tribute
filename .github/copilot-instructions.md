@@ -8,13 +8,14 @@ vendored Three.js browser module for optional first-person WebXR. No build
 system and no runtime install.
 
 - [index.html](../index.html) — UI shell: canvas, action buttons, inventory bar, save/load modal, message area
-- [js/engine.js](../js/engine.js) — reusable `GameEngine`: render loop, input, parser, click-to-walk, cutscenes, blocking sequences, dialog trees, save/load, overlays, all driven by a game definition object
+- [js/engine.js](../js/engine.js) — reusable `GameEngine`: state, room entry, inventory, flags, score, the update loop and crash handling, all driven by a game definition object
+- [js/engine/](../js/engine) — subsystems that extend `GameEngine.prototype` via `GameEngine.extend()`: `input.js`, `parser.js`, `narration.js` (messages, text window, dialogue), `scenes.js` (cutscenes, sequences, death and recovery), `world.js` (layers, barriers, exits, NPCs), `render.js`, `player.js` (the ego cel), `saveload.js`, `npc.js`
 - [js/registry.js](../js/registry.js) — room-module registry. Rooms are parsed before the engine exists, so each file queues a factory via `CrownQuest.defineRooms(fn)` and the bootstrap drains the queue.
 - [js/art.js](../js/art.js) — drawing primitives, landscape, architecture, the three treasures
 - [js/actors.js](../js/actors.js) — the shared human cel, the cast palettes, the creatures
 - [js/icons.js](../js/icons.js) — inventory close-ups and speaker portraits
 - [js/cutscenes.js](../js/cutscenes.js) — set pieces and the title backdrop
-- [js/rooms/*.js](../js/rooms) — the rooms, grouped by act
+- [js/rooms/*.js](../js/rooms) — one file per room; `house.js` and `alderhaven.js` hold helpers shared by several rooms in `CrownQuest.shared`
 - [js/game.js](../js/game.js) — bootstrap only: items, dialog trees, the opening, `installRooms`, `start`
 - [js/content.js](../js/content.js) — score contract, item metadata, victory ranks, shared progression rules
 
@@ -22,18 +23,21 @@ system and no runtime install.
 
 | Kind of change | File |
 |---|---|
-| Reusable system (input, parser, inventory, save/load, cutscene machinery, NPCs, depth scaling, overlays) | `js/engine.js` |
+| Engine state, room entry, inventory, flags, the update loop | `js/engine.js` |
+| Reusable system (input, parser, narration, cutscene machinery, room geometry, rendering, save/load) | the matching `js/engine/*.js` |
 | Drawing helper used by more than one room | `js/art.js` |
 | A person or a creature | `js/actors.js` |
 | An inventory icon or a speaker portrait | `js/icons.js` |
 | A set-piece animation or the title art | `js/cutscenes.js` |
-| A room's art, hotspots and puzzle logic | the matching `js/rooms/*.js` |
+| A room's art, hotspots and puzzle logic | that room's `js/rooms/<room_id>.js` |
+| A helper several rooms share | `js/rooms/house.js` (interiors) or `js/rooms/alderhaven.js` (exteriors) |
 | Items, dialog trees, the opening | `js/game.js` |
 | Score contract, item metadata, victory ranks, shared progression rules | `js/content.js` |
 
 Adding a module requires three registrations — `index.html`, the `ASSETS` list
-in `serviceworker.js`, and `CONTENT_FILES` in `tools/validate_content.js`. The
-static gate fails if any is missed.
+in `serviceworker.js`, and the load-order list in `tools/modules.js`. The
+static gate fails if any is missed, if a room file on disk is unlisted, or if
+any file in `js/` grows past 1,500 lines (`tools/check_modules.js`).
 
 ### Reusable Engine Boundary
 
@@ -60,8 +64,10 @@ engine.registerRoom({ id, name, description, smell, hint, draw, hotspots,
                       onEnter?, onUpdate? })
 ```
 
-`draw(ctx, w, h, eng)` renders everything procedurally — no sprite sheets or
-image assets exist anywhere in this project. `onUpdate(e, dt)` ticks once per
+`draw(ctx, w, h, eng)` renders everything procedurally. The only image assets
+are the opt-in painted-art trials (`icons/*-trial.png`, loaded only under
+`?scenery=painted`, `?props=painted` or `?actors=painted`); the service worker
+caches them on first use and never precaches them. `onUpdate(e, dt)` ticks once per
 frame and is suppressed during cutscenes, sequences, death and victory.
 
 ### Hotspot Structure
