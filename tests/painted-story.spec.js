@@ -46,6 +46,35 @@ test('painted crag aligns obstacles, floor routes, and house exit', async ({ pag
     expect(route.room).toBe('study');
 });
 
+test('painted crag shows the moored skiff and a click on it walks Rowan there', async ({ page }) => {
+    await enterCrag(page);
+    const result = await page.evaluate(() => {
+        const game = window.engine;
+        const drawn = [];
+        const original = game.ctx.drawImage;
+        game.ctx.drawImage = function(image, ...args) {
+            const src = (image.dataset && image.dataset.source) || image.src;
+            if (src && /\/skiff-trial\.png$/.test(src)) drawn.push('skiff');
+            return original.call(this, image, ...args);
+        };
+        try { game.render(); } finally { game.ctx.drawImage = original; }
+        const skiff = game.rooms.crag_path.hotspots.find(hotspot => hotspot.name === 'the skiff');
+        const cx = skiff.x + skiff.w / 2, cy = skiff.y + skiff.h / 2;
+        const found = game.findHotspot(cx, cy, game.rooms.crag_path);
+        game.currentAction = 'walk';
+        game.handleClick(cx, cy);
+        for (let frame = 0; frame < 400 && game.playerWalking; frame++) game.update(16);
+        const arrived = Math.hypot(game.playerX - skiff.walkToX, game.playerY - skiff.walkToY) < 1;
+        game.currentAction = 'use';
+        game.handleClick(cx, cy);
+        return { drawn, found: found && found.name, arrived, message: document.getElementById('message-text').textContent };
+    });
+    expect(result.drawn).toEqual(['skiff']);
+    expect(result.found).toBe('the skiff');
+    expect(result.arrived).toBe(true);
+    expect(result.message).toContain('You need a wind');
+});
+
 test('painted title and intro panels retain text and pixel rendering', async ({ page }) => {
     const errors = [];
     page.on('pageerror', error => errors.push(error.message));

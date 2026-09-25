@@ -67,8 +67,8 @@ because no replacement image was supplied.
 The outdoor house path, sea boundary, and boulder have aligned hotspots and
 collision geometry. A cached boulder mask hides Rowan behind the rock.
 Morvane's passing sequence uses the same painted landscape, with the existing
-animated wizard. The right-hand path accesses the skiff in the cove below,
-out of sight; the supply warning and sailing puzzle are unchanged.
+animated wizard. The skiff rides at its mooring in the inlet below the path;
+the supply warning and sailing puzzle are unchanged.
 Each missing image falls back to its original art independently.
 Run `npx playwright test tests/painted-story.spec.js` for title, intro, outdoor
 movement, hiding, sailing, fallback, and desktop/mobile screenshot checks.

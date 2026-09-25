@@ -7,6 +7,18 @@ CrownQuest.defineRooms((engine) => {
 
     let paintedCrag = false;
     const cragImage = new Image();
+    // The skiff rides at its mooring off the point, just beyond the boulder.
+    const PAINTED_SKIFF = { x: 388, y: 202, w: 72, h: 42 };
+    function drawMooredSkiff(ctx, e) {
+        const { x, y, w, h } = PAINTED_SKIFF;
+        const bob = Math.round(Math.sin(e.animTimer / 700) * 1);
+        ctx.fillStyle = 'rgba(10,24,40,0.45)';
+        ctx.beginPath(); ctx.ellipse(x, y + 1, w * 0.52, 4, 0, 0, Math.PI * 2); ctx.fill();
+        if (!drawPaintedItem(ctx, 'skiff', x, y + 2 + bob, w, h)) {
+            drawSkiff(ctx, x, y + bob, 0.42, false, e.animTimer);
+        }
+        glints(ctx, x - w * 0.6, y - 1, w * 1.2, 6, e.animTimer, { seed: 4141, count: 5 });
+    }
     function drawCragBoulder(ctx, e) {
         ctx.drawImage(e.staticLayer('crag_path|painted-boulder', (mask) => {
             mask.beginPath();
@@ -33,7 +45,12 @@ CrownQuest.defineRooms((engine) => {
             'the house': { x: 12, y: 10, w: 171, h: 156, walkToX: 135, walkToY: 178 },
             'the sea': { x: 285, y: 140, w: 96, h: 110 },
             'the distant castle': { x: 515, y: 78, w: 70, h: 34 },
-            'the skiff': { x: 550, y: 326, w: 80, h: 46, walkToX: 590, walkToY: 346 },
+            'the skiff': { x: PAINTED_SKIFF.x - 42, y: PAINTED_SKIFF.y - 34, w: 62, h: 40, walkToX: 322, walkToY: 262,
+                // The boat is on the water, so a walk click stops at the shore beside it.
+                walk: (game) => {
+                    game.playerTargetX = 322; game.playerTargetY = 262;
+                    game.playerWalking = true; game.pendingAction = null;
+                } },
             'the gorse': { x: 20, y: 274, w: 74, h: 64 },
             'the path back to the house': { x: 42, y: 172, w: 112, h: 78, walkToX: 135, walkToY: 178 }
         };
@@ -144,6 +161,7 @@ CrownQuest.defineRooms((engine) => {
             if (paintedCrag) {
                 ctx.drawImage(cragImage, 0, 0, w, h);
                 glints(ctx, 300, 146, 330, 70, eng.animTimer, { seed: 2929, count: 20 });
+                drawMooredSkiff(ctx, eng);
                 gullFlight(ctx, 700, 160, 104, 0.8, eng.animTimer, 31000, 0.1);
                 return;
             }
@@ -325,7 +343,7 @@ CrownQuest.defineRooms((engine) => {
                             ? drawPaintedCragEncounter(c, cw, ch, progress, elapsed)
                             : cutsceneMorvanePasses(c, cw, ch, progress, elapsed),
                         onEnd: () => {
-                            engine.showMessage('He goes into the house. High above, the observatory shutter opens: his evening watch, behind a locked door. The lower rooms are clear if you forgot anything. The path to the cove is open.', { window: true });
+                            engine.showMessage('He goes into the house. Through the lit front window you watch his shadow cross the room and climb out of sight, up to the locked loft under the thatch that he calls his observatory, for his evening watch. The lower rooms are clear if you forgot anything. The path to the cove is open.', { window: true });
                         }
                     });
                 },
@@ -337,7 +355,7 @@ CrownQuest.defineRooms((engine) => {
             },
             {
                 name: 'the house', x: 26, y: 60, w: 124, h: 166, isExit: true, walkToX: 90,
-                description: 'Morvane\'s house, squat against the wind. The path on your left leads back up to its front door.',
+                description: 'Morvane\'s house, squat against the wind, his locked observatory tucked into the loft under the thatch. The path on your left leads back up to its front door.',
                 onExit: (e) => e.goToRoom('study', 560, 330)
             },
             {
@@ -352,7 +370,7 @@ CrownQuest.defineRooms((engine) => {
             {
                 name: 'the skiff', x: 470, y: 330, w: 140, h: 60, walkToX: 520,
                 get description() { return paintedCrag
-                    ? 'The path on the right descends to the cove. Your fishing skiff waits out of sight on the shingle below, its sail hanging limp. There is not a breath of wind down there.'
+                    ? 'Your fishing skiff, moored off the point below the path, its sail furled and useless. There is not a breath of wind on the water.'
                     : 'A fishing skiff drawn up on the shingle below, its sail hanging like wet washing. There is not a breath of wind in the cove.'; },
                 get: (e) => e.showMessage('It is a boat. You cannot put a boat in your pocket.'),
                 use: (e) => {

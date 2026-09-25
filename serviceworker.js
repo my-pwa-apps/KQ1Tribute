@@ -1,6 +1,6 @@
 // Crown Quest: A Fantasy Adventure - Service Worker
 // BUMP VERSION on every code change to invalidate the cache.
-const VERSION = 'v1.4.3';
+const VERSION = 'v1.4.5';
 const CACHE_NAME = `crownquest-${VERSION}`;
 // index.html loads every script as `js/<file>.js?v=<VERSION>`
 // (tools/validate_content.js keeps the two equal). A worker from an older
