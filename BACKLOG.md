@@ -11,6 +11,62 @@ confirmed player-facing progression defects.
 
 ---
 
+## Adventure quality review - 2026-09-24 (second pass)
+
+This pass reviewed the tree after the audit fixes, the ChatGPT art trial and the
+test server, and replayed the game from new game to victory in the embedded
+browser (painted mode, 253/270, "Rowan the Steadfast"). The playthrough surfaced
+five navigation and state bugs, all fixed during the session: the stalled
+wall-slide walk, the off-path arrival in the painted wood, the restore
+off-floor, blocked painted routes, and the goat left at its tether.
+
+Two temporary probes were run and then deleted:
+- **Reachability:** every arrival point in the game, clicking every exit and every
+  scripted walk, in both art modes. No stalls or unreachable exits remain; the
+  one reported mismatch is the bridge crossing, which ends on the far bank by
+  design.
+- **Painted frame cost:** 0.5-6.6 ms per room.
+
+The gate before this pass was green: static checks, the functional, painted,
+visual and touch suites, and `check:sw` at `v1.4.2`.
+
+- [x] **Resample the painted backgrounds once instead of nearest-sampling 1586-pixel sources every frame**
+
+  **Priority:** Medium
+  **Category:** Visual
+  **Confidence:** High
+  **Player impact:** Medium
+  **Area:** Painted-scenery trial delivery and rendering
+  **Affected files:** [js/rooms](js/rooms), [js/engine/render.js](js/engine/render.js), [serviceworker.js](serviceworker.js), [icons](icons)
+  **Evidence:** CONFIRMED in code. Each painted room calls `drawImage(image, 0, 0, 640, 400)` with `imageSmoothingEnabled = false` on a 1586x992 ChatGPT source. `applyClassicSceneRaster` then nearest-samples the 640x400 frame down to 320x200 and back up. Each output pixel is therefore one source pixel out of about 25, so fine dithering turns into speckle; the cloud floor and forest canopy show it in the inspected screenshots. The 47 trial PNGs total 41.8 MB (2.1-2.8 MB per room). Decoded, each background is about 6.3 MB of pixels. The trial art sits in a version-independent runtime cache (`crownquest-art-trials`) that is never refreshed, so regenerated art under the same file name never reaches returning players.
+  **Problem:** The trial throws away most of each painting unevenly, downloads roughly ten times the pixels it can show, and cannot deliver art updates.
+  **Impact:** The painted rooms look noisier than their sources. Painted mode is heavy on mobile data and memory. Art fixes never arrive for existing players.
+  **Recommended solution:** Resample each accepted background once, either in the preparation tool or at image load, to the 320x200 scene raster (or 640x400) using area-averaged smoothing. Ship that file as `icons/<room>-trial.png`. Give the trial cache a version, or put a content hash in the file names.
+  **Sierra-design consideration:** A clean 320x200 raster is the intended VGA look; this makes the paintings more consistent with it, not less.
+  **Regression considerations:** Hotspot and floor coordinates are in logical 640x400 space and do not change. The painted baselines need re-recording after inspection. Procedural fallback must still work.
+  **Acceptance criteria:** Painted rooms render without sampling speckle. Each background is at most 640x400 and under 0.6 MB. Replacing a trial image reaches a returning player on the next version.
+  **Validation:** Before/after screenshot comparison, painted-* suites, and a Cache Storage check after an art change.
+  **Estimated effort:** Small
+  **Game-design value:** Medium
+  **Technical debt reduction:** Medium
+  **Resolution (2026-09-25):** `tools/resample_backgrounds.js` averages each painting down to the 320x200 scene raster in halving steps. The room backgrounds are now 90-180 KB each, and the trial PNGs total 7.0 MB instead of 41.8 MB. Cast sprites and sheets are also area-averaged once per size, with a hard alpha edge (`rasterSprite`), instead of being nearest-sampled. The runtime cache is now `crownquest-art-trials-<TRIAL_ART_VERSION>` (`a2`); the activate step deletes old caches, so a replaced image reaches returning players. `tests/service-worker.spec.js` covers the versioned cache. The painted baselines were inspected and re-recorded.
+
+- [x] **Give the painted cast idle animation and the painted rooms ambient life**
+
+  **Priority:** Medium
+  **Category:** Visual
+  **Area:** Painted cast and painted rooms
+  **Affected files:** [js/painted-cast.js](js/painted-cast.js), [js/ambience.js](js/ambience.js), [js/actors.js](js/actors.js), [js/rooms](js/rooms), [tools/prepare_sheet.js](tools/prepare_sheet.js)
+  **Problem:** The painted cast were single static sprites, so the painted rooms felt frozen next to the procedural cels, which breathe and gesture.
+  **Resolution (2026-09-25):**
+  - ChatGPT generated a four-frame sheet for each of the twelve painted cast members, from their installed sprites as references. `tools/prepare_sheet.js` splits each sheet at its empty columns, keys it, and despills it.
+  - Playback uses idle "beats" (a mostly-rest cycle with short gestures). Every frame is anchored at frame 0's feet and scaled by frame 0's figure, and each actor has a one-pixel breathing bob and its own phase. The villager uses only the two frames whose basket matches.
+  - `js/ambience.js` adds seeded glints, fireflies, falling leaves, and a lit or doused log fire. `gullFlight` in actors.js adds gulls crossing the sky.
+  - These are wired into the village, bridge, wood, harbour, crag, well, dragon's cave, Amber Tower and the painted scullery hearth. The dragon's fire pit now has a shaded ring of fieldstones.
+  - Painted frame cost stays at 0.4-5.4 ms per room.
+
+---
+
 ## Painted art trial - 2026-09-24
 
 ChatGPT, run in the embedded browser from the prompts in
@@ -21,7 +77,7 @@ the procedural art on its own. Coverage is in
 [tests/painted-alderhaven.spec.js](tests/painted-alderhaven.spec.js) (floor,
 exits, props, fallback, screenshots) and the updated painted-* baselines.
 
-- [ ] **Keep the first load after an update from mixing old cached scripts with new HTML**
+- [x] **Keep the first load after an update from mixing old cached scripts with new HTML**
 
   **Priority:** Medium
   **Category:** Bug
@@ -40,8 +96,9 @@ exits, props, fallback, screenshots) and the updated painted-* baselines.
   **Estimated effort:** Small
   **Game-design value:** Low
   **Technical debt reduction:** Medium
+  **Resolution (2026-09-25):** Every local script tag in `index.html` now ends in `?v=<VERSION>`, and `tools/validate_content.js` fails the gate if any tag is missing the suffix or has a stale one. The worker precaches the same versioned URLs; vendored Three.js modules are excluded because `vr.js` imports them unversioned. Old workers look scripts up in every cache, but a new release's URLs miss those caches and are fetched fresh, so an N-1 worker can no longer serve N-1 scripts to N's HTML. `tests/service-worker.spec.js` installs a worker, plants a stale cached script under the old URL, and asserts that the page loads the new one without errors.
 
-- [ ] **Finish the painted trial where live props are still procedural**
+- [x] **Finish the painted trial where live props are still procedural**
 
   **Priority:** Low
   **Category:** Visual
@@ -60,6 +117,11 @@ exits, props, fallback, screenshots) and the updated painted-* baselines.
   **Estimated effort:** Medium
   **Game-design value:** Low
   **Technical debt reduction:** Low
+  **Resolution (2026-09-25):**
+  - ChatGPT painted the routed beanstalk (it sways), Grumbold's club, the beached skiff and a freed hare, from prompts in `tools/art-prompts/leftovers`. They are prepared with `generate_props.js --leftovers` and installed with procedural fallbacks.
+  - The painted fire pit uses `logFire`, lit or doused. The goat's charge gallops.
+  - The cast idle requested here is delivered by the sprite-sheet item above.
+  - The distant Amber Tower on the harbour horizon and the village chimney smoke stay procedural on purpose. They are state-driven (the lit sockets) or animated, and at that size they read with the painting.
 
 ---
 

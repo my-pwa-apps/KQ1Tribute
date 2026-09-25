@@ -105,7 +105,7 @@ CrownQuest.defineRooms((engine) => {
                     ctx.closePath(); ctx.fill();
                     ctx.restore();
                 }
-                if (!drawPaintedActor(ctx, 'corvus', 102, 212, { height: 42 })) drawRaven(ctx, 102, 210, 1.5, false, eng.animTimer);
+                if (!drawPaintedActor(ctx, 'corvus', 102, 212, { height: 42, t: eng.animTimer, phase: 5 })) drawRaven(ctx, 102, 210, 1.5, false, eng.animTimer);
                 ctx.restore();
             });
             if (paintedStudy) configurePaintedStudy(e);

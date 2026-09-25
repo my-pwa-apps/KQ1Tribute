@@ -17,6 +17,7 @@ const CONTENT_FILES = [
     'js/game.js',
     'js/art.js',
     'js/actors.js',
+    'js/ambience.js',
     'js/painted-cast.js',
     'js/icons.js',
     'js/cutscenes.js',
@@ -72,7 +73,7 @@ for (const file of CONTENT_FILES.concat('js/registry.js', ENGINE_FILES)) {
 }
 // Load order matters: the module list is the order index.html must follow,
 // and a shared helper must be parsed before the rooms that read it.
-const loadOrder = [...ENGINE_FILES, ...ROOM_FILES].map((file) => html.indexOf(`src="${file}"`));
+const loadOrder = [...ENGINE_FILES, ...ROOM_FILES].map((file) => html.indexOf(`src="${file}?`));
 if (loadOrder.some((position, i) => i > 0 && position < loadOrder[i - 1])) {
     fail('index.html must load the engine and room modules in the order listed in tools/modules.js.');
 }
@@ -85,7 +86,7 @@ const IMMERSIVE_RUNTIME_FILES = [
     'js/vendor/three.module.min.js',
     'js/vendor/three.core.min.js'
 ];
-if (!html.includes('type="module" src="js/vr.js"')) {
+if (!html.includes('type="module" src="js/vr.js?')) {
     fail('The WebXR entry point must load as an ES module.');
 }
 for (const file of IMMERSIVE_RUNTIME_FILES) {
@@ -95,6 +96,14 @@ for (const file of IMMERSIVE_RUNTIME_FILES) {
 
 for (const directive of ['frame-ancestors', 'X-Content-Type-Options', 'Referrer-Policy']) {
     if (!headers.includes(directive)) fail(`Missing production security header: ${directive}`);
+}
+
+// Every script URL carries the service worker VERSION, so an older worker can
+// never serve a stale copy of a script the new page asks for.
+const swVersion = (sw.match(/const VERSION\s*=\s*'v([^']+)'/) || [])[1];
+for (const [, src] of html.matchAll(/<script\b[^>]*\bsrc="([^"]+)"/g)) {
+    if (!src.startsWith('js/')) continue;
+    if (!swVersion || !src.endsWith(`.js?v=${swVersion}`)) fail(`Script URL must end in ?v=${swVersion}: ${src}`);
 }
 
 const inlineScripts = [...html.matchAll(/<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/gi)]

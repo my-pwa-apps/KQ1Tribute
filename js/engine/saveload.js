@@ -137,12 +137,26 @@ GameEngine.extend({
         this.updateInventoryUI();
         this.goToRoom(data.currentRoomId, playerX, playerY, { restoring });
         this.playerY = Math.max(this.minimumWalkY, Math.min(370, data.playerY));
+        this._stepOntoFloor();
         this.disarmedExits = this.exitsWithinRearmRange(this.rooms[this.currentRoomId]);
         if (restoring) {
             // goToRoom resets orientation, so the saved facing is applied after it.
             this.playerDir = data.playerDir === -1 ? -1 : 1;
             this.playerFacing = ['toward', 'away', 'left', 'right'].includes(data.playerFacing)
                 ? data.playerFacing : 'toward';
+        }
+    },
+
+    /** A position saved against one room layout (procedural or painted) can
+     *  fall outside another's floor. Step to the nearest walkable point on the
+     *  same column, so a restore never leaves the player unable to move. */
+    _stepOntoFloor() {
+        const area = this.walkableArea;
+        if (!area || area(this.playerX, this.playerY)) return;
+        for (let d = 2; d <= 200; d += 2) {
+            for (const y of [this.playerY - d, this.playerY + d]) {
+                if (y >= this.minimumWalkY && y <= 370 && area(this.playerX, y)) { this.playerY = y; return; }
+            }
         }
     },
 

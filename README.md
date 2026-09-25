@@ -4,7 +4,8 @@
 
 A browser-based adventure game built with plain HTML5 Canvas and JavaScript.
 No build step or frameworks. The default scenery and all audio are generated
-at runtime; an opt-in scullery trial uses a supplied background image.
+at runtime; an opt-in painted trial (`?scenery=painted`) replaces every room,
+the Rowan sprite, the cast and the inventory art with supplied images.
 
 > You are **Rowan**, eleven years a scullery boy in the house of the sorcerer
 > **Morvane**. This morning the house is empty and the front door is not locked.
@@ -17,7 +18,14 @@ Open `index.html` in a browser, or serve it:
 
 ```bash
 npm run serve      # http://127.0.0.1:8080
+npm run serve:test # play-test server: reachable on the local network, offline cache off
 ```
+
+`serve:test` prints the LAN addresses for phones and other machines. It
+replaces the offline service worker with one that clears the cache and
+unregisters itself, so every reload shows the current working tree rather than
+a cached build. It serves the repository folder (dotfiles stay blocked), so only
+run it on a trusted network.
 
 At the title screen, choose **Classic Parser** (type commands, Sierra text
 windows) or **Enhanced Click** (verb bar and point-and-click). `F10` switches
@@ -68,9 +76,9 @@ movement, hiding, sailing, fallback, and desktop/mobile screenshot checks.
 The eight Act II and III rooms (harbour road, village green, well bottom, dark
 wood, troll bridge, cloud hall, dragon's cave and Amber Tower) also have painted
 backgrounds, `icons/<room>-trial.png`. Each room keeps its dynamic props live
-over the picture: the skiff and distant tower, the rope on the cart and windlass,
+over the picture: the painted skiff and the distant tower, the rope on the cart and windlass,
 chimney smoke, Hattie, the goat and the villager, the gnome's fire, the nailed
-parchment and snared hare, Grumbold and the goat's charge (drawn through a
+parchment and the snared (later freed) hare, Grumbold, his painted club, the routed beanstalk, the goat's charge (drawn through a
 uniform map from the procedural span onto the painted one), the shield and the
 giant, the lit or doused fire pit and the mirror, and the tower's sockets, open
 door, Elowen and Morvane. Hotspots, the walkable floor, obstacles, depth scaling
@@ -78,6 +86,51 @@ and exits are re-laid to each picture; puzzles are unchanged. Cast drawn beside
 the painted hero scales with him. Run
 `npx playwright test tests/painted-alderhaven.spec.js` for the floor, exit,
 fallback and screenshot checks.
+
+### Painted animation and ambient life
+
+Painted cast members play four-frame ChatGPT sprite sheets,
+`icons/<id>-sheet-trial.png` (Hattie, the villager, Fennow, the goat, the
+snared hare, Corvus, the gnome, Grumbold, the giant, the dragon, Elowen and
+Morvane). `PAINTED_SHEETS` in [js/painted-cast.js](js/painted-cast.js) lists
+each sheet's idle "beats" as `[frame, milliseconds]` pairs; frame 0 is the
+rest pose, and the other frames are short gestures (a blink, a head turn, a tail
+flick). Every frame is anchored at frame 0's feet and centre and scaled by frame
+0's figure, so a gesture never makes the figure jump. `still: true` (a sleeping
+dragon, a doused scene) holds the static sprite. Each actor also breathes a
+one-pixel procedural bob, and actors in the same room are phase-shifted.
+
+Sprites are downsampled once with area averaging and a hard alpha edge
+(`rasterSprite`), then cached per size, so they read as clean VGA pixels at
+every depth. Missing sheets fall back to the single sprite, and missing sprites
+fall back to the procedural figure. The painted cast's
+`drawPlayerSprite.ready` promise waits for every sprite and sheet, which keeps
+screenshot tests deterministic.
+
+[js/ambience.js](js/ambience.js) adds seeded, animated detail over the painted
+rooms: water glints, fireflies, falling leaves, and a log fire (lit or doused).
+[js/actors.js](js/actors.js) adds `gullFlight` for gulls crossing the sky. All
+of it reads `eng.animTimer` and draws in two-pixel blocks, so it stays aligned
+with the 320x200 raster.
+
+To make a new sheet, ask ChatGPT for four poses of the uploaded reference
+sprite in a row on #FF00FF. Save it as `<id>-sheet-source.png` in a draft
+directory, then run
+`node tools/prepare_sheet.js <draft-directory> <id>`. The tool splits
+frames at the empty columns between them, keys enclosed magenta holes,
+despills magenta edge pixels, and writes `<id>-sheet.png` plus a preview to
+inspect. The beanstalk, club, skiff and freed-hare sprites come from the
+`--leftovers` batch of `tools/generate_props.js` (prompts in
+`tools/art-prompts/leftovers`).
+
+Painted backgrounds are resampled once to 320x200 with area averaging by
+`node tools/resample_backgrounds.js <image>...`, instead of nearest-sampling the
+1586-pixel sources every frame. Trial art is cached at runtime in
+`crownquest-art-trials-<TRIAL_ART_VERSION>` ([serviceworker.js](serviceworker.js)).
+Bump `TRIAL_ART_VERSION` when you replace an image, so returning players get the
+new file. Every local script in `index.html` carries `?v=<VERSION>`, and the
+validator checks it. As a result, an old service worker can never pair new HTML
+with cached scripts from the previous release.
 
 ### Generating art with ChatGPT
 
@@ -316,7 +369,8 @@ js/engine/*.js        Subsystems extending GameEngine.prototype: input, parser,
 js/registry.js        Room-module queue, drained by the bootstrap
 js/art.js             Drawing primitives, landscape, architecture, the treasures
 js/actors.js          The shared human cel, the cast palettes, the creatures
-js/painted-cast.js    Opt-in painted Rowan atlas and ChatGPT-painted cast sprites
+js/painted-cast.js    Opt-in painted Rowan atlas, cast sprites and sprite-sheet idles
+js/ambience.js        Seeded ambient life: glints, fireflies, leaves, log fires
 js/icons.js           Inventory close-ups and speaker portraits
 js/cutscenes.js       Set pieces and the title backdrop
 js/rooms/house.js     Shared shell for the three interiors of Morvane's house

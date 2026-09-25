@@ -130,6 +130,8 @@ CrownQuest.defineRooms((engine) => {
                 ctx.imageSmoothingEnabled = false;
                 ctx.drawImage(wellImage, 0, 0, w, h);
                 ctx.restore();
+                dustMotes(ctx, 250, 20, 150, 240, eng.animTimer, 1313);
+                glints(ctx, 40, 268, 210, 50, eng.animTimer, { seed: 1414, count: 12, rgb: '205,240,255' });
                 drawGnomeHearth(ctx, eng);
                 return;
             }

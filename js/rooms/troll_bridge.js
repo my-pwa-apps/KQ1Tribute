@@ -74,7 +74,10 @@ CrownQuest.defineRooms((engine) => {
         ctx.transform(MAP.scale, 0, 0, MAP.scale, MAP.cx - MAP.cx * MAP.scale, MAP.dy);
         drawBridgeActors(ctx, w, eng);
         ctx.restore();
+        glints(ctx, 92, 286, 172, 16, eng.animTimer, { seed: 5151, count: 12, rgb: '235,248,255' });
+        glints(ctx, 396, 286, 160, 16, eng.animTimer, { seed: 5252, count: 11, rgb: '235,248,255' });
         drawGull(ctx, 120, 60, 1, eng.animTimer, 1.1);
+        gullFlight(ctx, 700, -40, 84, 0.7, eng.animTimer, 39000, 0.4);
     }
     /** Everything on the bridge that moves or changes: Grumbold, the goat's
      *  charge, his club, and the beanstalk once the way is clear. Drawn in the
@@ -95,7 +98,7 @@ CrownQuest.defineRooms((engine) => {
                 ctx.clip();
                 ctx.translate(hitX + fall * 115, hitY - Math.sin(fall * Math.PI) * 95 + fall * (FAR_LIP + 83 - hitY));
                 ctx.rotate(fall * 2.4);
-                if (!drawPaintedActor(ctx, 'grumbold', 0, 0, { height: 64 * (1 - fall * 0.6) })) drawTroll(ctx, 0, 0, 0.8 * (1 - fall * 0.6), eng.animTimer, true);
+                if (!drawPaintedActor(ctx, 'grumbold', 0, 0, { height: 64 * (1 - fall * 0.6), still: true })) drawTroll(ctx, 0, 0, 0.8 * (1 - fall * 0.6), eng.animTimer, true);
                 ctx.restore();
             }
             const travel = charge * (1 - retreat);
@@ -105,7 +108,9 @@ CrownQuest.defineRooms((engine) => {
             const goatY = 366 - approach * 12 + (hitY + 18 - 354) * deck;
             const goatScale = 1.1 - deck * 0.3;
             eng.drawContactShadow(ctx, goatX, goatY, 1, { rx: 22 * goatScale, ry: 4, alpha: 0.26 });
-            if (!drawPaintedActor(ctx, 'goat', goatX, goatY, { height: 34 * goatScale }, retreat > 0 ? -1 : 1)) {
+            // A painted goat has one pose, so give the charge a gallop's bounce.
+            const bounce = travel > 0 && travel < 1 ? Math.abs(Math.sin(elapsed / 85)) * 3 * goatScale : 0;
+            if (!drawPaintedActor(ctx, 'goat', goatX, goatY - bounce, { height: 34 * goatScale, still: true }, retreat > 0 ? -1 : 1)) {
                 drawGoat(ctx, goatX, goatY, goatScale, retreat > 0 ? 1 : -1, true, eng.animTimer);
             }
             if (elapsed >= 2100 && elapsed < 2700) {
@@ -120,27 +125,39 @@ CrownQuest.defineRooms((engine) => {
             const tt = 0.36;
             const ty = bridgeDeckY(SPAN, tt, 10);
             eng.drawContactShadow(ctx, spanX(tt), ty, 1, { rx: 26, ry: 4, alpha: 0.36 });
-            if (!drawPaintedActor(ctx, 'grumbold', spanX(tt), ty, { height: 64 })) drawTroll(ctx, spanX(tt), ty, 0.8, eng.animTimer, false);
+            if (!drawPaintedActor(ctx, 'grumbold', spanX(tt), ty, { height: 64, t: eng.animTimer, phase: 3 })) drawTroll(ctx, spanX(tt), ty, 0.8, eng.animTimer, false);
         } else {
             // His club, dropped on the near bank where he stopped standing.
-            ctx.fillStyle = '#1a1206';
             ctx.save();
             ctx.translate(196, 358);
             ctx.rotate(0.4);
-            ctx.fillRect(-26, -5, 52, 10);
-            ctx.fillStyle = PAL.WOOD_SHADOW;
-            ctx.fillRect(-25, -4, 50, 8);
-            ctx.fillStyle = PAL.WOOD_BASE;
-            ctx.fillRect(-25, -4, 50, 3);
-            ctx.fillStyle = '#1a1206';
-            ctx.beginPath(); ctx.arc(24, 0, 11, 0, Math.PI * 2); ctx.fill();
-            ctx.fillStyle = PAL.WOOD_SHADOW;
-            ctx.beginPath(); ctx.arc(24, 0, 9, 0, Math.PI * 2); ctx.fill();
+            if (!drawPaintedItem(ctx, 'club', 0, 8, 62, 24)) {
+                ctx.fillStyle = '#1a1206';
+                ctx.fillRect(-26, -5, 52, 10);
+                ctx.fillStyle = PAL.WOOD_SHADOW;
+                ctx.fillRect(-25, -4, 50, 8);
+                ctx.fillStyle = PAL.WOOD_BASE;
+                ctx.fillRect(-25, -4, 50, 3);
+                ctx.fillStyle = '#1a1206';
+                ctx.beginPath(); ctx.arc(24, 0, 11, 0, Math.PI * 2); ctx.fill();
+                ctx.fillStyle = PAL.WOOD_SHADOW;
+                ctx.beginPath(); ctx.arc(24, 0, 9, 0, Math.PI * 2); ctx.fill();
+            }
             ctx.restore();
         }
+        drawRoutedBeanstalk(ctx, eng);
+    }
 
-        // ---- The beanstalk on the far bank ----
+    /** The beanstalk on the far bank, once the way is clear. The painted one
+     *  sways a little from its roots. */
+    function drawRoutedBeanstalk(ctx, eng) {
         if (eng.getFlag('troll_routed')) {
+            ctx.save();
+            ctx.translate(530, 206);
+            ctx.transform(1, 0, Math.sin(eng.animTimer / 1700) * 0.025, 1, 0, 0);
+            const painted = drawPaintedItem(ctx, 'beanstalk', 0, 0, 150, 214);
+            ctx.restore();
+            if (painted) return;
             ctx.fillStyle = '#16240f';
             ctx.beginPath();
             ctx.moveTo(506, 202);

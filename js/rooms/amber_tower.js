@@ -255,6 +255,8 @@ CrownQuest.defineRooms((engine) => {
             ctx.closePath(); ctx.fill();
             eng.lightPool(ctx, mid, d.bottom - 24, 130, '255,230,160', 0.24);
         }
+        glints(ctx, 40, 198, 120, 56, eng.animTimer, { seed: 4747, count: 22, rgb: '255,226,160' });
+        glints(ctx, 380, 204, 250, 36, eng.animTimer, { seed: 4848, count: 10, rgb: '255,210,190' });
         drawGull(ctx, 220, 92, 1.1, eng.animTimer, 0.9);
         drawGull(ctx, 452, 76, 0.9, eng.animTimer, 2.6);
     }

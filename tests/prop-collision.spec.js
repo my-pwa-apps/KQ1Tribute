@@ -102,7 +102,8 @@ test('pail is depth-sorted around the larger painted hero', async ({ page }) => 
             const images = [];
             const original = game.ctx.drawImage;
             game.ctx.drawImage = function(image, ...args) {
-                if (image.src && /\/(rowan-atlas|pail)-trial\.png$/.test(image.src)) images.push(image.src.split('/').pop());
+                const src = (image.dataset && image.dataset.source) || image.src;
+                if (src && /\/(rowan-atlas|pail)-trial\.png$/.test(src)) images.push(src.split('/').pop());
                 return original.call(this, image, ...args);
             };
             try { game.render(); } finally { game.ctx.drawImage = original; }

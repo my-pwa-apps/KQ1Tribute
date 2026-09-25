@@ -48,7 +48,15 @@ const CHARACTERS = [
     { id: 'dragon', width: 280, height: 160, sceneWidth: 260, sceneHeight: 110 }
 ].map(prop => ({ ...prop, batch: 'characters' }));
 
-const BATCHES = { '--dressing': DRESSING, '--items': ITEMS, '--characters': CHARACTERS };
+// Props that were still procedural over the painted rooms.
+const LEFTOVERS = [
+    { id: 'beanstalk', width: 128, height: 272, sceneWidth: 70, sceneHeight: 150 },
+    { id: 'club', width: 160, height: 64, sceneWidth: 50, sceneHeight: 18 },
+    { id: 'skiff', width: 192, height: 112, sceneWidth: 96, sceneHeight: 56 },
+    { id: 'hare_free', width: 96, height: 112, sceneWidth: 26, sceneHeight: 30 }
+].map(prop => ({ ...prop, batch: 'leftovers' }));
+
+const BATCHES = { '--dressing': DRESSING, '--items': ITEMS, '--characters': CHARACTERS, '--leftovers': LEFTOVERS };
 
 async function prepareProps(directory, props = PROPS) {
     let cleanup = {};
@@ -145,7 +153,7 @@ async function prepareProps(directory, props = PROPS) {
                 }
                 if (right < left) throw new Error(`${prop.id}: no object remains after background removal.`);
                 if (removed < canvas.width * canvas.height * 0.1
-                    || left === 0 || top === 0 || right === canvas.width - 1 || bottom === canvas.height - 1) {
+                    || left === 0 || (top === 0 && !recipe.openTop) || right === canvas.width - 1 || bottom === canvas.height - 1) {
                     throw new Error(`${prop.id}: expected an isolated object with transparent, magenta or white margins; inspect the source.`);
                 }
                 ctx.putImageData(data, 0, 0);
@@ -212,7 +220,7 @@ async function main() {
     if (!directory || options.some(option => !['--generate', '--prepare-only', ...Object.keys(BATCHES)].includes(option))
         || new Set(options).size !== options.length || batchFlags.length > 1
         || (options.includes('--generate') && options.includes('--prepare-only'))) {
-        throw new Error('Usage: node tools/generate_props.js <new-draft-directory> [--generate|--prepare-only] [--dressing|--items|--characters] [--only=id,id]');
+        throw new Error('Usage: node tools/generate_props.js <new-draft-directory> [--generate|--prepare-only] [--dressing|--items|--characters|--leftovers] [--only=id,id]');
     }
     const mode = options.find(option => !Object.hasOwn(BATCHES, option));
     let props = batchFlags.length ? BATCHES[batchFlags[0]] : PROPS;
@@ -249,4 +257,4 @@ if (require.main === module) {
     main().catch(error => { console.error(error.message); process.exitCode = 1; });
 }
 
-module.exports = { prepareProps, DRESSING, ITEMS, CHARACTERS };
+module.exports = { prepareProps, DRESSING, ITEMS, CHARACTERS, LEFTOVERS };

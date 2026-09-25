@@ -41,6 +41,9 @@ CrownQuest.defineRooms((engine) => {
         e.clearBarriers();
         e.setDepthScaling(250, 372, 0.6, 1.08);
         e.setWalkableArea(paintedFloor, 206);
+        // Arrivals from the green and the bridge land on the procedural track,
+        // which is fern in the picture; step onto the painted path instead.
+        if (!paintedFloor(e.playerX, e.playerY)) e.playerY = 322;
         e.addBarrier(140, 250, 190, 48);  // the oak's roots
         if (e.getFlag('goat_follows')) followingGoat(e, ...PAINTED_AT.goat);
         addFennow(e, PAINTED_AT.fennow);
@@ -53,8 +56,8 @@ CrownQuest.defineRooms((engine) => {
             'the cave mouth': {
                 x: 60, y: 110, w: 64, h: 112, walkToX: 96, walkToY: 212,
                 walk: (e2) => e2.runSequence([
-                    { walk: [null, 300] },
-                    { walk: [120, 290] },
+                    { walk: [null, 306] },
+                    { walk: [120, 306] },
                     { walk: [98, 214] },
                     (game) => game.goToRoom('dragon_cave', 560, 340)
                 ])
@@ -80,6 +83,10 @@ CrownQuest.defineRooms((engine) => {
         ctx.imageSmoothingEnabled = false;
         ctx.drawImage(woodImage, 0, 0, w, h);
         ctx.restore();
+        dustMotes(ctx, 470, 40, 90, 240, eng.animTimer, 8181);
+        fallingLeaves(ctx, 90, 20, 520, 320, eng.animTimer, 3131, 7);
+        fireflies(ctx, 400, 190, 220, 90, eng.animTimer, 2323, 6);
+        fireflies(ctx, 10, 230, 150, 70, eng.animTimer, 2424, 4);
         if (!eng.hasItem('parchment') && !drawPaintedItem(ctx, 'parchment', PAINTED_AT.parchment[0], PAINTED_AT.parchment[1] + 13, 26, 28)) {
             const [px, py] = PAINTED_AT.parchment;
             ctx.fillStyle = '#2a2214';
@@ -99,7 +106,7 @@ CrownQuest.defineRooms((engine) => {
             if (!drawCastMember(ctx, 'hare', eng, hx, hy, 0.17 * hs)) drawHare(ctx, hx, hy, hs, false, eng.animTimer);
         } else if (!eng.getFlag('has_ring')) {
             const [hx, hy, hs] = PAINTED_AT.freedHare;
-            if (!drawCastMember(ctx, 'hare', eng, hx, hy, 0.17 * hs, -1)) drawHare(ctx, hx, hy, hs, true, eng.animTimer);
+            if (!drawCastMember(ctx, 'hare_free', eng, hx, hy, 0.24 * hs, -1)) drawHare(ctx, hx, hy, hs, true, eng.animTimer);
         }
     }
     // ================= ROOM 8: THE DARK WOOD =================

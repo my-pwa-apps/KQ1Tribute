@@ -1,9 +1,25 @@
 const fs = require('fs');
 const http = require('http');
+const os = require('os');
 const path = require('path');
 
 const root = path.resolve(__dirname, '..');
-const port = Number(process.argv[2] || process.env.PORT || 8080);
+const args = process.argv.slice(2);
+// --test: a play-test server. It listens on the local network so phones and
+// other machines can join, and it replaces the offline service worker with one
+// that removes itself, so every reload shows the working tree as it is now
+// rather than a cached build.
+const testMode = args.includes('--test');
+const port = Number(args.find(arg => /^\d+$/.test(arg)) || process.env.PORT || 8080);
+const host = testMode ? '0.0.0.0' : '127.0.0.1';
+const RETIRING_WORKER = `// Test server: retire any cached build so testers always see the working tree.
+self.addEventListener('install', () => self.skipWaiting());
+self.addEventListener('activate', (event) => event.waitUntil((async () => {
+    for (const key of await caches.keys()) await caches.delete(key);
+    await self.registration.unregister();
+    for (const client of await self.clients.matchAll({ type: 'window' })) client.navigate(client.url);
+})()));
+`;
 const securityHeaders = Object.fromEntries(
     fs.readFileSync(path.join(root, '_headers'), 'utf8')
         .split(/\r?\n/)
@@ -37,6 +53,15 @@ const server = http.createServer((request, response) => {
         return;
     }
     const relativePath = pathname === '/' ? 'index.html' : pathname.replace(/^\/+/, '');
+    if (testMode && relativePath === 'serviceworker.js') {
+        response.writeHead(200, {
+            ...securityHeaders,
+            'Content-Type': 'text/javascript; charset=utf-8',
+            'Cache-Control': 'no-store'
+        });
+        response.end(RETIRING_WORKER);
+        return;
+    }
     if (relativePath.split(/[\\/]/).some(segment => segment.startsWith('.'))) {
         response.writeHead(403).end('Forbidden');
         return;
@@ -73,6 +98,14 @@ const server = http.createServer((request, response) => {
     const delay = Math.min(10000, Math.max(0, Number(requestUrl.searchParams.get('delay')) || 0));
     if (delay) setTimeout(sendFile, delay);
     else sendFile();
-}).listen(port, '127.0.0.1', () => {
-    console.log(`Crown Quest development server: http://127.0.0.1:${server.address().port}`);
+}).listen(port, host, () => {
+    const actual = server.address().port;
+    console.log(`Crown Quest development server: http://127.0.0.1:${actual}`);
+    if (!testMode) return;
+    const lan = Object.values(os.networkInterfaces()).flat()
+        .filter(entry => entry && entry.family === 'IPv4' && !entry.internal)
+        .map(entry => `http://${entry.address}:${actual}`);
+    console.log('Test mode: offline cache disabled, reachable on the local network.');
+    for (const url of lan) console.log(`  ${url}/                  default art`);
+    for (const url of lan) console.log(`  ${url}/?scenery=painted  painted trial`);
 });

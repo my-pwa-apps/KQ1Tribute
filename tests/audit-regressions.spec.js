@@ -340,3 +340,21 @@ test('hints never prescribe a finished step', async ({ page }) => {
     expect(hints.scullery).not.toContain('Take a pinch');
     expect(hints.well).not.toContain('Fill your pail');
 });
+
+test('a walk that can only slide along a wall stops instead of spinning forever', async ({ page }) => {
+    const result = await page.evaluate(() => {
+        const game = window.engine;
+        game.goToRoom('harbour_road', 320, 330);
+        game.textWindow = null;
+        game.clearBarriers();
+        game.addBarrier(200, 300, 40, 60);
+        game.playerX = 250; game.playerY = 330;
+        game.playerTargetX = 100; game.playerTargetY = 330;
+        game.playerWalking = true;
+        let frames = 0;
+        for (; frames < 600 && game.playerWalking; frames++) game.update(16);
+        return { stopped: !game.playerWalking, frames };
+    });
+    expect(result.stopped).toBe(true);
+    expect(result.frames).toBeLessThan(100);
+});

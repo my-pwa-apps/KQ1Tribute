@@ -23,6 +23,8 @@ CrownQuest.defineRooms((engine) => {
         if (!e.getFlag('goat_follows')) {
             const [gx, gy, gs] = at.goat;
             e.addForegroundLayer(gy, (ctx, eng2) => {
+                // Once bribed it leaves the tether and follows (drawn by followingGoat).
+                if (eng2.getFlag('goat_follows')) return;
                 eng2.drawContactShadow(ctx, gx, gy, 1, { rx: 40 * gs / 1.28, ry: 7, alpha: 0.26 });
                 if (!drawCastMember(ctx, 'goat', eng2, gx, gy, 0.45 * gs)) drawGoat(ctx, gx, gy, gs, -1, false, eng2.animTimer);
                 // The tether it has been chewing on since Tuesday
@@ -71,7 +73,7 @@ CrownQuest.defineRooms((engine) => {
             'the cottage': { x: 0, y: 70, w: 240, h: 170 },
             'the villager': { x: 548, y: 210, w: 26, h: 44 },
             'the road west': { x: 0, y: 262, w: 40, h: 84, walkToX: 40, walkToY: 306 },
-            'the wood': { x: 600, y: 226, w: 40, h: 80, walkToX: 600, walkToY: 264 }
+            'the wood': { x: 600, y: 226, w: 40, h: 110, walkToX: 604, walkToY: 322 }
         };
         for (const hotspot of e.rooms.village_green.hotspots) {
             if (Object.hasOwn(layout, hotspot.name)) Object.assign(hotspot, layout[hotspot.name]);
@@ -120,6 +122,9 @@ CrownQuest.defineRooms((engine) => {
             ctx.ellipse(sx + p * 8, sy - p * 11, 6 + p * 3.4, 4 + p * 2.4, 0, 0, Math.PI * 2);
             ctx.fill();
         }
+        glints(ctx, 410, 273, 66, 5, eng.animTimer, { seed: 6161, count: 5 });
+        gullFlight(ctx, -40, 700, 70, 0.8, eng.animTimer, 34000, 0.2);
+        gullFlight(ctx, 700, -40, 96, 0.6, eng.animTimer, 47000, 0.65);
         const [vx, vy] = at.villager;
         eng.drawContactShadow(ctx, vx, vy, 1, { rx: 11, ry: 3, alpha: 0.2 });
         if (drawCastMember(ctx, 'villager', eng, vx, vy, 0.93)) return;
@@ -453,6 +458,7 @@ CrownQuest.defineRooms((engine) => {
                 useItem: (e, itemId) => {
                     if (itemId !== 'bread') { e.showMessage('The goat sniffs it, and is unmoved. The goat has standards, but only one.'); return; }
                     RULES.leadGoat(e);
+                    followingGoat(e, ...GOAT_AT.village_green);
                     e.showMessage('You hold out the crust. The goat takes it, the tether, and a considered decision to follow you anywhere at all, in roughly that order.');
                 },
                 get hidden() { return engine.getFlag('goat_follows'); }

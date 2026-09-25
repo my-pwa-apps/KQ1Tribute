@@ -300,7 +300,8 @@ const PAINTED_ITEM_SPRITES = (() => {
     const style = options.get('props') || (options.get('scenery') === 'painted' ? 'painted' : 'procedural');
     if (style === 'painted') {
         for (const id of ['bread', 'pail', 'crock', 'candle', 'ledger', 'spellbook', 'sea_salt', 'brass_key',
-            'raven_feather', 'thimble', 'rope', 'parchment', 'ring_of_mist', 'chest_of_cormac', 'shield_of_ardor', 'mirror_of_ianthe']) {
+            'raven_feather', 'thimble', 'rope', 'parchment', 'ring_of_mist', 'chest_of_cormac', 'shield_of_ardor', 'mirror_of_ianthe',
+            'beanstalk', 'club', 'skiff']) {
             const image = new Image();
             image.src = `icons/${id}-trial.png`;
             sprites[id] = image;
@@ -316,8 +317,9 @@ function drawPaintedItem(ctx, id, cx, base, width, height) {
     const scale = Math.min(width / image.naturalWidth, height / image.naturalHeight);
     ctx.save();
     ctx.imageSmoothingEnabled = false;
-    ctx.drawImage(image, cx - image.naturalWidth * scale / 2,
-        base - (image.naturalHeight - 2) * scale, image.naturalWidth * scale, image.naturalHeight * scale);
+    const dw = image.naturalWidth * scale, dh = image.naturalHeight * scale;
+    ctx.drawImage(rasterSprite(image, 0, 0, image.naturalWidth, image.naturalHeight, dw, dh),
+        cx - dw / 2, base - (image.naturalHeight - 2) * scale, dw, dh);
     ctx.restore();
     return true;
 }

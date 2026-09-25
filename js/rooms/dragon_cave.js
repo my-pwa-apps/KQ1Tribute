@@ -6,14 +6,18 @@ CrownQuest.defineRooms((engine) => {
     const RULES = CrownQuestContent.rules;
     /** The fire pit's state: embers and flames, or wet coals and steam. Its
      *  ring of stones is part of the scenery and drawn beneath this. */
-    function drawFirePit(ctx, w, h, eng, doused) {
+    function drawFirePit(ctx, w, h, eng, doused, painted) {
         if (doused) {
-            ctx.fillStyle = '#1a1614';
-            ctx.beginPath(); ctx.ellipse(216, 344, 58, 16, 0, 0, Math.PI * 2); ctx.fill();
-            ctx.fillStyle = '#2d2724';
-            for (let i = 0; i < 20; i++) {
-                const a = i * 1.3;
-                ctx.fillRect(216 + Math.cos(a) * (10 + i * 2), 340 + Math.sin(a) * (4 + i * 0.5), 5, 3);
+            if (painted) {
+                logFire(ctx, 216, 346, 112, eng.animTimer, { doused: true });
+            } else {
+                ctx.fillStyle = '#1a1614';
+                ctx.beginPath(); ctx.ellipse(216, 344, 58, 16, 0, 0, Math.PI * 2); ctx.fill();
+                ctx.fillStyle = '#2d2724';
+                for (let i = 0; i < 20; i++) {
+                    const a = i * 1.3;
+                    ctx.fillRect(216 + Math.cos(a) * (10 + i * 2), 340 + Math.sin(a) * (4 + i * 0.5), 5, 3);
+                }
             }
             // Steam, rising in slow deterministic puffs
             for (let i = 0; i < 6; i++) {
@@ -23,6 +27,11 @@ CrownQuest.defineRooms((engine) => {
                 ctx.ellipse(170 + i * 20, 336 - p * 22, 9 + p * 5, 6 + p * 3, 0, 0, Math.PI * 2);
                 ctx.fill();
             }
+        } else if (painted) {
+            logFire(ctx, 216, 346, 112, eng.animTimer);
+            eng.lightPool(ctx, 216, 316, 340, '255,140,50', 0.28);
+            ctx.fillStyle = 'rgba(220,90,30,0.08)';
+            ctx.fillRect(0, 0, w, h);
         } else {
             ctx.fillStyle = '#4a1a08';
             ctx.beginPath(); ctx.ellipse(216, 344, 62, 17, 0, 0, Math.PI * 2); ctx.fill();
@@ -71,15 +80,25 @@ CrownQuest.defineRooms((engine) => {
             ctx.fillRect(0, 0, w, h);
         }
         ctx.fillStyle = '#100c0a';
-        ctx.beginPath(); ctx.ellipse(216, 344, 74, 22, 0, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = '#3a3129';
-        for (let i = 0; i < 14; i++) {
-            const a = i / 14 * Math.PI * 2;
-            ctx.beginPath();
-            ctx.ellipse(216 + Math.cos(a) * 64, 344 + Math.sin(a) * 19, 9, 6, 0, 0, Math.PI * 2);
-            ctx.fill();
+        ctx.beginPath(); ctx.ellipse(216, 344, 70, 20, 0, 0, Math.PI * 2); ctx.fill();
+        // A ring of fieldstones: black underdrawing, then three tones each.
+        const stoneRand = seededRandom(3411);
+        const lit = doused ? ['#5a524a', '#3a342e', '#24201c'] : ['#8a6a50', '#5a4636', '#34281e'];
+        for (let i = 0; i < 18; i++) {
+            const a = i / 18 * Math.PI * 2;
+            const sx = 216 + Math.cos(a) * 66, sy = 344 + Math.sin(a) * 19;
+            const rx = 9 + stoneRand() * 4, ry = 5 + stoneRand() * 2;
+            ctx.fillStyle = '#0a0806';
+            ctx.beginPath(); ctx.ellipse(sx, sy + 1, rx + 2, ry + 2, 0, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = lit[2];
+            ctx.beginPath(); ctx.ellipse(sx, sy, rx, ry, 0, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = lit[1];
+            ctx.beginPath(); ctx.ellipse(sx - 1, sy - 1, rx * 0.8, ry * 0.7, 0, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = lit[0];
+            ctx.beginPath(); ctx.ellipse(sx - rx * 0.3, sy - ry * 0.4, rx * 0.4, ry * 0.3, 0, 0, Math.PI * 2); ctx.fill();
         }
-        drawFirePit(ctx, w, h, eng, doused);
+        drawFirePit(ctx, w, h, eng, doused, true);
+        glints(ctx, 410, 258, 130, 40, eng.animTimer, { seed: 5959, count: doused ? 6 : 12, rgb: '255,236,150', star: true });
         if (!RULES.treasureTaken(eng, 'mirror_of_ianthe')) {
             if (!drawPaintedItem(ctx, 'mirror_of_ianthe', PAINTED_MIRROR.x, PAINTED_MIRROR.y + 20, 28, 40)) {
                 drawMirrorOfIanthe(ctx, PAINTED_MIRROR.x, PAINTED_MIRROR.y, 0.95, eng.animTimer);
@@ -110,7 +129,7 @@ CrownQuest.defineRooms((engine) => {
             }
             e.addForegroundLayer(342, (ctx, eng) => {
                 eng.drawContactShadow(ctx, 310, 346, 1, { rx: 120, ry: 15, alpha: 0.34 });
-                if (!drawPaintedActor(ctx, 'dragon', 310, 346, { width: 300 })) drawDragon(ctx, 310, 346, 1.45, eng.animTimer, eng.getFlag('dragon_doused'));
+                if (!drawPaintedActor(ctx, 'dragon', 310, 346, { width: 300, t: eng.animTimer, still: eng.getFlag('dragon_doused') })) drawDragon(ctx, 310, 346, 1.45, eng.animTimer, eng.getFlag('dragon_doused'));
             });
             if (paintedCave) configurePaintedCave(e);
         },

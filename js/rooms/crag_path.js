@@ -143,6 +143,8 @@ CrownQuest.defineRooms((engine) => {
             // ---- Sky and sea ----
             if (paintedCrag) {
                 ctx.drawImage(cragImage, 0, 0, w, h);
+                glints(ctx, 300, 146, 330, 70, eng.animTimer, { seed: 2929, count: 20 });
+                gullFlight(ctx, 700, 160, 104, 0.8, eng.animTimer, 31000, 0.1);
                 return;
             }
             skyBands(ctx, 0, 0, w, 150, ['#3a4f80', '#5f7fae', '#8fa9c8', '#b9c9d8']);

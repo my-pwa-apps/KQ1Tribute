@@ -1423,3 +1423,10 @@ function drawGull(ctx, x, y, s, animTimer, phase) {
     ctx.fillStyle = '#8a8a92';
     ctx.fillRect(x - 1 * s, y, 2 * s, 1.4 * s);
 }
+
+/** A gull crossing the sky on a long loop, bobbing as it glides. Start and end
+ *  off-screen and it arrives, passes and leaves. */
+function gullFlight(ctx, x0, x1, y, s, animTimer, period, phase = 0) {
+    const p = (((animTimer || 0) / period + phase) % 1 + 1) % 1;
+    drawGull(ctx, x0 + (x1 - x0) * p, y + Math.sin(p * Math.PI * 4) * 6 * s, s, animTimer, phase * 7);
+}

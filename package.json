@@ -14,7 +14,8 @@
         "test:visual": "playwright test tests/visual.spec.js",
         "test:visual:update": "playwright test tests/visual.spec.js --update-snapshots",
         "check": "npm run check:static && npm run check:sw && npm run test:e2e",
-        "check:ci": "npm run check:static && npm run test:functional"
+        "check:ci": "npm run check:static && npm run test:functional",
+        "serve:test": "node tools/serve.js 8080 --test"
     },
     "keywords": [
         "game",

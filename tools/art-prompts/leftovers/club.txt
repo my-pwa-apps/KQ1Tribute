@@ -1,0 +1,10 @@
+Create ONE isolated scene prop for an early-1990s VGA fantasy adventure. No other objects.
+
+A troll's huge knobbly wooden club lying on the ground on its side, seen from the side, handle to the left, the heavy knotted head to the right studded with a few dull iron spikes. Weathered brown wood with darker knots and a pale worn grip.
+
+Landscape 16:10 canvas. Center the whole object with generous clear margins on every side; it spans about four fifths of the image width.
+Deliberate pixel clusters, near-black contour, three broad shading tones per material, restrained upper-left highlights. Same painterly early-1990s VGA pixel-art style as a Sierra adventure. No photograph, vector icon, glossy 3D render, cartoon face, excessive fine grain or text.
+
+Show exactly ONE view. No frame, text, lettering, watermark, person, room, floor or scenery.
+
+Background MUST be perfectly flat solid RGB 255,0,255 (#FF00FF), including every enclosed gap. No gradient, checkerboard, texture, reflection, cast shadow or glow. Do not use pink, purple or magenta anywhere on the object. The flat background will be removed by software; do not simulate transparency.

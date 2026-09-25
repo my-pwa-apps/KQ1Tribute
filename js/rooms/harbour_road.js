@@ -47,11 +47,15 @@ CrownQuest.defineRooms((engine) => {
         ctx.imageSmoothingEnabled = false;
         ctx.drawImage(harbourImage, 0, 0, w, h);
         ctx.restore();
-        eng.drawContactShadow(ctx, PAINTED_SKIFF.x, PAINTED_SKIFF.y + 4, 1, { rx: 44, ry: 5, alpha: 0.22 });
-        drawSkiff(ctx, PAINTED_SKIFF.x, PAINTED_SKIFF.y, PAINTED_SKIFF.scale, false, eng.animTimer);
+        eng.drawContactShadow(ctx, PAINTED_SKIFF.x,         PAINTED_SKIFF.y - 2, 1, { rx: 44, ry: 5, alpha: 0.22 });
+                if (!drawPaintedItem(ctx, 'skiff', PAINTED_SKIFF.x, PAINTED_SKIFF.y, 68, 40)) {
+            drawSkiff(ctx, PAINTED_SKIFF.x, PAINTED_SKIFF.y, PAINTED_SKIFF.scale, false, eng.animTimer);
+        }
         drawAmberTower(ctx, PAINTED_TOWER.x, PAINTED_TOWER.y, PAINTED_TOWER.scale, eng.getFlag('sockets_lit') || 0, eng.animTimer);
+        glints(ctx, 0, 148, 500, 38, eng.animTimer, { seed: 3737, count: 24 });
         drawGull(ctx, 300, 76, 1.3, eng.animTimer, 0.4);
         drawGull(ctx, 372, 60, 1, eng.animTimer, 2.1);
+        gullFlight(ctx, -40, 700, 110, 0.9, eng.animTimer, 29000, 0.55);
     }
     // ================= ROOM 5: THE HARBOUR ROAD =================
     engine.registerRoom({

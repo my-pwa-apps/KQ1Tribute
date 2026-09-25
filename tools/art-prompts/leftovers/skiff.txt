@@ -1,0 +1,10 @@
+Create ONE isolated scene prop for an early-1990s VGA fantasy adventure. No other objects.
+
+A small weathered wooden fishing skiff pulled up on a beach, seen exactly side-on with the bow to the right, sitting level. Clinker-built planks in grey-brown timber with a dark tarred waterline strip, a single short mast with its dull cream sail furled and lashed to the boom, one oar resting across the gunwale.
+
+Landscape 16:10 canvas. Center the whole boat with generous clear margins on every side; it spans about four fifths of the image width.
+Deliberate pixel clusters, near-black contour, three broad shading tones per material, restrained upper-left highlights. Same painterly early-1990s VGA pixel-art style as a Sierra adventure. No photograph, vector icon, glossy 3D render, cartoon face, excessive fine grain or text.
+
+Show exactly ONE view. No frame, text, lettering, watermark, person, room, floor or scenery.
+
+Background MUST be perfectly flat solid RGB 255,0,255 (#FF00FF), including every enclosed gap. No gradient, checkerboard, texture, reflection, cast shadow or glow. Do not use pink, purple or magenta anywhere on the object. The flat background will be removed by software; do not simulate transparency.

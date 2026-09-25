@@ -43,7 +43,10 @@ test('generated props replace room and inventory art and disappear on pickup', a
         ctx.fillRect(0, 0, 320, 112);
         const sources = [];
         const original = ctx.drawImage.bind(ctx);
-        ctx.drawImage = (image, ...args) => { sources.push(image.src); original(image, ...args); };
+        ctx.drawImage = (image, ...args) => {
+            sources.push((image.dataset && image.dataset.source) || image.src || 'canvas');
+            original(image, ...args);
+        };
         game.itemArt.bread(ctx, 54, 50, 4000);
         game.itemArt.pail(ctx, 154, 50, 4000);
         game.setFlag('pail_full', true);
@@ -71,7 +74,8 @@ test('generated props replace room and inventory art and disappear on pickup', a
         const original = game.ctx.drawImage;
         const sources = [];
         game.ctx.drawImage = function(image, ...args) {
-            if (image.src) sources.push(image.src);
+            const src = (image.dataset && image.dataset.source) || image.src;
+            if (src) sources.push(src);
             return original.call(this, image, ...args);
         };
         try { game.textWindow = null; game.render(); } finally { game.ctx.drawImage = original; }

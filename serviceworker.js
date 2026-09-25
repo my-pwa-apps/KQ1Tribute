@@ -1,12 +1,19 @@
 // Crown Quest: A Fantasy Adventure - Service Worker
 // BUMP VERSION on every code change to invalidate the cache.
-const VERSION = 'v1.4.1';
+const VERSION = 'v1.4.3';
 const CACHE_NAME = `crownquest-${VERSION}`;
-// Painted-art trials (`?scenery=painted` and friends) are ~20 MB that default
-// players never see. They are cached on first use only, in a cache that
-// survives version bumps, so nobody downloads them on install or on update.
-const TRIAL_ART_CACHE = 'crownquest-art-trials';
-const isTrialArt = (url) => url.origin === self.location.origin && /\/icons\/[a-z-]+-trial\.png$/.test(url.pathname);
+// index.html loads every script as `js/<file>.js?v=<VERSION>`
+// (tools/validate_content.js keeps the two equal). A worker from an older
+// build has no entry for the new URLs and fetches them, so the first visit
+// after an update never pairs new HTML with old scripts.
+const SCRIPT_QUERY = `?v=${VERSION.replace(/^v/, '')}`;
+// Painted-art trials (`?scenery=painted` and friends) are ~4 MB that default
+// players never see. They are cached on first use only, in their own cache
+// that survives code-only version bumps. Bump TRIAL_ART_VERSION whenever a
+// trial image changes so returning players receive the new art.
+const TRIAL_ART_VERSION = 'a2';
+const TRIAL_ART_CACHE = `crownquest-art-trials-${TRIAL_ART_VERSION}`;
+const isTrialArt = (url) => url.origin === self.location.origin && /\/icons\/[a-z_-]+-trial\.png$/.test(url.pathname);
 
 const ASSETS = [
     './',
@@ -26,6 +33,7 @@ const ASSETS = [
     './js/registry.js',
     './js/art.js',
     './js/actors.js',
+    './js/ambience.js',
     './js/painted-cast.js',
     './js/icons.js',
     './js/cutscenes.js',
@@ -58,7 +66,9 @@ const ASSETS = [
 
 self.addEventListener('install', (event) => {
     event.waitUntil(
-        caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS)).then(() => self.skipWaiting())
+        caches.open(CACHE_NAME)
+            .then((cache) => cache.addAll(ASSETS.map((asset) => (/^\.\/js\/(?!vendor\/).*\.js$/.test(asset) ? asset + SCRIPT_QUERY : asset))))
+            .then(() => self.skipWaiting())
     );
 });
 

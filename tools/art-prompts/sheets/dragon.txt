@@ -1,0 +1,9 @@
+Using the attached image as the exact reference (the same character design, colours, proportions, pixel style and facing), create a SPRITE SHEET for an early-1990s VGA fantasy adventure game.
+
+Layout: exactly 4 frames arranged in a 2 by 2 grid (frames 1 and 2 on the top row, 3 and 4 on the bottom row), each frame an equal quarter of the image. The character is at the SAME position and the SAME scale in every frame, centred in its frame with generous margins, resting on the same invisible ground line. Frame 1 is the neutral pose from the reference.
+
+Only this changes between frames: sleeping and breathing: the body swells in frames 2 and 3, a thin wisp of smoke curls from the nostrils in frame 3, and the tail tip curls in frame 4. Keep every change small and readable, like classic Sierra idle animation.
+
+Deliberate pixel clusters, near-black contour, three shading tones per material. No frame borders, dividing lines, numbers, text, watermark, shadow or scenery.
+
+Background MUST be perfectly flat solid RGB 255,0,255 (#FF00FF) everywhere, including between frames and in every gap. Do not use pink or magenta anywhere on the character. The background will be removed by software.

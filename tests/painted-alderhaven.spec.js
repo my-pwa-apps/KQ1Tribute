@@ -198,3 +198,26 @@ test('the painted bridge still drops the unwary into the gorge and lets the rout
     });
     expect(result).toEqual({ blockedBeforeRouting: true, died: true, farBank: true, room: 'troll_bridge' });
 });
+
+test('painted wood arrivals stand on the path and every exit is reachable from them', async ({ page }) => {
+    await enterPainted(page, 'dark_wood', 60, 354);
+    await page.waitForFunction(() => window.engine.minimumWalkY === 206);
+    const result = await page.evaluate(() => {
+        const game = window.engine;
+        const run = (name) => {
+            game.textWindow = null;
+            game._textQueue = [];
+            game.currentAction = 'walk';
+            const hotspot = game.rooms.dark_wood.hotspots.find((h) => h.name === name);
+            game.handleClick(hotspot.x + hotspot.w / 2, hotspot.y + hotspot.h / 2);
+            for (let frame = 0; frame < 900 && game.currentRoomId === 'dark_wood'; frame++) game.update(16);
+            return game.currentRoomId;
+        };
+        const standing = game.walkableArea(game.playerX, game.playerY);
+        const east = run('the track east');
+        game.goToRoom('dark_wood', 580, 354);
+        const cave = run('the cave mouth');
+        return { standing, east, cave };
+    });
+    expect(result).toEqual({ standing: true, east: 'troll_bridge', cave: 'dragon_cave' });
+});

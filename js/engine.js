@@ -704,6 +704,7 @@ class GameEngine {
                 const minY = this.minimumWalkY;
                 const newPY = Math.max(minY, Math.min(370, this.playerY + my));
                 // AGI-inspired: check barriers before committing move
+                const beforeX = this.playerX, beforeY = this.playerY;
                 if (!this.collidesBarrier(newPX, newPY)) {
                     this.playerX = newPX;
                     this.playerY = newPY;
@@ -713,8 +714,12 @@ class GameEngine {
                 } else if (!this.collidesBarrier(this.playerX, newPY)) {
                     // Slide along Y only
                     this.playerY = newPY;
-                } else {
-                    // Completely blocked — stop walking (AGI sets BLOCKED flag)
+                }
+                // Completely blocked, or a "slide" along an axis the walk is not
+                // moving on: stop walking (AGI sets BLOCKED flag). Without the
+                // progress test a walk along a wall spins forever and any
+                // scripted sequence waiting on it never ends.
+                if (Math.abs(this.playerX - beforeX) < 0.01 && Math.abs(this.playerY - beforeY) < 0.01) {
                     this.playerWalking = false;
                     this.playerTargetX = null;
                     this.playerTargetY = null;

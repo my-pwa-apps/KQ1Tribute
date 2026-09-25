@@ -60,7 +60,7 @@ CrownQuest.defineRooms((engine) => {
             eng.lightPool(ctx, PAINTED_SHIELD.x, PAINTED_SHIELD.y, 90, '255,240,190', 0.16);
         }
         eng.drawContactShadow(ctx, PAINTED_GIANT.x, PAINTED_GIANT.y, 1, { rx: 96, ry: 8, alpha: 0.22 });
-        if (!drawPaintedActor(ctx, 'giant', PAINTED_GIANT.x, PAINTED_GIANT.y, { width: 220 })) drawSleepingGiant(ctx, PAINTED_GIANT.x, PAINTED_GIANT.y, 0.88, eng.animTimer);
+        if (!drawPaintedActor(ctx, 'giant', PAINTED_GIANT.x, PAINTED_GIANT.y, { width: 220, t: eng.animTimer })) drawSleepingGiant(ctx, PAINTED_GIANT.x, PAINTED_GIANT.y, 0.88, eng.animTimer);
         drawRingHaze(ctx, w, h, eng);
     }
     // ================= ROOM 10: THE CLOUD REALM =================
@@ -241,7 +241,7 @@ CrownQuest.defineRooms((engine) => {
 
             // Giant asleep on the hall floor, tucked behind the near column
             eng.drawContactShadow(ctx, 400, 266, 1, { rx: 96, ry: 8, alpha: 0.22 });
-            if (!drawPaintedActor(ctx, 'giant', 400, 266, { width: 220 })) drawSleepingGiant(ctx, 400, 266, 0.88, eng.animTimer);
+            if (!drawPaintedActor(ctx, 'giant', 400, 266, { width: 220, t: eng.animTimer })) drawSleepingGiant(ctx, 400, 266, 0.88, eng.animTimer);
 
             // ---- The ring's effect, if worn ----
             drawRingHaze(ctx, w, h, eng);

@@ -165,6 +165,9 @@ CrownQuest.defineRooms((engine) => {
             }
             ctx.save();
             if (paintedScullery) ctx.translate(-12, -31);
+            if (paintedScullery) {
+                logFire(ctx, 322, 251, 70, eng.animTimer);
+            } else {
             const glow = 0.5 + Math.sin(eng.animTimer / 620) * 0.2;
             ctx.fillStyle = `rgba(226,110,40,${glow * 0.5})`;
             ctx.beginPath();
@@ -183,6 +186,7 @@ CrownQuest.defineRooms((engine) => {
             flame(ctx, 316, 244, 1.05, eng.animTimer);
             flame(ctx, 332, 245, 0.82, eng.animTimer + 700);
             flame(ctx, 345, 246, 0.55, eng.animTimer + 2100);
+            }
             ctx.strokeStyle = '#2a251e';
             ctx.lineWidth = 2;
             ctx.beginPath();

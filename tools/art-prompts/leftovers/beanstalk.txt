@@ -1,0 +1,10 @@
+Create ONE isolated scene prop for an early-1990s VGA fantasy adventure. No other objects.
+
+A giant magic beanstalk: one massive twisting green stalk, as thick as a cottage, rising straight up. Two or three thinner vines spiral around the main stalk. Large broad bean leaves stick out alternately left and right all the way up, with a few curling tendrils. At the bottom a flare of roots grips a little turf. Rich greens with a yellow-green lit side and a deep blue-green shadow side.
+
+TALL PORTRAIT canvas (2:3). The stalk runs the whole height: roots near the bottom edge, and the top of the stalk exits the TOP edge of the canvas, cut off cleanly. Keep clear margins left and right.
+Deliberate pixel clusters, near-black contour, three broad shading tones per material, restrained upper-left highlights. Same painterly early-1990s VGA pixel-art style as a Sierra adventure. No photograph, vector icon, glossy 3D render, cartoon face, excessive fine grain or text.
+
+Show exactly ONE view. No frame, text, lettering, watermark, person, room, floor or scenery.
+
+Background MUST be perfectly flat solid RGB 255,0,255 (#FF00FF), including every enclosed gap. No gradient, checkerboard, texture, reflection, cast shadow or glow. Do not use pink, purple or magenta anywhere on the object. The flat background will be removed by software; do not simulate transparency.

@@ -1,0 +1,10 @@
+Using the attached image as the exact reference (the same hare: design, colours, proportions, pixel style), create ONE isolated character sprite for an early-1990s VGA fantasy adventure. No other objects.
+
+The hare is now FREE: no snare, no cord, no string or loop anywhere. It sits up on its haunches, alert, ears raised, facing right, one forepaw lifted, looking grateful.
+
+Landscape 16:10 canvas. Center the hare with generous clear margins; it occupies about four fifths of the image height.
+Deliberate pixel clusters, near-black contour, three broad shading tones per material, restrained upper-left highlights. Same painterly early-1990s VGA pixel-art style as a Sierra adventure. No photograph, vector icon, glossy 3D render, cartoon face, excessive fine grain or text.
+
+Show exactly ONE view. No frame, text, lettering, watermark, person, room, floor or scenery.
+
+Background MUST be perfectly flat solid RGB 255,0,255 (#FF00FF), including every enclosed gap. No gradient, checkerboard, texture, reflection, cast shadow or glow. Do not use pink, purple or magenta anywhere on the object. The flat background will be removed by software; do not simulate transparency.
